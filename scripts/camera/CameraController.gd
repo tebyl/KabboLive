@@ -1,25 +1,28 @@
 extends RefCounted
-class_name CameraController
 
-const CAMERA_MOVE_SPEED: float = 420.0
-const CAMERA_ZOOM_STEP: float = 0.1
-const CAMERA_MIN_ZOOM: float = 0.6
-const CAMERA_MAX_ZOOM: float = 1.8
-const CAMERA_BOUNDS_MARGIN: float = 240.0
+
+const CAMERA_MOVE_SPEED = 420.0
+const CAMERA_ZOOM_STEP = 0.1
+const CAMERA_MIN_ZOOM = 0.6
+const CAMERA_MAX_ZOOM = 1.8
+const CAMERA_BOUNDS_MARGIN = 240.0
 
 var root: Node2D
-var iso_grid: IsoGrid
+var iso_grid
 var room_camera: Camera2D
 var camera_bounds: Rect2
 
+const IsoGridScript = preload("res://scripts/room/IsoGrid.gd")
+const IsoGrid = IsoGridScript
 
-func _init(p_root: Node2D, p_iso_grid: IsoGrid) -> void:
+
+func _init(p_root: Node2D, p_iso_grid) :
 	root = p_root
 	iso_grid = p_iso_grid
 	setup_camera()
 
 
-func setup_camera() -> void:
+func setup_camera() :
 	var existing_camera: Node = root.get_node_or_null("Camera2D")
 
 	if existing_camera is Camera2D:
@@ -37,11 +40,11 @@ func setup_camera() -> void:
 	clamp_camera_position()
 
 
-func process(delta: float) -> void:
+func process(delta) :
 	if room_camera == null:
 		return
 
-	var direction: Vector2 = Vector2.ZERO
+	var direction = Vector2.ZERO
 
 	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
 		direction.x -= 1.0
@@ -62,7 +65,7 @@ func process(delta: float) -> void:
 	clamp_camera_position()
 
 
-func handle_mouse_button(event: InputEventMouseButton) -> bool:
+func handle_mouse_button(event: InputEventMouseButton) :
 	if event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
 		change_zoom(CAMERA_ZOOM_STEP)
 		return true
@@ -74,16 +77,16 @@ func handle_mouse_button(event: InputEventMouseButton) -> bool:
 	return false
 
 
-func screen_to_world(screen_position: Vector2) -> Vector2:
+func screen_to_world(screen_position) -> Vector2:
 	var canvas_transform: Transform2D = root.get_viewport().get_canvas_transform()
 	return canvas_transform.affine_inverse() * screen_position
 
 
-func change_zoom(delta_zoom: float) -> void:
+func change_zoom(delta_zoom) :
 	if room_camera == null:
 		return
 
-	var next_zoom: float = clampf(
+	var next_zoom = clampf(
 		room_camera.zoom.x + delta_zoom,
 		CAMERA_MIN_ZOOM,
 		CAMERA_MAX_ZOOM
@@ -92,7 +95,7 @@ func change_zoom(delta_zoom: float) -> void:
 	clamp_camera_position()
 
 
-func center_on_room() -> void:
+func center_on_room() :
 	if room_camera == null:
 		return
 
@@ -101,11 +104,11 @@ func center_on_room() -> void:
 	clamp_camera_position()
 
 
-func refresh_bounds() -> void:
+func refresh_bounds() :
 	camera_bounds = iso_grid.get_room_bounds(CAMERA_BOUNDS_MARGIN)
 
 
-func clamp_camera_position() -> void:
+func clamp_camera_position() :
 	if room_camera == null:
 		return
 

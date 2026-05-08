@@ -1,20 +1,24 @@
 extends RefCounted
-class_name RoomManager
 
-var rooms_by_id: Dictionary[String, RoomData] = {}
+const RoomDataScript = preload("res://scripts/room/RoomData.gd")
+const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
+const RoomData = RoomDataScript
+const FurnitureData = FurnitureDataScript
+
+var rooms_by_id: Dictionary = {} # String (RefCounted)
 var room_order: Array[String] = []
-var current_room_id: String = ""
+var current_room_id = ""
 
 
-func _init() -> void:
+func _init() :
 	register_initial_rooms()
 
 
-func get_current_room() -> RoomData:
+func get_current_room():
 	return get_room_by_id(current_room_id)
 
 
-func switch_room(room_id: String) -> bool:
+func switch_room(room_id) :
 	if not rooms_by_id.has(room_id):
 		return false
 
@@ -22,8 +26,8 @@ func switch_room(room_id: String) -> bool:
 	return true
 
 
-func get_current_room_name() -> String:
-	var room: RoomData = get_current_room()
+func get_current_room_name() :
+	var room = get_current_room()
 
 	if room == null:
 		return ""
@@ -32,7 +36,7 @@ func get_current_room_name() -> String:
 
 
 func get_current_room_size() -> Vector2i:
-	var room: RoomData = get_current_room()
+	var room = get_current_room()
 
 	if room == null:
 		return Vector2i.ZERO
@@ -41,7 +45,7 @@ func get_current_room_size() -> Vector2i:
 
 
 func get_current_player_start_cell() -> Vector2i:
-	var room: RoomData = get_current_room()
+	var room = get_current_room()
 
 	if room == null:
 		return Vector2i.ZERO
@@ -49,8 +53,8 @@ func get_current_player_start_cell() -> Vector2i:
 	return room.player_start_cell
 
 
-func get_current_furniture_items() -> Array[FurnitureData]:
-	var room: RoomData = get_current_room()
+func get_current_furniture_items():
+	var room = get_current_room()
 
 	if room == null:
 		return []
@@ -58,65 +62,74 @@ func get_current_furniture_items() -> Array[FurnitureData]:
 	return room.get_furniture_items_copy()
 
 
-func set_current_furniture_items(items: Array[FurnitureData]) -> void:
+func set_current_furniture_items(items) :
 	set_room_furniture_items(current_room_id, items)
 
 
-func get_all_rooms() -> Array[RoomData]:
-	var rooms: Array[RoomData] = []
+func get_all_rooms():
+	var rooms = []
 
-	for room_id: String in room_order:
-		var room: RoomData = get_room_by_id(room_id)
+	for room_id in room_order:
+		var room = get_room_by_id(room_id)
 
 		if room != null:
-			rooms.append(room.duplicate_data())
+			if room is RefCounted and room.has_method("get_script"):
+				rooms.append(room.get_script().new(room.id, room.display_name, room.width, room.height, room.player_start_cell, room.furniture_items))
+			else:
+				rooms.append(room)
 
 	return rooms
 
 
-func set_room_furniture_items(room_id: String, items: Array[FurnitureData]) -> void:
-	var room: RoomData = get_room_by_id(room_id)
+func set_room_furniture_items(room_id, items) :
+	var room = get_room_by_id(room_id)
 
 	if room == null:
 		return
 
 	room.furniture_items.clear()
 
-	for furniture: FurnitureData in items:
-		room.furniture_items.append(furniture.duplicate_data())
+	for furniture in items:
+		if furniture is RefCounted and furniture.has_method("get_script"):
+			room.furniture_items.append(furniture.get_script().new(furniture.cell, furniture.type, furniture.size))
+		else:
+			room.furniture_items.append(furniture)
 
 
-func apply_saved_rooms(saved_rooms: Array[RoomData]) -> void:
-	for saved_room: RoomData in saved_rooms:
-		var target_room: RoomData = get_room_by_id(saved_room.id)
+func apply_saved_rooms(saved_rooms) :
+	for saved_room in saved_rooms:
+		var target_room = get_room_by_id(saved_room.id)
 
 		if target_room == null:
 			continue
 
 		target_room.furniture_items.clear()
 
-		for furniture: FurnitureData in saved_room.furniture_items:
-			target_room.furniture_items.append(furniture.duplicate_data())
+		for furniture in saved_room.furniture_items:
+			if furniture is RefCounted and furniture.has_method("get_script"):
+				target_room.furniture_items.append(furniture.get_script().new(furniture.cell, furniture.type, furniture.size))
+			else:
+				target_room.furniture_items.append(furniture)
 
 
-func register_initial_rooms() -> void:
+func register_initial_rooms() :
 	register_room(
-		RoomData.new(
+		RoomDataScript.new(
 			"lobby",
 			"Lobby",
 			10,
 			10,
 			Vector2i(1, 1),
 			[
-				FurnitureData.new(Vector2i(3, 3), &"chair", Vector2i(1, 1)),
-				FurnitureData.new(Vector2i(3, 4), &"table", Vector2i(2, 1)),
-				FurnitureData.new(Vector2i(6, 2), &"sofa", Vector2i(1, 2)),
-				FurnitureData.new(Vector2i(7, 3), &"plant", Vector2i(1, 1))
+				FurnitureDataScript.new(Vector2i(3, 3), &"chair", Vector2i(1, 1)),
+				FurnitureDataScript.new(Vector2i(3, 4), &"table", Vector2i(2, 1)),
+				FurnitureDataScript.new(Vector2i(6, 2), &"sofa", Vector2i(1, 2)),
+				FurnitureDataScript.new(Vector2i(7, 3), &"plant", Vector2i(1, 1))
 			]
 		)
 	)
 	register_room(
-		RoomData.new(
+		RoomDataScript.new(
 			"room_small",
 			"Sala pequeña",
 			8,
@@ -125,7 +138,7 @@ func register_initial_rooms() -> void:
 		)
 	)
 	register_room(
-		RoomData.new(
+		RoomDataScript.new(
 			"room_large",
 			"Sala grande",
 			14,
@@ -136,12 +149,12 @@ func register_initial_rooms() -> void:
 	current_room_id = "lobby"
 
 
-func register_room(room: RoomData) -> void:
+func register_room(room) :
 	rooms_by_id[room.id] = room
 	room_order.append(room.id)
 
 
-func get_room_by_id(room_id: String) -> RoomData:
+func get_room_by_id(room_id):
 	if not rooms_by_id.has(room_id):
 		return null
 

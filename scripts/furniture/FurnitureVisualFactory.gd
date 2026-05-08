@@ -1,29 +1,32 @@
 extends RefCounted
-class_name FurnitureVisualFactory
+
 
 var blocks_node: Node2D
-var iso_grid: IsoGrid
+var iso_grid
+
+const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
+const FurnitureData = FurnitureDataScript
 
 
-func _init(p_blocks_node: Node2D, p_iso_grid: IsoGrid) -> void:
+func _init(p_blocks_node: Node2D, p_iso_grid) :
 	blocks_node = p_blocks_node
 	iso_grid = p_iso_grid
 
 
-func redraw(items: Array[FurnitureData], selected_index: int) -> void:
+func redraw(items, selected_index) :
 	clear_blocks()
 
-	for furniture: FurnitureData in items:
+	for furniture in items:
 		draw_furniture(furniture)
 
 	draw_selected_furniture_marker(items, selected_index)
 
 
-func draw_furniture(furniture: FurnitureData) -> void:
-	var height: float = get_furniture_height(furniture.type)
+func draw_furniture(furniture) :
+	var height = get_furniture_height(furniture.type)
 	var base_color: Color = get_furniture_color(furniture.type)
 
-	for cell: Vector2i in furniture.get_occupied_cells():
+	for cell in furniture.get_occupied_cells():
 		if not iso_grid.is_valid_cell(cell):
 			continue
 
@@ -40,15 +43,15 @@ func draw_furniture(furniture: FurnitureData) -> void:
 			draw_plant_details(furniture)
 
 
-func clear_blocks() -> void:
+func clear_blocks() :
 	for child: Node in blocks_node.get_children():
 		blocks_node.remove_child(child)
 		child.queue_free()
 
 
-func draw_furniture_block_cell(cell: Vector2i, height: float, base_color: Color) -> void:
-	var cell_position: Vector2 = iso_grid.grid_to_iso(cell)
-	var draw_z: int = iso_grid.get_draw_z_index(cell)
+func draw_furniture_block_cell(cell, height, base_color: Color) :
+	var cell_position = iso_grid.grid_to_iso(cell)
+	var draw_z = iso_grid.get_draw_z_index(cell)
 
 	var shadow: Polygon2D = Polygon2D.new()
 	shadow.polygon = iso_grid.get_iso_diamond_polygon()
@@ -89,25 +92,25 @@ func draw_furniture_block_cell(cell: Vector2i, height: float, base_color: Color)
 	blocks_node.add_child(right_face)
 
 
-func draw_chair_details(furniture: FurnitureData) -> void:
-	var cell: Vector2i = furniture.cell
-	var height: float = get_furniture_height(furniture.type)
-	var center: Vector2 = iso_grid.grid_to_iso(cell)
-	var draw_z: int = iso_grid.get_draw_z_index(cell)
+func draw_chair_details(furniture) :
+	var cell = furniture.cell
+	var height = get_furniture_height(furniture.type)
+	var center = iso_grid.grid_to_iso(cell)
+	var draw_z = iso_grid.get_draw_z_index(cell)
 
 	add_rect_polygon(center + Vector2(0, -height - 20.0), Vector2(34, 22), Color(0.39, 0.19, 0.11), draw_z + 4)
 	add_rect_polygon(center + Vector2(0, -height - 6.0), Vector2(24, 8), Color(0.80, 0.46, 0.25), draw_z + 5)
 
 
-func draw_table_details(furniture: FurnitureData) -> void:
-	var height: float = get_furniture_height(furniture.type)
+func draw_table_details(furniture) :
+	var height = get_furniture_height(furniture.type)
 
-	for cell: Vector2i in furniture.get_occupied_cells():
+	for cell in furniture.get_occupied_cells():
 		if not iso_grid.is_valid_cell(cell):
 			continue
 
-		var center: Vector2 = iso_grid.grid_to_iso(cell)
-		var draw_z: int = iso_grid.get_draw_z_index(cell)
+		var center = iso_grid.grid_to_iso(cell)
+		var draw_z = iso_grid.get_draw_z_index(cell)
 		var runner: Polygon2D = Polygon2D.new()
 		runner.polygon = PackedVector2Array([
 			Vector2(0, -8),
@@ -124,34 +127,34 @@ func draw_table_details(furniture: FurnitureData) -> void:
 		add_rect_polygon(center + Vector2(16, 4), Vector2(6, 18), Color(0.42, 0.22, 0.12), draw_z + 3)
 
 
-func draw_sofa_details(furniture: FurnitureData) -> void:
-	var height: float = get_furniture_height(furniture.type)
+func draw_sofa_details(furniture) :
+	var height = get_furniture_height(furniture.type)
 
-	for cell: Vector2i in furniture.get_occupied_cells():
+	for cell in furniture.get_occupied_cells():
 		if not iso_grid.is_valid_cell(cell):
 			continue
 
-		var center: Vector2 = iso_grid.grid_to_iso(cell)
-		var draw_z: int = iso_grid.get_draw_z_index(cell)
+		var center = iso_grid.grid_to_iso(cell)
+		var draw_z = iso_grid.get_draw_z_index(cell)
 		add_rect_polygon(center + Vector2(0, -height - 16.0), Vector2(50, 18), Color(0.18, 0.30, 0.58), draw_z + 4)
 		add_rect_polygon(center + Vector2(0, -height - 1.0), Vector2(44, 10), Color(0.36, 0.56, 0.90), draw_z + 5)
 
 
-func draw_plant_details(furniture: FurnitureData) -> void:
-	var center: Vector2 = iso_grid.grid_to_iso(furniture.cell)
-	var draw_z: int = iso_grid.get_draw_z_index(furniture.cell)
+func draw_plant_details(furniture) :
+	var center = iso_grid.grid_to_iso(furniture.cell)
+	var draw_z = iso_grid.get_draw_z_index(furniture.cell)
 	add_rect_polygon(center + Vector2(0, -24), Vector2(18, 18), Color(0.28, 0.16, 0.08), draw_z + 4)
 	add_rect_polygon(center + Vector2(-8, -40), Vector2(18, 24), Color(0.12, 0.50, 0.20), draw_z + 5)
 	add_rect_polygon(center + Vector2(9, -43), Vector2(18, 22), Color(0.18, 0.68, 0.28), draw_z + 5)
 
 
-func draw_selected_furniture_marker(items: Array[FurnitureData], selected_index: int) -> void:
+func draw_selected_furniture_marker(items, selected_index) :
 	if selected_index < 0 or selected_index >= items.size():
 		return
 
-	var furniture: FurnitureData = items[selected_index]
+	var furniture = items[selected_index]
 
-	for cell: Vector2i in furniture.get_occupied_cells():
+	for cell in furniture.get_occupied_cells():
 		if not iso_grid.is_valid_cell(cell):
 			continue
 
@@ -163,7 +166,7 @@ func draw_selected_furniture_marker(items: Array[FurnitureData], selected_index:
 		blocks_node.add_child(marker)
 
 
-func get_furniture_color(furniture_type: StringName) -> Color:
+func get_furniture_color(furniture_type) -> Color:
 	match furniture_type:
 		&"chair":
 			return Color(0.62, 0.32, 0.18)
@@ -177,7 +180,7 @@ func get_furniture_color(furniture_type: StringName) -> Color:
 			return Color(0.65, 0.65, 0.65)
 
 
-func get_furniture_height(furniture_type: StringName) -> float:
+func get_furniture_height(furniture_type) -> float:
 	match furniture_type:
 		&"chair":
 			return 17.0
@@ -191,8 +194,8 @@ func get_furniture_height(furniture_type: StringName) -> float:
 			return 16.0
 
 
-func add_rect_polygon(center: Vector2, size: Vector2, color: Color, z_index: int) -> void:
-	var half_size: Vector2 = size / 2.0
+func add_rect_polygon(center, size, color: Color, z_index) :
+	var half_size = size / 2.0
 	var rect: Polygon2D = Polygon2D.new()
 	rect.polygon = PackedVector2Array([
 		Vector2(-half_size.x, -half_size.y),

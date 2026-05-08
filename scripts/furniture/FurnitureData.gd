@@ -1,26 +1,29 @@
 extends RefCounted
-class_name FurnitureData
-
-var cell: Vector2i
-var type: StringName
-var size: Vector2i
 
 
-func _init(p_cell: Vector2i, p_type: StringName, p_size: Vector2i) -> void:
+var cell
+var type
+var size
+
+const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
+const FurnitureData = FurnitureDataScript
+
+
+func _init(p_cell, p_typeName, p_size) :
 	cell = p_cell
-	type = p_type
+	type = p_typeName
 	size = p_size
 
 
-func duplicate_data() -> FurnitureData:
-	return FurnitureData.new(cell, type, size)
+func duplicate_data():
+	return get_script().new(cell, type, size)
 
 
 func get_occupied_cells() -> Array[Vector2i]:
 	var cells: Array[Vector2i] = []
 
-	for x: int in range(size.x):
-		for y: int in range(size.y):
+	for x in range(size.x):
+		for y in range(size.y):
 			cells.append(cell + Vector2i(x, y))
 
 	return cells

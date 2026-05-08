@@ -1,9 +1,9 @@
 [gd_scene format=3 uid="uid://mqwyn4tg38i1"]
 
-[ext_resource type="Script" uid="uid://capc6jorkdiw1" path="res://scripts/main.gd" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://d2qi86yajans7" path="res://scripts/main/Main.gd" id="1_o5qli"]
 
 [node name="Main" type="Node2D" unique_id=73062445]
-script = ExtResource("1_ig7tw")
+script = ExtResource("1_o5qli")
 
 [node name="Floor" type="Node2D" parent="." unique_id=1496886502]
 

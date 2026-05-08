@@ -3,6 +3,7 @@ extends RefCounted
 
 const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
 const FurnitureData = FurnitureDataScript
+const VT = preload("res://scripts/visual/VisualTheme.gd")
 
 
 var floor_node: Node2D
@@ -111,14 +112,15 @@ func redraw_tiles(blocked_cells: Array[Vector2i]) :
 			tile.z_index = get_draw_z_index(cell) - 8
 
 			if blocked_cells.has(cell):
-				tile.color = Color(0.60, 0.68, 0.60)
+				tile.color = VT.FLOOR_BLOCKED
 			elif (x + y) % 2 == 0:
-				tile.color = Color(0.86, 0.80, 0.66)
+				tile.color = VT.FLOOR_A
 			else:
-				tile.color = Color(0.79, 0.73, 0.58)
+				tile.color = VT.FLOOR_B
 
 			floor_node.add_child(tile)
 			_draw_tile_inner(cell)
+			_draw_tile_edge_shadow(cell)
 			draw_tile_outline(cell)
 
 
@@ -130,6 +132,39 @@ func clear_floor() :
 	for child: Node in floor_node.get_children():
 		floor_node.remove_child(child)
 		child.queue_free()
+
+
+func _draw_tile_edge_shadow(cell) -> void:
+	var cp: Vector2 = grid_to_iso(cell)
+	var tw: float = float(tile_width)
+	var th: float = float(tile_height)
+	var z: int = get_draw_z_index(cell) - 7
+
+	# Right face shadow strip (bottom-right edge of tile)
+	var right_shadow: Polygon2D = Polygon2D.new()
+	right_shadow.polygon = PackedVector2Array([
+		Vector2(tw * 0.5, 0.0),
+		Vector2(0.0, th * 0.5),
+		Vector2(0.0, th * 0.5 + 3.0),
+		Vector2(tw * 0.5, 3.0)
+	])
+	right_shadow.position = cp
+	right_shadow.color = VT.FLOOR_SHADOW
+	right_shadow.z_index = z
+	floor_node.add_child(right_shadow)
+
+	# Left face shadow strip (bottom-left edge of tile)
+	var left_shadow: Polygon2D = Polygon2D.new()
+	left_shadow.polygon = PackedVector2Array([
+		Vector2(-tw * 0.5, 0.0),
+		Vector2(0.0, th * 0.5),
+		Vector2(0.0, th * 0.5 + 3.0),
+		Vector2(-tw * 0.5, 3.0)
+	])
+	left_shadow.position = cp
+	left_shadow.color = Color(VT.FLOOR_SHADOW.r, VT.FLOOR_SHADOW.g, VT.FLOOR_SHADOW.b, VT.FLOOR_SHADOW.a * 0.65)
+	left_shadow.z_index = z
+	floor_node.add_child(left_shadow)
 
 
 func _draw_tile_inner(cell) -> void:
@@ -153,6 +188,6 @@ func draw_tile_outline(cell) :
 	outline.points = outline_points
 	outline.position = grid_to_iso(cell)
 	outline.width = 1.4
-	outline.default_color = Color(0.46, 0.38, 0.28, 0.42)
+	outline.default_color = VT.FLOOR_OUTLINE
 	outline.z_index = get_draw_z_index(cell) - 7
 	floor_node.add_child(outline)

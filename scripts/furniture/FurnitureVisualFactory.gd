@@ -6,6 +6,7 @@ var iso_grid
 
 const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
 const FurnitureData = FurnitureDataScript
+const VT = preload("res://scripts/visual/VisualTheme.gd")
 
 
 func _init(p_blocks_node: Node2D, p_iso_grid) :
@@ -64,7 +65,7 @@ func draw_furniture_block_cell(cell, height: float, base_color: Color, lz: int =
 	var shadow: Polygon2D = Polygon2D.new()
 	shadow.polygon = iso_grid.get_iso_diamond_polygon()
 	shadow.position = cp + Vector2(2, 5)
-	shadow.color = Color(0.04, 0.05, 0.04, 0.30)
+	shadow.color = VT.SHADOW_SOFT
 	shadow.z_index = dz - 1
 	blocks_node.add_child(shadow)
 
@@ -101,10 +102,20 @@ func draw_chair_details(furniture, lz: int = 0) -> void:
 	var h: float = get_furniture_height(furniture.type)
 	var c: Vector2 = iso_grid.grid_to_iso(cell)
 	var z: int = iso_grid.get_draw_z_index(cell) + lz
-	_add_small_diamond(c, -h - 1.0, 0.60, Color(0.90, 0.62, 0.36), z + 3)
-	_add_small_diamond(c, -h - 3.0, 0.36, Color(0.96, 0.76, 0.52), z + 4)
-	add_rect_polygon(c + Vector2(0, -h - 20.0), Vector2(24, 22), Color(0.38, 0.17, 0.07), z + 2)
-	add_rect_polygon(c + Vector2(0, -h - 33.0), Vector2(26, 7), Color(0.52, 0.26, 0.12), z + 2)
+
+	# Seat cushion
+	_add_small_diamond(c, -h - 1.0, 0.62, VT.CHAIR_CUSHION, z + 3)
+	_add_small_diamond(c, -h - 3.0, 0.36, VT.CHAIR_CUSHION_HI, z + 4)
+	# Seat front edge (wood rim under cushion)
+	add_rect_polygon(c + Vector2(0, -h + 1.0), Vector2(28, 5), VT.CHAIR_DARK, z + 2)
+	# Backrest panel
+	add_rect_polygon(c + Vector2(0, -h - 22.0), Vector2(22, 20), VT.CHAIR_BODY, z + 2)
+	# Backrest top rail
+	add_rect_polygon(c + Vector2(0, -h - 33.0), Vector2(24, 6), VT.WOOD_MID, z + 2)
+	# Backrest horizontal slat (mid)
+	add_rect_polygon(c + Vector2(0, -h - 24.0), Vector2(18, 3), VT.CHAIR_SLAT, z + 3)
+	# Backrest horizontal slat (lower)
+	add_rect_polygon(c + Vector2(0, -h - 18.0), Vector2(18, 3), VT.CHAIR_SLAT, z + 3)
 
 
 func draw_table_details(furniture, lz: int = 0) -> void:
@@ -115,10 +126,16 @@ func draw_table_details(furniture, lz: int = 0) -> void:
 			continue
 		var c: Vector2 = iso_grid.grid_to_iso(cell)
 		var z: int = iso_grid.get_draw_z_index(cell) + lz
-		_add_small_diamond(c, -h - 1.0, 0.86, Color(0.92, 0.84, 0.68), z + 3)
-		_add_small_diamond(c, -h - 3.0, 0.44, Color(0.78, 0.54, 0.28), z + 4)
-		add_rect_polygon(c + Vector2(-18, -h * 0.5 + 4.0), Vector2(5, h), Color(0.42, 0.22, 0.10), z + 1)
-		add_rect_polygon(c + Vector2(18, -h * 0.5 + 4.0), Vector2(5, h), Color(0.50, 0.28, 0.13), z + 1)
+
+		# Tablecloth surface
+		_add_small_diamond(c, -h - 1.0, 0.90, VT.TABLE_TOP, z + 3)
+		# Tablecloth center runner
+		_add_small_diamond(c, -h - 2.5, 0.42, VT.TABLE_RUNNER, z + 4)
+		# Table apron (front skirt under surface)
+		add_rect_polygon(c + Vector2(0, -h * 0.5 + 2.0), Vector2(30, 5), VT.TABLE_APRON, z + 2)
+		# Legs
+		add_rect_polygon(c + Vector2(-16, -h * 0.5 + 5.0), Vector2(4, h - 2), VT.TABLE_DARK, z + 1)
+		add_rect_polygon(c + Vector2(16, -h * 0.5 + 5.0), Vector2(4, h - 2), VT.WOOD_MID, z + 1)
 
 
 func draw_sofa_details(furniture, lz: int = 0) -> void:
@@ -131,24 +148,55 @@ func draw_sofa_details(furniture, lz: int = 0) -> void:
 			continue
 		var c: Vector2 = iso_grid.grid_to_iso(cell)
 		var z: int = iso_grid.get_draw_z_index(cell) + lz
-		_add_small_diamond(c, -h - 1.0, 0.72, Color(0.30, 0.58, 0.46), z + 3)
-		_add_small_diamond(c, -h - 4.0, 0.30, Color(0.42, 0.74, 0.60), z + 4)
-		add_rect_polygon(c + Vector2(0, -h - 18.0), Vector2(44, 20), Color(0.18, 0.38, 0.28), z + 2)
-		add_rect_polygon(c + Vector2(0, -h - 29.0), Vector2(46, 6), Color(0.26, 0.50, 0.38), z + 2)
+
+		# Seat cushion base
+		_add_small_diamond(c, -h - 1.0, 0.74, VT.SOFA_CUSHION, z + 3)
+		# Cushion puff highlight
+		_add_small_diamond(c, -h - 5.0, 0.40, VT.SOFA_LIGHT, z + 4)
+		# Cushion seam crease
+		add_rect_polygon(c + Vector2(0, -h - 2.0), Vector2(26, 2), Color(VT.SOFA_SEAM.r, VT.SOFA_SEAM.g, VT.SOFA_SEAM.b, 0.70), z + 5)
+		# Backrest body
+		add_rect_polygon(c + Vector2(0, -h - 19.0), Vector2(42, 18), VT.SOFA_DARK, z + 2)
+		# Backrest top lip
+		add_rect_polygon(c + Vector2(0, -h - 29.0), Vector2(44, 7), VT.SOFA_BODY, z + 2)
+		# Backrest highlight stripe
+		add_rect_polygon(c + Vector2(0, -h - 24.0), Vector2(36, 3), Color(VT.SOFA_LIGHT.r, VT.SOFA_LIGHT.g, VT.SOFA_LIGHT.b, 0.70), z + 3)
+		# Armrests
 		if i == 0:
-			add_rect_polygon(c + Vector2(-22, -h - 10.0), Vector2(8, 22), Color(0.20, 0.42, 0.32), z + 4)
+			add_rect_polygon(c + Vector2(-22, -h - 12.0), Vector2(8, 24), VT.SOFA_ARM, z + 4)
+			add_rect_polygon(c + Vector2(-22, -h - 24.0), Vector2(10, 6), VT.SOFA_ARM_TOP, z + 5)
 		if i == total - 1:
-			add_rect_polygon(c + Vector2(22, -h - 10.0), Vector2(8, 22), Color(0.20, 0.42, 0.32), z + 4)
+			add_rect_polygon(c + Vector2(22, -h - 12.0), Vector2(8, 24), VT.SOFA_ARM, z + 4)
+			add_rect_polygon(c + Vector2(22, -h - 24.0), Vector2(10, 6), VT.SOFA_ARM_TOP, z + 5)
 
 
 func draw_plant_details(furniture, lz: int = 0) -> void:
 	var c: Vector2 = iso_grid.grid_to_iso(furniture.cell)
 	var z: int = iso_grid.get_draw_z_index(furniture.cell) + lz
-	add_rect_polygon(c + Vector2(0, -20), Vector2(20, 16), Color(0.60, 0.30, 0.14), z + 4)
-	add_rect_polygon(c + Vector2(0, -14), Vector2(24, 6), Color(0.70, 0.36, 0.18), z + 5)
-	add_rect_polygon(c + Vector2(-9, -38), Vector2(18, 22), Color(0.14, 0.52, 0.22), z + 5)
-	add_rect_polygon(c + Vector2(9, -40), Vector2(18, 20), Color(0.20, 0.68, 0.30), z + 5)
-	add_rect_polygon(c + Vector2(0, -46), Vector2(12, 14), Color(0.26, 0.76, 0.36), z + 6)
+
+	# Pot body
+	add_rect_polygon(c + Vector2(0, -20), Vector2(18, 14), VT.PLANT_POT, z + 4)
+	add_rect_polygon(c + Vector2(0, -25), Vector2(22, 5), VT.PLANT_POT_DARK, z + 4)
+	# Pot rim
+	add_rect_polygon(c + Vector2(0, -14), Vector2(26, 6), VT.PLANT_POT_RIM, z + 5)
+	# Pot rim highlight
+	add_rect_polygon(c + Vector2(0, -13), Vector2(20, 3), Color(VT.PLANT_POT_HI.r, VT.PLANT_POT_HI.g, VT.PLANT_POT_HI.b, 0.60), z + 6)
+	# Soil surface
+	_add_small_diamond(c, -27.0, 0.28, VT.PLANT_SOIL, z + 6)
+	# Stem
+	add_rect_polygon(c + Vector2(0, -36), Vector2(4, 14), VT.PLANT_STEM, z + 5)
+	# Leaf cluster — back-left
+	_add_small_diamond(c + Vector2(-12, 0), -50.0, 0.44, VT.PLANT_LEAF_DK, z + 5)
+	# Leaf cluster — back-right
+	_add_small_diamond(c + Vector2(12, 0), -52.0, 0.40, VT.PLANT_LEAF_DK, z + 5)
+	# Leaf cluster — front-left
+	_add_small_diamond(c + Vector2(-8, 0), -44.0, 0.38, VT.PLANT_LEAF, z + 6)
+	# Leaf cluster — front-right
+	_add_small_diamond(c + Vector2(8, 0), -46.0, 0.34, VT.PLANT_LEAF, z + 6)
+	# Crown top
+	_add_small_diamond(c, -58.0, 0.36, VT.PLANT_LEAF_LT, z + 7)
+	# Crown highlight
+	_add_small_diamond(c + Vector2(-3, 0), -62.0, 0.16, Color(VT.PLANT_LEAF_HI.r, VT.PLANT_LEAF_HI.g, VT.PLANT_LEAF_HI.b, 0.70), z + 8)
 
 
 func draw_selected_furniture_marker(items, selected_index) -> void:
@@ -190,37 +238,70 @@ func draw_rug_details(furniture, lz: int = 0) -> void:
 	var c11: Vector2 = iso_grid.grid_to_iso(Vector2i(cx + 1, cy + 1))
 	var center: Vector2 = (c00 + c10 + c01 + c11) * 0.25
 	var z: int = iso_grid.get_draw_z_index(Vector2i(cx + 1, cy + 1)) + lz + 3
+	var yo: float = -h - 1.0
 
+	# Filled inner area
+	var fill: Polygon2D = Polygon2D.new()
+	fill.polygon = PackedVector2Array([
+		Vector2(0, -26), Vector2(54, 0), Vector2(0, 26), Vector2(-54, 0)
+	])
+	fill.position = center + Vector2(0, yo)
+	fill.color = Color(VT.RUG_FILL.r, VT.RUG_FILL.g, VT.RUG_FILL.b, 0.50)
+	fill.z_index = z
+	blocks_node.add_child(fill)
+
+	# Outer border
 	var outer: Line2D = Line2D.new()
 	outer.points = PackedVector2Array([
-		Vector2(0, -32), Vector2(64, 0), Vector2(0, 32), Vector2(-64, 0), Vector2(0, -32)
+		Vector2(0, -30), Vector2(62, 0), Vector2(0, 30), Vector2(-62, 0), Vector2(0, -30)
 	])
-	outer.position = center + Vector2(0, -h - 1)
+	outer.position = center + Vector2(0, yo)
 	outer.width = 2.5
-	outer.default_color = Color(0.92, 0.76, 0.34, 0.92)
-	outer.z_index = z
+	outer.default_color = VT.RUG_BORDER
+	outer.z_index = z + 1
 	blocks_node.add_child(outer)
 
+	# Inner border
 	var inner: Line2D = Line2D.new()
 	inner.points = PackedVector2Array([
-		Vector2(0, -22), Vector2(44, 0), Vector2(0, 22), Vector2(-44, 0), Vector2(0, -22)
+		Vector2(0, -20), Vector2(42, 0), Vector2(0, 20), Vector2(-42, 0), Vector2(0, -20)
 	])
-	inner.position = center + Vector2(0, -h - 1)
+	inner.position = center + Vector2(0, yo)
 	inner.width = 1.5
-	inner.default_color = Color(0.92, 0.76, 0.34, 0.58)
-	inner.z_index = z
+	inner.default_color = VT.RUG_BORDER_DIM
+	inner.z_index = z + 1
 	blocks_node.add_child(inner)
 
-	_add_small_diamond(center, -h - 2, 0.22, Color(0.96, 0.84, 0.44), z + 1)
+	# Cross pattern lines (N-S axis)
+	var line_ns: Line2D = Line2D.new()
+	line_ns.points = PackedVector2Array([Vector2(0, -18), Vector2(0, 18)])
+	line_ns.position = center + Vector2(0, yo)
+	line_ns.width = 1.2
+	line_ns.default_color = VT.RUG_CROSS
+	line_ns.z_index = z + 1
+	blocks_node.add_child(line_ns)
+
+	# Cross pattern lines (E-W axis)
+	var line_ew: Line2D = Line2D.new()
+	line_ew.points = PackedVector2Array([Vector2(-38, 0), Vector2(38, 0)])
+	line_ew.position = center + Vector2(0, yo)
+	line_ew.width = 1.2
+	line_ew.default_color = VT.RUG_CROSS
+	line_ew.z_index = z + 1
+	blocks_node.add_child(line_ew)
+
+	# Central rosette
+	_add_small_diamond(center, yo - 1.0, 0.18, VT.RUG_CENTER, z + 2)
+	_add_small_diamond(center, yo - 0.5, 0.08, VT.RUG_CENTER_HI, z + 3)
 
 
 func get_furniture_color(furniture_type) -> Color:
 	match furniture_type:
-		&"chair": return Color(0.58, 0.30, 0.13)
-		&"table": return Color(0.62, 0.44, 0.20)
-		&"sofa":  return Color(0.20, 0.42, 0.32)
-		&"plant": return Color(0.22, 0.58, 0.26)
-		&"rug":   return Color(0.66, 0.20, 0.20)
+		&"chair": return VT.CHAIR_BODY
+		&"table": return VT.TABLE_BODY
+		&"sofa":  return VT.SOFA_BODY
+		&"plant": return VT.PLANT_LEAF_DK
+		&"rug":   return VT.RUG_BODY
 		_:        return Color(0.60, 0.60, 0.60)
 
 

@@ -2,6 +2,7 @@ extends RefCounted
 
 const NPC_NAME: String = "Bot Guía"
 const HOME_CELL: Vector2i = Vector2i(5, 5)
+const VT = preload("res://scripts/visual/VisualTheme.gd")
 const NPC_BODY_COLOR: Color = Color(0.80, 0.38, 0.12)
 const NPC_HAIR_COLOR: Color = Color(0.05, 0.20, 0.45)
 const MOVE_STEP_DURATION: float = 0.40
@@ -166,49 +167,72 @@ func _build_visual() -> void:
 	# Shadow
 	var shadow: Polygon2D = Polygon2D.new()
 	shadow.polygon = PackedVector2Array([
-		Vector2(0.0, -5.0), Vector2(20.0, 0.0), Vector2(0.0, 5.0), Vector2(-20.0, 0.0)
+		Vector2(0.0, -7.0), Vector2(26.0, 0.0), Vector2(0.0, 7.0), Vector2(-26.0, 0.0)
 	])
-	shadow.color = Color(0.04, 0.05, 0.06, 0.36)
-	shadow.position = Vector2(0.0, 2.0)
+	shadow.color = VT.SHADOW_MED
+	shadow.position = Vector2(0.0, 5.0)
 	shadow.z_index = 0
 	_npc_node.add_child(shadow)
 
-	# Boots
-	_npc_node.add_child(_make_rect_part(Vector2(7.0, 5.0), Color(0.18, 0.12, 0.06), Vector2(-5.0, -3.0), 1))
-	_npc_node.add_child(_make_rect_part(Vector2(7.0, 5.0), Color(0.18, 0.12, 0.06), Vector2(5.0, -3.0), 1))
+	# ── Outline underlays (z=0, behind all parts at z≥1) ──
+	_npc_node.add_child(_make_rect_part(Vector2(38.0, 24.0), VT.OUTLINE_DARK, Vector2(0.0, -28.0), 0))
+	_npc_node.add_child(_make_rect_part(Vector2(30.0, 28.0), VT.OUTLINE_DARK, Vector2(0.0, -56.0), 0))
+	_npc_node.add_child(_make_rect_part(Vector2(22.0, 22.0), VT.OUTLINE_DARK, Vector2(0.0, -13.0), 0))
 
-	# Legs (pants)
-	_npc_node.add_child(_make_rect_part(Vector2(7.0, 13.0), Color(0.12, 0.14, 0.28), Vector2(-5.0, -11.0), 2))
-	_npc_node.add_child(_make_rect_part(Vector2(7.0, 13.0), Color(0.12, 0.14, 0.28), Vector2(5.0, -11.0), 2))
+	# Boots (slate)
+	_npc_node.add_child(_make_rect_part(Vector2(9.0, 6.0), VT.NPC_BOOTS, Vector2(-5.0, -4.0), 1))
+	_npc_node.add_child(_make_rect_part(Vector2(9.0, 6.0), VT.NPC_BOOTS, Vector2(5.0, -4.0), 1))
 
-	# Body / shirt
-	_npc_node.add_child(_make_rect_part(Vector2(20.0, 20.0), NPC_BODY_COLOR, Vector2(0.0, -28.0), 3))
+	# Legs (dark slate trousers)
+	_npc_node.add_child(_make_rect_part(Vector2(8.0, 14.0), VT.NPC_PANTS, Vector2(-5.0, -12.0), 2))
+	_npc_node.add_child(_make_rect_part(Vector2(8.0, 14.0), VT.NPC_PANTS, Vector2(5.0, -12.0), 2))
 
-	# Shirt stripe
-	_npc_node.add_child(_make_rect_part(Vector2(14.0, 4.0), NPC_BODY_COLOR.lightened(0.32), Vector2(0.0, -34.0), 4))
+	# Arms
+	_npc_node.add_child(_make_rect_part(Vector2(7.0, 15.0), VT.NPC_BODY.darkened(0.18), Vector2(-14.0, -28.0), 2))
+	_npc_node.add_child(_make_rect_part(Vector2(7.0, 15.0), VT.NPC_BODY.darkened(0.18), Vector2(14.0, -28.0), 2))
+
+	# Body / shirt (amber — distinct from player)
+	_npc_node.add_child(_make_rect_part(Vector2(20.0, 18.0), VT.NPC_BODY, Vector2(0.0, -28.0), 3))
+
+	# Bot badge — cyan square on chest
+	_npc_node.add_child(_make_rect_part(Vector2(6.0, 6.0), VT.NPC_BADGE, Vector2(0.0, -30.0), 4))
+	_npc_node.add_child(_make_rect_part(Vector2(3.0, 3.0), VT.NPC_BADGE_DK, Vector2(0.0, -30.0), 5))
 
 	# Collar
-	_npc_node.add_child(_make_rect_part(Vector2(10.0, 4.0), Color(0.90, 0.88, 0.84), Vector2(0.0, -39.0), 4))
+	_npc_node.add_child(_make_rect_part(Vector2(10.0, 4.0), VT.AVATAR_COLLAR, Vector2(0.0, -38.0), 4))
 
-	# Head (chibi — big)
-	_npc_node.add_child(_make_circle_part(13.0, 18, Color(0.82, 0.60, 0.42), Vector2(0.0, -56.0), 5))
+	# Head (square chibi)
+	_npc_node.add_child(_make_rect_part(Vector2(26.0, 22.0), VT.AVATAR_SKIN, Vector2(0.0, -56.0), 5))
 
-	# Hair
-	_npc_node.add_child(_make_rect_part(Vector2(26.0, 9.0), NPC_HAIR_COLOR, Vector2(0.0, -66.0), 6))
-	_npc_node.add_child(_make_rect_part(Vector2(6.0, 10.0), NPC_HAIR_COLOR, Vector2(-11.0, -60.0), 6))
+	# Head top highlight
+	_npc_node.add_child(_make_rect_part(Vector2(20.0, 4.0), Color(VT.AVATAR_SKIN_HI.r, VT.AVATAR_SKIN_HI.g, VT.AVATAR_SKIN_HI.b, 0.50), Vector2(0.0, -65.0), 6))
 
-	# Eyes
-	_npc_node.add_child(_make_rect_part(Vector2(5.0, 4.0), Color(0.08, 0.08, 0.10), Vector2(-5.0, -56.0), 7))
-	_npc_node.add_child(_make_rect_part(Vector2(5.0, 4.0), Color(0.08, 0.08, 0.10), Vector2(5.0, -56.0), 7))
+	# Cheek blush
+	_npc_node.add_child(_make_rect_part(Vector2(5.0, 3.0), Color(VT.AVATAR_CHEEK.r, VT.AVATAR_CHEEK.g, VT.AVATAR_CHEEK.b, 0.55), Vector2(-10.0, -52.0), 6))
+	_npc_node.add_child(_make_rect_part(Vector2(5.0, 3.0), Color(VT.AVATAR_CHEEK.r, VT.AVATAR_CHEEK.g, VT.AVATAR_CHEEK.b, 0.55), Vector2(10.0, -52.0), 6))
 
-	# Eye shine
-	_npc_node.add_child(_make_rect_part(Vector2(2.0, 2.0), Color(1.0, 1.0, 1.0, 0.90), Vector2(-4.0, -57.0), 8))
-	_npc_node.add_child(_make_rect_part(Vector2(2.0, 2.0), Color(1.0, 1.0, 1.0, 0.90), Vector2(6.0, -57.0), 8))
+	# Mouth
+	_npc_node.add_child(_make_rect_part(Vector2(8.0, 3.0), VT.AVATAR_MOUTH, Vector2(0.0, -49.0), 6))
+
+	# Hair — flat top (navy, bot style)
+	_npc_node.add_child(_make_rect_part(Vector2(26.0, 9.0), VT.NPC_HAIR, Vector2(0.0, -67.0), 6))
+	# Hair — right side
+	_npc_node.add_child(_make_rect_part(Vector2(6.0, 10.0), VT.NPC_HAIR, Vector2(11.0, -61.0), 6))
+	# Hair — front fringe (flat bot cut)
+	_npc_node.add_child(_make_rect_part(Vector2(10.0, 5.0), VT.NPC_HAIR, Vector2(0.0, -62.0), 6))
+
+	# Eyes (blue-tinted — bot glow)
+	_npc_node.add_child(_make_rect_part(Vector2(5.0, 5.0), VT.NPC_EYE, Vector2(-6.0, -56.0), 7))
+	_npc_node.add_child(_make_rect_part(Vector2(5.0, 5.0), VT.NPC_EYE, Vector2(6.0, -56.0), 7))
+
+	# Eye shine (cyan glow)
+	_npc_node.add_child(_make_rect_part(Vector2(3.0, 3.0), Color(VT.NPC_SHINE.r, VT.NPC_SHINE.g, VT.NPC_SHINE.b, 0.95), Vector2(-5.0, -57.0), 8))
+	_npc_node.add_child(_make_rect_part(Vector2(3.0, 3.0), Color(VT.NPC_SHINE.r, VT.NPC_SHINE.g, VT.NPC_SHINE.b, 0.95), Vector2(7.0, -57.0), 8))
 
 	var name_label: Label = Label.new()
 	name_label.text = NPC_NAME
-	name_label.position = Vector2(-32.0, -84.0)
-	name_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.95))
+	name_label.position = Vector2(-32.0, -86.0)
+	name_label.add_theme_color_override("font_color", VT.NPC_LABEL)
 	name_label.add_theme_font_size_override("font_size", 11)
 	name_label.z_index = 10
 	_npc_node.add_child(name_label)

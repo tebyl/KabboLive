@@ -38,9 +38,31 @@ var npc_bubble_label: Label
 var npc_bubble_timer: float = 0.0
 var npc_bubble_visible: bool = false
 var inventory_panel: PanelContainer
+var help_button: Button
 var toast_panel: PanelContainer
 var toast_label: Label
 var toast_tween: Tween
+var tutorial_overlay: Control
+var tutorial_panel: PanelContainer
+var tutorial_title_label: Label
+var tutorial_body_label: Label
+var tutorial_counter_label: Label
+var tutorial_prev_button: Button
+var tutorial_next_button: Button
+var tutorial_skip_button: Button
+var tutorial_finish_button: Button
+var tutorial_step_index: int = 0
+var tutorial_is_manual: bool = false
+var _on_tutorial_closed: Callable
+var _on_tutorial_open_requested: Callable
+var _tutorial_steps: Array[Dictionary] = [
+	{"title": "Bienvenido a Kabbo Hotel", "body": "Camina haciendo click sobre un tile libre."},
+	{"title": "Coloca muebles", "body": "Usa el catálogo de la derecha o las teclas 1, 2 y 3 para elegir muebles."},
+	{"title": "Edita tu sala", "body": "Haz click en un mueble para inspeccionarlo. Puedes moverlo, rotarlo o eliminarlo."},
+	{"title": "Capas y decoración", "body": "Las alfombras van en el piso y puedes colocar muebles encima."},
+	{"title": "Chat y bot guía", "body": "Presiona Enter para chatear. Prueba escribir 'hola' o 'ayuda'."},
+	{"title": "Guarda tu progreso", "body": "Presiona S para guardar y L para cargar tus salas."},
+]
 
 var catalog_panel: PanelContainer
 var _catalog_tab_hbox: HBoxContainer
@@ -109,6 +131,7 @@ func setup_ui(root: Node) :
 	_build_furniture_catalog()
 	_build_overlap_selector()
 	_build_toast_panel()
+	_build_tutorial_panel()
 
 
 func _build_main_menu() :
@@ -323,9 +346,13 @@ func _on_save_clicked() :
 
 func _on_profile_back_clicked() :
 	profile_panel.visible = false
+	if help_button != null and controls_panel != null and controls_panel.visible:
+		help_button.visible = true
 
 
 func show_profile() :
+	if help_button != null:
+		help_button.visible = false
 	profile_panel.visible = true
 	profile_panel.move_to_front()
 
@@ -389,6 +416,12 @@ func _build_controls_panel() :
 	back_btn.text = "Volver a salas"
 	back_btn.pressed.connect(_on_back_to_rooms)
 	top_row.add_child(back_btn)
+
+	help_button = Button.new()
+	help_button.text = "Ayuda"
+	help_button.custom_minimum_size = Vector2(72.0, 0.0)
+	help_button.pressed.connect(_on_help_pressed)
+	top_row.add_child(help_button)
 
 	var controls_label: Label = Label.new()
 	controls_label.name = "ControlsLabel"
@@ -978,6 +1011,14 @@ func setup_overlap_selector_callbacks(item_selected_cb: Callable, closed_cb: Cal
 	_on_overlap_selector_closed = closed_cb
 
 
+func set_tutorial_closed_callback(callback: Callable) -> void:
+	_on_tutorial_closed = callback
+
+
+func set_tutorial_open_requested_callback(callback: Callable) -> void:
+	_on_tutorial_open_requested = callback
+
+
 func show_overlap_selector(items: Array) -> void:
 	if overlap_selector_panel == null or _overlap_items_vbox == null:
 		return
@@ -1041,9 +1082,12 @@ func show_main_menu() :
 	chat_input_panel.visible = false
 	if inventory_panel != null:
 		inventory_panel.visible = false
+	if help_button != null:
+		help_button.visible = false
 	hide_chat_bubble()
 	hide_npc_bubble()
 	hide_toast()
+	hide_tutorial()
 	hide_furniture_catalog()
 	hide_furniture_inspector()
 	hide_overlap_selector()
@@ -1058,9 +1102,12 @@ func show_room_select() :
 	chat_input_panel.visible = false
 	if inventory_panel != null:
 		inventory_panel.visible = false
+	if help_button != null:
+		help_button.visible = false
 	hide_chat_bubble()
 	hide_npc_bubble()
 	hide_toast()
+	hide_tutorial()
 	hide_furniture_catalog()
 	hide_furniture_inspector()
 	hide_overlap_selector()
@@ -1071,6 +1118,8 @@ func show_in_room() :
 	room_select_panel.visible = false
 	profile_panel.visible = false
 	controls_panel.visible = true
+	if help_button != null:
+		help_button.visible = true
 	show_furniture_catalog()
 
 
@@ -1211,6 +1260,168 @@ func hide_npc_bubble() -> void:
 	npc_bubble_timer = 0.0
 	if npc_bubble_panel != null:
 		npc_bubble_panel.visible = false
+
+
+func _build_tutorial_panel() -> void:
+	tutorial_overlay = Control.new()
+	tutorial_overlay.name = "TutorialOverlay"
+	tutorial_overlay.anchor_left = 0.0
+	tutorial_overlay.anchor_top = 0.0
+	tutorial_overlay.anchor_right = 1.0
+	tutorial_overlay.anchor_bottom = 1.0
+	tutorial_overlay.offset_left = 0.0
+	tutorial_overlay.offset_top = 0.0
+	tutorial_overlay.offset_right = 0.0
+	tutorial_overlay.offset_bottom = 0.0
+	tutorial_overlay.visible = false
+	tutorial_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui_layer.add_child(tutorial_overlay)
+
+	var dim: ColorRect = ColorRect.new()
+	dim.color = Color(0.02, 0.03, 0.05, 0.28)
+	dim.anchor_left = 0.0
+	dim.anchor_top = 0.0
+	dim.anchor_right = 1.0
+	dim.anchor_bottom = 1.0
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tutorial_overlay.add_child(dim)
+
+	tutorial_panel = PanelContainer.new()
+	tutorial_panel.name = "TutorialPanel"
+	tutorial_panel.anchor_left = 0.5
+	tutorial_panel.anchor_top = 0.5
+	tutorial_panel.anchor_right = 0.5
+	tutorial_panel.anchor_bottom = 0.5
+	tutorial_panel.offset_left = -260.0
+	tutorial_panel.offset_top = -150.0
+	tutorial_panel.offset_right = 260.0
+	tutorial_panel.offset_bottom = 150.0
+	tutorial_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.96)))
+	tutorial_overlay.add_child(tutorial_panel)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 22)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_right", 22)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	tutorial_panel.add_child(margin)
+
+	var layout: VBoxContainer = VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 12)
+	margin.add_child(layout)
+
+	tutorial_counter_label = Label.new()
+	tutorial_counter_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	tutorial_counter_label.add_theme_color_override("font_color", Color(0.70, 0.80, 0.92))
+	tutorial_counter_label.add_theme_font_size_override("font_size", 12)
+	layout.add_child(tutorial_counter_label)
+
+	tutorial_title_label = Label.new()
+	tutorial_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tutorial_title_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.72))
+	tutorial_title_label.add_theme_font_size_override("font_size", 20)
+	layout.add_child(tutorial_title_label)
+
+	tutorial_body_label = Label.new()
+	tutorial_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tutorial_body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tutorial_body_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tutorial_body_label.custom_minimum_size = Vector2(0.0, 92.0)
+	tutorial_body_label.add_theme_color_override("font_color", Color(0.90, 0.94, 1.0))
+	tutorial_body_label.add_theme_font_size_override("font_size", 15)
+	layout.add_child(tutorial_body_label)
+
+	var button_row: HBoxContainer = HBoxContainer.new()
+	button_row.add_theme_constant_override("separation", 8)
+	layout.add_child(button_row)
+
+	tutorial_skip_button = Button.new()
+	tutorial_skip_button.text = "Omitir"
+	tutorial_skip_button.pressed.connect(_on_tutorial_skip_pressed)
+	button_row.add_child(tutorial_skip_button)
+
+	var spacer: Control = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button_row.add_child(spacer)
+
+	tutorial_prev_button = Button.new()
+	tutorial_prev_button.text = "Anterior"
+	tutorial_prev_button.pressed.connect(_on_tutorial_prev_pressed)
+	button_row.add_child(tutorial_prev_button)
+
+	tutorial_next_button = Button.new()
+	tutorial_next_button.text = "Siguiente"
+	tutorial_next_button.pressed.connect(_on_tutorial_next_pressed)
+	button_row.add_child(tutorial_next_button)
+
+	tutorial_finish_button = Button.new()
+	tutorial_finish_button.text = "Finalizar"
+	tutorial_finish_button.pressed.connect(_on_tutorial_finish_pressed)
+	button_row.add_child(tutorial_finish_button)
+
+
+func show_tutorial(is_manual: bool = false) -> void:
+	if tutorial_overlay == null:
+		return
+	tutorial_is_manual = is_manual
+	set_tutorial_step(0)
+	tutorial_overlay.visible = true
+	tutorial_overlay.move_to_front()
+
+
+func hide_tutorial() -> void:
+	if tutorial_overlay != null:
+		tutorial_overlay.visible = false
+
+
+func is_tutorial_visible() -> bool:
+	return tutorial_overlay != null and tutorial_overlay.visible
+
+
+func set_tutorial_step(index: int) -> void:
+	if _tutorial_steps.is_empty():
+		return
+	tutorial_step_index = clampi(index, 0, _tutorial_steps.size() - 1)
+	var step: Dictionary = _tutorial_steps[tutorial_step_index]
+	if tutorial_title_label != null:
+		tutorial_title_label.text = str(step.get("title", ""))
+	if tutorial_body_label != null:
+		tutorial_body_label.text = str(step.get("body", ""))
+	if tutorial_counter_label != null:
+		tutorial_counter_label.text = str(tutorial_step_index + 1) + "/" + str(_tutorial_steps.size())
+	if tutorial_prev_button != null:
+		tutorial_prev_button.disabled = tutorial_step_index == 0
+	if tutorial_next_button != null:
+		tutorial_next_button.visible = tutorial_step_index < _tutorial_steps.size() - 1
+	if tutorial_finish_button != null:
+		tutorial_finish_button.visible = tutorial_step_index == _tutorial_steps.size() - 1
+
+
+func _close_tutorial(completed: bool) -> void:
+	hide_tutorial()
+	if _on_tutorial_closed.is_valid():
+		_on_tutorial_closed.call(completed)
+
+
+func _on_tutorial_prev_pressed() -> void:
+	set_tutorial_step(tutorial_step_index - 1)
+
+
+func _on_tutorial_next_pressed() -> void:
+	set_tutorial_step(tutorial_step_index + 1)
+
+
+func _on_tutorial_skip_pressed() -> void:
+	_close_tutorial(true)
+
+
+func _on_tutorial_finish_pressed() -> void:
+	_close_tutorial(true)
+
+
+func _on_help_pressed() -> void:
+	if _on_tutorial_open_requested.is_valid():
+		_on_tutorial_open_requested.call()
 
 
 func _build_toast_panel() -> void:

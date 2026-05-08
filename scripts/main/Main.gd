@@ -23,6 +23,7 @@ const CameraControllerScript = preload("res://scripts/camera/CameraController.gd
 const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
 const RoomDataScript = preload("res://scripts/room/RoomData.gd")
 const PlacementPreviewScript: GDScript = preload("res://scripts/placement/PlacementPreview.gd")
+const TutorialStateServiceScript: GDScript = preload("res://scripts/tutorial/TutorialStateService.gd")
 
 const IsoGrid = IsoGridScript
 const PathfindingManager = PathfindingManagerScript
@@ -61,6 +62,8 @@ var game_ui
 var camera_controller
 var npc_manager
 var placement_preview
+var tutorial_state_service
+var tutorial_completed: bool = false
 var npc_root: Node2D
 
 func _ready():
@@ -87,6 +90,8 @@ func _ready():
 	furniture_visual_factory = FurnitureVisualFactoryScript.new(blocks_node, iso_grid)
 	inventory_manager = InventoryManagerScript.new()
 	room_save_service = RoomSaveServiceScript.new()
+	tutorial_state_service = TutorialStateServiceScript.new()
+	tutorial_completed = tutorial_state_service.load_completed()
 	chat_manager = ChatManagerScript.new()
 	chat_manager.set_player_name(player_profile_manager.player_name)
 
@@ -112,6 +117,8 @@ func _ready():
 		Callable(self, "_on_overlap_item_selected"),
 		Callable(self, "_on_overlap_selector_closed")
 	)
+	game_ui.set_tutorial_closed_callback(Callable(self, "_on_tutorial_closed"))
+	game_ui.set_tutorial_open_requested_callback(Callable(self, "_on_tutorial_open_requested"))
 	camera_controller = CameraControllerScript.new(self, iso_grid)
 
 	furniture_manager = FurnitureManagerScript.new(
@@ -137,7 +144,7 @@ func _process(delta):
 	if not is_initialized:
 		return
 	if current_state == GameState.IN_ROOM:
-		if not game_ui.is_chat_input_active() and not game_ui.is_profile_open():
+		if not game_ui.is_chat_input_active() and not game_ui.is_profile_open() and not _is_tutorial_visible():
 			camera_controller.process(delta)
 		game_ui.update_chat_bubble(player_node.global_position, delta)
 		if npc_manager != null:
@@ -154,6 +161,13 @@ func _input(event):
 	if event is InputEventKey:
 		var key_event = event as InputEventKey
 		if key_event.pressed and not key_event.echo:
+			if current_state == GameState.IN_ROOM and key_event.keycode == KEY_H and not _is_tutorial_visible() and not game_ui.is_profile_open() and not game_ui.is_chat_input_active():
+				_open_tutorial_manual()
+				get_viewport().set_input_as_handled()
+				return
+			if _is_tutorial_visible():
+				get_viewport().set_input_as_handled()
+				return
 			if current_state == GameState.IN_ROOM:
 				if game_ui.is_profile_open():
 					return
@@ -165,6 +179,8 @@ func _input(event):
 			handle_key_press(key_event.keycode)
 	elif event is InputEventMouseButton:
 		if current_state == GameState.IN_ROOM:
+			if _is_tutorial_visible():
+				return
 			if game_ui.is_profile_open() or game_ui.is_chat_input_active():
 				hide_placement_preview()
 				return
@@ -236,6 +252,7 @@ func enter_state(new_state):
 			game_ui.show_room_selector(room_manager.get_all_rooms())
 		GameState.IN_ROOM:
 			game_ui.show_in_room()
+			_maybe_show_tutorial()
 
 func on_enter_hotel():
 	enter_state(GameState.ROOM_SELECT)
@@ -288,6 +305,9 @@ func handle_key_press(keycode):
 			if current_state == GameState.IN_ROOM:
 				game_ui.toggle_profile()
 				hide_placement_preview()
+		KEY_H:
+			if current_state == GameState.IN_ROOM:
+				_open_tutorial_manual()
 		KEY_S:
 			if current_state == GameState.IN_ROOM:
 				save_current_room_state()
@@ -396,6 +416,39 @@ func _get_furniture_placed_message(furniture_type: String) -> String:
 func _show_toast(message: String, kind: String = "info") -> void:
 	if game_ui != null and game_ui.has_method("show_toast"):
 		game_ui.show_toast(message, kind)
+
+
+func _maybe_show_tutorial() -> void:
+	if tutorial_completed:
+		return
+	if game_ui != null and game_ui.has_method("show_tutorial"):
+		hide_placement_preview()
+		game_ui.show_tutorial(false)
+
+
+func _open_tutorial_manual() -> void:
+	if current_state != GameState.IN_ROOM:
+		return
+	if game_ui != null and game_ui.has_method("show_tutorial"):
+		hide_placement_preview()
+		game_ui.show_tutorial(true)
+
+
+func _on_tutorial_open_requested() -> void:
+	_open_tutorial_manual()
+
+
+func _on_tutorial_closed(completed: bool) -> void:
+	if completed:
+		tutorial_completed = true
+		if tutorial_state_service != null and tutorial_state_service.has_method("save_completed"):
+			tutorial_state_service.save_completed(true)
+
+
+func _is_tutorial_visible() -> bool:
+	if game_ui == null or not game_ui.has_method("is_tutorial_visible"):
+		return false
+	return game_ui.is_tutorial_visible()
 
 
 func on_catalog_selected(furniture_type: String) -> void:
@@ -565,6 +618,8 @@ func _can_show_move_preview() -> bool:
 
 func _can_show_any_preview() -> bool:
 	if current_state != GameState.IN_ROOM:
+		return false
+	if _is_tutorial_visible():
 		return false
 	if game_ui.is_chat_input_active() or game_ui.is_profile_open():
 		return false

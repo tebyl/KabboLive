@@ -82,6 +82,12 @@ func has_selected_placed_furniture() :
 	return selected_furniture_index >= 0 and selected_furniture_index < furniture_items.size()
 
 
+func get_selected_furniture():
+	if not has_selected_placed_furniture():
+		return null
+	return furniture_items[selected_furniture_index]
+
+
 func select_furniture_at_cell(cell) :
 	var furniture_index = get_furniture_index_at_cell(cell)
 

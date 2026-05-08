@@ -42,6 +42,15 @@ var inventory_panel: PanelContainer
 var catalog_panel: PanelContainer
 var _catalog_buttons: Array[Button] = []
 var _catalog_types: Array[String] = []
+var furniture_inspector_panel: PanelContainer
+var _inspector_name_label: Label
+var _inspector_cell_label: Label
+var _inspector_size_label: Label
+var _inspector_state_label: Label
+var _on_inspector_move: Callable
+var _on_inspector_rotate: Callable
+var _on_inspector_delete: Callable
+var _on_inspector_close: Callable
 
 var _on_enter_hotel: Callable
 var _on_room_selected: Callable
@@ -79,6 +88,7 @@ func setup_ui(root: Node) :
 	_build_controls_panel()
 	_build_inventory_panel()
 	_build_chat_ui()
+	_build_furniture_inspector()
 	_build_furniture_catalog()
 
 
@@ -363,7 +373,7 @@ func _build_controls_panel() :
 
 	var controls_label: Label = Label.new()
 	controls_label.name = "ControlsLabel"
-	controls_label.text = "Enter Chat | 1 Silla | 2 Mesa | 3 Sofa | Esc Volver a salas | M Mover | R Rotar | Delete Eliminar | S Guardar | L Cargar | F1 Lobby | F2 Sala pequeña | F3 Sala grande"
+	controls_label.text = "Enter Chat  |  Esc Deseleccionar / Volver  |  S Guardar  |  L Cargar  |  F1 Lobby  |  F2 Sala pequeña  |  F3 Sala grande"
 	controls_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	controls_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	controls_label.add_theme_font_size_override("font_size", 13)
@@ -532,6 +542,171 @@ func _build_chat_ui() :
 	npc_bubble_margin.add_child(npc_bubble_label)
 
 
+func _build_furniture_inspector() -> void:
+	furniture_inspector_panel = PanelContainer.new()
+	furniture_inspector_panel.name = "FurnitureInspectorPanel"
+	furniture_inspector_panel.anchor_left = 0.0
+	furniture_inspector_panel.anchor_top = 0.0
+	furniture_inspector_panel.anchor_right = 0.0
+	furniture_inspector_panel.anchor_bottom = 0.0
+	furniture_inspector_panel.offset_left = 16.0
+	furniture_inspector_panel.offset_top = 16.0
+	furniture_inspector_panel.offset_right = 220.0
+	furniture_inspector_panel.offset_bottom = 248.0
+	furniture_inspector_panel.visible = false
+	furniture_inspector_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.92)))
+	ui_layer.add_child(furniture_inspector_panel)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	furniture_inspector_panel.add_child(margin)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	margin.add_child(vbox)
+
+	var title: Label = Label.new()
+	title.text = "Inspector"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", Color(0.92, 0.96, 1.0))
+	vbox.add_child(title)
+
+	var sep: HSeparator = HSeparator.new()
+	vbox.add_child(sep)
+
+	_inspector_name_label = Label.new()
+	_inspector_name_label.add_theme_font_size_override("font_size", 15)
+	_inspector_name_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.75))
+	vbox.add_child(_inspector_name_label)
+
+	_inspector_cell_label = Label.new()
+	_inspector_cell_label.add_theme_font_size_override("font_size", 13)
+	_inspector_cell_label.add_theme_color_override("font_color", Color(0.80, 0.88, 1.0))
+	vbox.add_child(_inspector_cell_label)
+
+	_inspector_size_label = Label.new()
+	_inspector_size_label.add_theme_font_size_override("font_size", 13)
+	_inspector_size_label.add_theme_color_override("font_color", Color(0.80, 0.88, 1.0))
+	vbox.add_child(_inspector_size_label)
+
+	_inspector_state_label = Label.new()
+	_inspector_state_label.add_theme_font_size_override("font_size", 13)
+	_inspector_state_label.add_theme_color_override("font_color", Color(0.65, 0.90, 0.65))
+	vbox.add_child(_inspector_state_label)
+
+	var btn_sep: HSeparator = HSeparator.new()
+	vbox.add_child(btn_sep)
+
+	var btn_grid: HBoxContainer = HBoxContainer.new()
+	btn_grid.add_theme_constant_override("separation", 4)
+	vbox.add_child(btn_grid)
+
+	var move_btn: Button = Button.new()
+	move_btn.text = "Mover"
+	move_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	move_btn.pressed.connect(_on_inspector_move_pressed)
+	btn_grid.add_child(move_btn)
+
+	var rotate_btn: Button = Button.new()
+	rotate_btn.text = "Rotar"
+	rotate_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rotate_btn.pressed.connect(_on_inspector_rotate_pressed)
+	btn_grid.add_child(rotate_btn)
+
+	var btn_row2: HBoxContainer = HBoxContainer.new()
+	btn_row2.add_theme_constant_override("separation", 4)
+	vbox.add_child(btn_row2)
+
+	var delete_btn: Button = Button.new()
+	delete_btn.text = "Eliminar"
+	delete_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	delete_btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+	delete_btn.pressed.connect(_on_inspector_delete_pressed)
+	btn_row2.add_child(delete_btn)
+
+	var close_btn: Button = Button.new()
+	close_btn.text = "Cerrar"
+	close_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	close_btn.pressed.connect(_on_inspector_close_pressed)
+	btn_row2.add_child(close_btn)
+
+
+func setup_furniture_inspector_callbacks(move_cb: Callable, rotate_cb: Callable, delete_cb: Callable, close_cb: Callable) -> void:
+	_on_inspector_move = move_cb
+	_on_inspector_rotate = rotate_cb
+	_on_inspector_delete = delete_cb
+	_on_inspector_close = close_cb
+
+
+func show_furniture_inspector(furniture: Object) -> void:
+	if furniture_inspector_panel == null:
+		return
+	furniture_inspector_panel.visible = true
+	_update_inspector_data(furniture)
+
+
+func hide_furniture_inspector() -> void:
+	if furniture_inspector_panel != null:
+		furniture_inspector_panel.visible = false
+
+
+func update_furniture_inspector(furniture: Object) -> void:
+	if furniture_inspector_panel == null or not furniture_inspector_panel.visible:
+		return
+	_update_inspector_data(furniture)
+
+
+func set_furniture_inspector_message(message: String) -> void:
+	if _inspector_state_label != null:
+		_inspector_state_label.text = message
+
+
+func _update_inspector_data(furniture: Object) -> void:
+	_inspector_name_label.text = _inspector_display_name(str(furniture.get("type")))
+	var cell: Vector2i = furniture.get("cell")
+	_inspector_cell_label.text = "Pos: " + str(cell.x) + ", " + str(cell.y)
+	var size: Vector2i = furniture.get("size")
+	_inspector_size_label.text = "Tamaño: " + str(size.x) + "×" + str(size.y)
+	_inspector_state_label.text = "Seleccionado"
+
+
+func _inspector_display_name(furniture_type: String) -> String:
+	match furniture_type:
+		"chair": return "Silla"
+		"table": return "Mesa"
+		"sofa": return "Sofá"
+	return furniture_type
+
+
+func _on_inspector_move_pressed() -> void:
+	if is_chat_input_active():
+		return
+	if _on_inspector_move.is_valid():
+		_on_inspector_move.call()
+
+
+func _on_inspector_rotate_pressed() -> void:
+	if is_chat_input_active():
+		return
+	if _on_inspector_rotate.is_valid():
+		_on_inspector_rotate.call()
+
+
+func _on_inspector_delete_pressed() -> void:
+	if is_chat_input_active():
+		return
+	if _on_inspector_delete.is_valid():
+		_on_inspector_delete.call()
+
+
+func _on_inspector_close_pressed() -> void:
+	if _on_inspector_close.is_valid():
+		_on_inspector_close.call()
+
+
 func _build_furniture_catalog() -> void:
 	_catalog_types = ["chair", "table", "sofa"]
 	var display_names: Array[String] = ["Silla", "Mesa", "Sofá"]
@@ -631,6 +806,7 @@ func show_main_menu() :
 	hide_chat_bubble()
 	hide_npc_bubble()
 	hide_furniture_catalog()
+	hide_furniture_inspector()
 
 
 func show_room_select() :
@@ -645,6 +821,7 @@ func show_room_select() :
 	hide_chat_bubble()
 	hide_npc_bubble()
 	hide_furniture_catalog()
+	hide_furniture_inspector()
 
 
 func show_in_room() :

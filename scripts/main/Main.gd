@@ -98,6 +98,12 @@ func _ready():
 	)
 
 	game_ui.update_profile_ui(player_profile_manager.player_name, player_profile_manager.avatar_color)
+	game_ui.setup_furniture_inspector_callbacks(
+		Callable(self, "_on_inspector_move"),
+		Callable(self, "_on_inspector_rotate"),
+		Callable(self, "_on_inspector_delete"),
+		Callable(self, "_on_inspector_close")
+	)
 	camera_controller = CameraControllerScript.new(self, iso_grid)
 
 	furniture_manager = FurnitureManagerScript.new(
@@ -154,6 +160,9 @@ func _input(event):
 				var cell = iso_grid.iso_to_grid(world_pos)
 				if furniture_manager.is_move_mode_active():
 					if furniture_manager.move_selected_furniture(cell):
+						var moved: Object = furniture_manager.get_selected_furniture()
+						if moved != null:
+							game_ui.update_furniture_inspector(moved)
 						game_ui.set_status_message("Mueble movido — M mover | R rotar | Delete eliminar")
 					else:
 						game_ui.set_status_message("No se puede mover ahí")
@@ -167,6 +176,9 @@ func _input(event):
 				else:
 					# Try to select furniture first
 					if furniture_manager.select_furniture_at_cell(cell):
+						var sel: Object = furniture_manager.get_selected_furniture()
+						if sel != null:
+							game_ui.show_furniture_inspector(sel)
 						game_ui.set_status_message("Mueble seleccionado — M mover | R rotar | Delete eliminar")
 					else:
 						# If no furniture at cell, move player to cell
@@ -218,6 +230,7 @@ func handle_key_press(keycode):
 					game_ui.set_status_message("Sin seleccion")
 				elif furniture_manager.has_selected_placed_furniture() or furniture_manager.is_move_mode_active():
 					furniture_manager.clear_selection()
+					game_ui.hide_furniture_inspector()
 					game_ui.set_status_message("Sin seleccion")
 				else:
 					on_back_to_rooms()
@@ -239,6 +252,7 @@ func handle_key_press(keycode):
 				var current_room = room_manager.get_current_room()
 				if current_room:
 					furniture_manager.replace_furniture_items(current_room.furniture_items, Callable(game_ui, "report_status"))
+					game_ui.hide_furniture_inspector()
 					if npc_manager != null:
 						npc_manager.reapply_pathfinding_solid()
 		KEY_1:
@@ -247,32 +261,43 @@ func handle_key_press(keycode):
 				var type1: String = inventory_manager.get_selected_type_text()
 				game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(type1))
 				game_ui.set_catalog_selected_furniture(type1)
+				game_ui.hide_furniture_inspector()
 		KEY_2:
 			if current_state == GameState.IN_ROOM:
 				inventory_manager.select_index(1)
 				var type2: String = inventory_manager.get_selected_type_text()
 				game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(type2))
 				game_ui.set_catalog_selected_furniture(type2)
+				game_ui.hide_furniture_inspector()
 		KEY_3:
 			if current_state == GameState.IN_ROOM:
 				inventory_manager.select_index(2)
 				var type3: String = inventory_manager.get_selected_type_text()
 				game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(type3))
 				game_ui.set_catalog_selected_furniture(type3)
+				game_ui.hide_furniture_inspector()
 		KEY_M:
 			if current_state == GameState.IN_ROOM:
 				if furniture_manager.has_selected_placed_furniture():
 					furniture_manager.start_move_selected_furniture()
+					game_ui.set_furniture_inspector_message("Modo mover — clic en destino")
 					game_ui.set_status_message("Modo mover — clic en celda destino")
 		KEY_R:
 			if current_state == GameState.IN_ROOM:
 				if furniture_manager.has_selected_placed_furniture():
 					if furniture_manager.rotate_selected_furniture():
+						var rotated: Object = furniture_manager.get_selected_furniture()
+						if rotated != null:
+							game_ui.update_furniture_inspector(rotated)
 						game_ui.set_status_message("Mueble rotado")
+					else:
+						game_ui.set_furniture_inspector_message("No se puede rotar aquí")
+						game_ui.set_status_message("No se puede rotar aquí")
 		KEY_DELETE:
 			if current_state == GameState.IN_ROOM:
 				if furniture_manager.has_selected_placed_furniture():
 					if furniture_manager.delete_selected_furniture():
+						game_ui.hide_furniture_inspector()
 						game_ui.set_status_message("Mueble eliminado")
 		KEY_F1:
 			if current_state == GameState.IN_ROOM:
@@ -300,6 +325,37 @@ func on_catalog_selected(furniture_type: String) -> void:
 	inventory_manager.select_index(idx)
 	game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(furniture_type))
 	game_ui.set_catalog_selected_furniture(furniture_type)
+	game_ui.hide_furniture_inspector()
+
+
+func _on_inspector_move() -> void:
+	if furniture_manager.has_selected_placed_furniture():
+		furniture_manager.start_move_selected_furniture()
+		game_ui.set_furniture_inspector_message("Modo mover — clic en destino")
+		game_ui.set_status_message("Modo mover — clic en celda destino")
+
+
+func _on_inspector_rotate() -> void:
+	if furniture_manager.has_selected_placed_furniture():
+		if furniture_manager.rotate_selected_furniture():
+			var rotated: Object = furniture_manager.get_selected_furniture()
+			if rotated != null:
+				game_ui.update_furniture_inspector(rotated)
+			game_ui.set_status_message("Mueble rotado")
+		else:
+			game_ui.set_furniture_inspector_message("No se puede rotar aquí")
+			game_ui.set_status_message("No se puede rotar aquí")
+
+
+func _on_inspector_delete() -> void:
+	if furniture_manager.has_selected_placed_furniture():
+		if furniture_manager.delete_selected_furniture():
+			game_ui.hide_furniture_inspector()
+			game_ui.set_status_message("Mueble eliminado")
+
+
+func _on_inspector_close() -> void:
+	game_ui.hide_furniture_inspector()
 
 
 func on_chat_submitted(message: String) -> void:

@@ -140,6 +140,8 @@ func place_furniture(furniture: RefCounted) -> bool:
 	furniture_items.append(furniture)
 	pathfinding_manager.mark_furniture_solid(furniture, true)
 	redraw()
+	if visual_factory != null and visual_factory.has_method("play_place_pop"):
+		visual_factory.play_place_pop(furniture)
 	return true
 
 

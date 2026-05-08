@@ -183,17 +183,21 @@ func _input(event):
 							game_ui.update_furniture_inspector(moved)
 						hide_placement_preview()
 						game_ui.set_status_message("Mueble movido")
+						_show_toast("Mueble movido", "success")
 					else:
 						update_placement_preview()
+						_show_toast("No se puede mover aquí", "error")
 						game_ui.set_status_message("No se puede mover ahí")
 				elif inventory_manager.has_selected_furniture():
 					var new_furniture: RefCounted = inventory_manager.create_selected_furniture_at(cell)
 					if new_furniture:
 						if furniture_manager.can_place_furniture(new_furniture, -1) and furniture_manager.place_furniture(new_furniture):
 							game_ui.set_status_message("Mueble colocado")
+							_show_toast(_get_furniture_placed_message(str(new_furniture.get("type"))), "success")
 							update_placement_preview()
 						else:
 							update_placement_preview()
+							_show_toast("No se puede colocar aquí", "error")
 							game_ui.set_status_message("No se puede colocar ahí")
 				else:
 					var items_at_cell: Array = furniture_manager.get_furniture_items_at_cell(cell)
@@ -244,9 +248,12 @@ func on_back_to_rooms():
 	enter_state(GameState.ROOM_SELECT)
 
 func on_save_profile(new_name, new_color):
-	player_profile_manager.update_profile(new_name, new_color)
-	chat_manager.set_player_name(new_name)
-	player_controller.update_avatar_color(new_color)
+	if player_profile_manager.update_profile(new_name, new_color):
+		chat_manager.set_player_name(player_profile_manager.player_name)
+		player_controller.update_avatar_color(player_profile_manager.avatar_color)
+		_show_toast("Perfil guardado", "success")
+	else:
+		_show_toast("Nombre inválido", "error")
 
 func handle_key_press(keycode):
 	match keycode:
@@ -288,6 +295,7 @@ func handle_key_press(keycode):
 			if current_state == GameState.IN_ROOM:
 				var loaded_rooms = room_save_service.load_rooms(Callable(game_ui, "report_status"))
 				room_manager.apply_saved_rooms(loaded_rooms.get("rooms", []))
+				var load_status: StringName = StringName(loaded_rooms.get("status", &"missing"))
 				var current_room = room_manager.get_current_room()
 				if current_room:
 					furniture_manager.replace_furniture_items(current_room.furniture_items, Callable(game_ui, "report_status"))
@@ -295,6 +303,12 @@ func handle_key_press(keycode):
 					hide_placement_preview()
 					if npc_manager != null:
 						npc_manager.reapply_pathfinding_solid()
+				if load_status == &"ok":
+					_show_toast("Sala cargada", "success")
+				elif load_status == &"missing":
+					_show_toast("No hay sala guardada", "warning")
+				else:
+					_show_toast("No se pudo cargar", "error")
 		KEY_1:
 			if current_state == GameState.IN_ROOM:
 				inventory_manager.select_type("chair")
@@ -337,15 +351,18 @@ func handle_key_press(keycode):
 						if rotated != null:
 							game_ui.update_furniture_inspector(rotated)
 						game_ui.set_status_message("Mueble rotado")
+						_show_toast("Mueble rotado", "success")
 					else:
 						game_ui.set_furniture_inspector_message("No se puede rotar aquí")
 						game_ui.set_status_message("No se puede rotar aquí")
+						_show_toast("No se puede rotar aquí", "error")
 		KEY_DELETE:
 			if current_state == GameState.IN_ROOM:
 				if furniture_manager.has_selected_placed_furniture():
 					if furniture_manager.delete_selected_furniture():
 						game_ui.hide_furniture_inspector()
 						game_ui.set_status_message("Mueble eliminado")
+						_show_toast("Mueble eliminado", "success")
 		KEY_F1:
 			if current_state == GameState.IN_ROOM:
 				switch_room("lobby")
@@ -364,6 +381,21 @@ func _get_furniture_display_name(furniture_type: String) -> String:
 		"plant": return "Planta"
 		"rug":   return "Alfombra"
 	return furniture_type
+
+
+func _get_furniture_placed_message(furniture_type: String) -> String:
+	match furniture_type:
+		"chair": return "Silla colocada"
+		"table": return "Mesa colocada"
+		"sofa": return "Sofá colocado"
+		"plant": return "Planta colocada"
+		"rug": return "Alfombra colocada"
+	return _get_furniture_display_name(furniture_type) + " colocado"
+
+
+func _show_toast(message: String, kind: String = "info") -> void:
+	if game_ui != null and game_ui.has_method("show_toast"):
+		game_ui.show_toast(message, kind)
 
 
 func on_catalog_selected(furniture_type: String) -> void:
@@ -393,9 +425,11 @@ func _on_inspector_rotate() -> void:
 			if rotated != null:
 				game_ui.update_furniture_inspector(rotated)
 			game_ui.set_status_message("Mueble rotado")
+			_show_toast("Mueble rotado", "success")
 		else:
 			game_ui.set_furniture_inspector_message("No se puede rotar aquí")
 			game_ui.set_status_message("No se puede rotar aquí")
+			_show_toast("No se puede rotar aquí", "error")
 
 
 func _on_inspector_delete() -> void:
@@ -403,6 +437,7 @@ func _on_inspector_delete() -> void:
 		if furniture_manager.delete_selected_furniture():
 			game_ui.hide_furniture_inspector()
 			game_ui.set_status_message("Mueble eliminado")
+			_show_toast("Mueble eliminado", "success")
 
 
 func _on_inspector_close() -> void:
@@ -546,7 +581,10 @@ func save_current_room_state():
 	var current_room = room_manager.get_current_room()
 	if current_room:
 		current_room.furniture_items = furniture_manager.get_furniture_items()
-		room_save_service.save_rooms(room_manager.get_all_rooms())
+		if room_save_service.save_rooms(room_manager.get_all_rooms()):
+			_show_toast("Sala guardada", "success")
+		else:
+			_show_toast("No se pudo guardar", "error")
 
 func switch_room(room_id):
 	hide_placement_preview()

@@ -23,6 +23,47 @@ func redraw(items, selected_index) :
 	draw_selected_furniture_marker(items, selected_index)
 
 
+func play_place_pop(furniture: RefCounted) -> void:
+	if blocks_node == null or iso_grid == null or furniture == null:
+		return
+	var valid_cells: Array[Vector2i] = []
+	for cell: Vector2i in furniture.get_occupied_cells():
+		if iso_grid.is_valid_cell(cell):
+			valid_cells.append(cell)
+	if valid_cells.is_empty():
+		return
+
+	var center: Vector2 = Vector2.ZERO
+	var max_z: int = -999999
+	for cell: Vector2i in valid_cells:
+		center += iso_grid.grid_to_iso(cell)
+		max_z = maxi(max_z, iso_grid.get_draw_z_index(cell))
+	center /= float(valid_cells.size())
+
+	var root: Node2D = Node2D.new()
+	root.name = "PlacePop"
+	root.position = center
+	root.scale = Vector2(0.85, 0.85)
+	root.z_index = max_z + 12
+	root.z_as_relative = false
+	blocks_node.add_child(root)
+
+	for cell: Vector2i in valid_cells:
+		var flash: Polygon2D = Polygon2D.new()
+		flash.polygon = iso_grid.get_iso_diamond_polygon()
+		flash.position = iso_grid.grid_to_iso(cell) - center + Vector2(0.0, -get_furniture_height(furniture.type))
+		flash.color = Color(1.0, 0.96, 0.55, 0.34)
+		flash.z_index = 0
+		root.add_child(flash)
+
+	var tween: Tween = root.create_tween()
+	tween.tween_property(root, "scale", Vector2(1.05, 1.05), 0.10)
+	tween.parallel().tween_property(root, "modulate:a", 0.72, 0.10)
+	tween.tween_property(root, "scale", Vector2.ONE, 0.08)
+	tween.parallel().tween_property(root, "modulate:a", 0.0, 0.14)
+	tween.tween_callback(Callable(root, "queue_free"))
+
+
 func draw_furniture(furniture) -> void:
 	var height: float = get_furniture_height(furniture.type)
 	var base_color: Color = get_furniture_color(furniture.type)

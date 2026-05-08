@@ -38,6 +38,9 @@ var npc_bubble_label: Label
 var npc_bubble_timer: float = 0.0
 var npc_bubble_visible: bool = false
 var inventory_panel: PanelContainer
+var toast_panel: PanelContainer
+var toast_label: Label
+var toast_tween: Tween
 
 var catalog_panel: PanelContainer
 var _catalog_tab_hbox: HBoxContainer
@@ -105,6 +108,7 @@ func setup_ui(root: Node) :
 	_build_furniture_inspector()
 	_build_furniture_catalog()
 	_build_overlap_selector()
+	_build_toast_panel()
 
 
 func _build_main_menu() :
@@ -1039,6 +1043,7 @@ func show_main_menu() :
 		inventory_panel.visible = false
 	hide_chat_bubble()
 	hide_npc_bubble()
+	hide_toast()
 	hide_furniture_catalog()
 	hide_furniture_inspector()
 	hide_overlap_selector()
@@ -1055,6 +1060,7 @@ func show_room_select() :
 		inventory_panel.visible = false
 	hide_chat_bubble()
 	hide_npc_bubble()
+	hide_toast()
 	hide_furniture_catalog()
 	hide_furniture_inspector()
 	hide_overlap_selector()
@@ -1205,6 +1211,81 @@ func hide_npc_bubble() -> void:
 	npc_bubble_timer = 0.0
 	if npc_bubble_panel != null:
 		npc_bubble_panel.visible = false
+
+
+func _build_toast_panel() -> void:
+	toast_panel = PanelContainer.new()
+	toast_panel.name = "ToastPanel"
+	toast_panel.anchor_left = 0.5
+	toast_panel.anchor_top = 0.0
+	toast_panel.anchor_right = 0.5
+	toast_panel.anchor_bottom = 0.0
+	toast_panel.offset_left = -170.0
+	toast_panel.offset_top = 72.0
+	toast_panel.offset_right = 170.0
+	toast_panel.offset_bottom = 120.0
+	toast_panel.visible = false
+	toast_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	toast_panel.add_theme_stylebox_override("panel", _make_panel_style(_get_toast_color("info")))
+	ui_layer.add_child(toast_panel)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	toast_panel.add_child(margin)
+
+	toast_label = Label.new()
+	toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	toast_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	toast_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	toast_label.add_theme_color_override("font_color", Color(1.0, 0.98, 0.90))
+	toast_label.add_theme_font_size_override("font_size", 14)
+	toast_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(toast_label)
+
+
+func show_toast(message: String, kind: String = "info") -> void:
+	if toast_panel == null or toast_label == null:
+		return
+	if toast_tween != null and toast_tween.is_valid():
+		toast_tween.kill()
+	toast_label.text = message
+	toast_panel.add_theme_stylebox_override("panel", _make_panel_style(_get_toast_color(kind)))
+	toast_panel.modulate.a = 1.0
+	toast_panel.visible = true
+	toast_panel.move_to_front()
+	toast_tween = toast_panel.create_tween()
+	toast_tween.tween_interval(1.8)
+	toast_tween.tween_property(toast_panel, "modulate:a", 0.0, 0.25)
+	toast_tween.tween_callback(Callable(self, "_finish_toast"))
+
+
+func hide_toast() -> void:
+	if toast_tween != null and toast_tween.is_valid():
+		toast_tween.kill()
+	toast_tween = null
+	_finish_toast()
+
+
+func _finish_toast() -> void:
+	toast_tween = null
+	if toast_panel != null:
+		toast_panel.visible = false
+		toast_panel.modulate.a = 1.0
+
+
+func _get_toast_color(kind: String) -> Color:
+	match kind:
+		"success":
+			return Color(0.12, 0.22, 0.18, 0.92)
+		"warning":
+			return Color(0.34, 0.22, 0.10, 0.94)
+		"error":
+			return Color(0.36, 0.11, 0.10, 0.94)
+	return Color(0.10, 0.13, 0.18, 0.92)
 
 
 func _make_panel_style(bg_color: Color) -> StyleBoxFlat:

@@ -80,13 +80,16 @@ func draw_furniture(furniture) -> void:
 		&"sofa":   draw_sofa_details(furniture, lz)
 		&"plant":  draw_plant_details(furniture, lz)
 		&"rug":    draw_rug_details(furniture, lz)
+		&"blue_rug": draw_blue_rug_details(furniture, lz)
+		&"golden_plant": draw_golden_plant_details(furniture, lz)
+		&"lounge_chair": draw_lounge_chair_details(furniture, lz)
 
 
 func _get_layer_z_offset(furniture) -> int:
 	var l: Variant = furniture.get("layer")
 	if l != null and str(l) == "floor":
 		return -8
-	if str(furniture.get("type")) == "rug":
+	if str(furniture.get("type")) == "rug" or str(furniture.get("type")) == "blue_rug":
 		return -8
 	return 0
 
@@ -336,6 +339,44 @@ func draw_rug_details(furniture, lz: int = 0) -> void:
 	_add_small_diamond(center, yo - 0.5, 0.08, VT.RUG_CENTER_HI, z + 3)
 
 
+func draw_blue_rug_details(furniture, lz: int = 0) -> void:
+	var h: float = get_furniture_height(furniture.type)
+	var cx: int = furniture.cell.x
+	var cy: int = furniture.cell.y
+	var c00: Vector2 = iso_grid.grid_to_iso(Vector2i(cx, cy))
+	var c10: Vector2 = iso_grid.grid_to_iso(Vector2i(cx + 1, cy))
+	var c01: Vector2 = iso_grid.grid_to_iso(Vector2i(cx, cy + 1))
+	var c11: Vector2 = iso_grid.grid_to_iso(Vector2i(cx + 1, cy + 1))
+	var center: Vector2 = (c00 + c10 + c01 + c11) * 0.25
+	var z: int = iso_grid.get_draw_z_index(Vector2i(cx + 1, cy + 1)) + lz + 3
+	var yo: float = -h - 1.0
+	_add_small_diamond(center, yo, 1.85, Color(0.12, 0.34, 0.78, 0.58), z)
+	_add_small_diamond(center, yo - 1.0, 1.42, Color(0.32, 0.64, 1.0, 0.34), z + 1)
+	_add_small_diamond(center, yo - 2.0, 0.34, Color(0.76, 0.90, 1.0, 0.56), z + 2)
+
+
+func draw_golden_plant_details(furniture, lz: int = 0) -> void:
+	draw_plant_details(furniture, lz)
+	var c: Vector2 = iso_grid.grid_to_iso(furniture.cell)
+	var z: int = iso_grid.get_draw_z_index(furniture.cell) + lz
+	add_rect_polygon(c + Vector2(0, -14), Vector2(28, 7), Color(0.95, 0.70, 0.18), z + 9)
+	_add_small_diamond(c, -58.0, 0.42, Color(0.94, 0.78, 0.18, 0.74), z + 10)
+	_add_small_diamond(c + Vector2(10, 0), -49.0, 0.28, Color(1.0, 0.88, 0.32, 0.70), z + 10)
+	_add_small_diamond(c + Vector2(-10, 0), -47.0, 0.28, Color(0.86, 0.62, 0.10, 0.70), z + 10)
+
+
+func draw_lounge_chair_details(furniture, lz: int = 0) -> void:
+	var cell = furniture.cell
+	var h: float = get_furniture_height(furniture.type)
+	var c: Vector2 = iso_grid.grid_to_iso(cell)
+	var z: int = iso_grid.get_draw_z_index(cell) + lz
+	_add_small_diamond(c, -h - 1.0, 0.78, Color(0.52, 0.30, 0.70), z + 3)
+	_add_small_diamond(c, -h - 5.0, 0.48, Color(0.74, 0.52, 0.92), z + 4)
+	add_rect_polygon(c + Vector2(0, -h - 19.0), Vector2(34, 18), Color(0.38, 0.20, 0.56), z + 3)
+	add_rect_polygon(c + Vector2(-21, -h - 8.0), Vector2(8, 22), Color(0.30, 0.16, 0.46), z + 4)
+	add_rect_polygon(c + Vector2(21, -h - 8.0), Vector2(8, 22), Color(0.44, 0.24, 0.62), z + 4)
+
+
 func get_furniture_color(furniture_type) -> Color:
 	match furniture_type:
 		&"chair": return VT.CHAIR_BODY
@@ -343,6 +384,9 @@ func get_furniture_color(furniture_type) -> Color:
 		&"sofa":  return VT.SOFA_BODY
 		&"plant": return VT.PLANT_LEAF_DK
 		&"rug":   return VT.RUG_BODY
+		&"blue_rug": return Color(0.12, 0.34, 0.78)
+		&"golden_plant": return Color(0.90, 0.66, 0.18)
+		&"lounge_chair": return Color(0.42, 0.24, 0.62)
 		_:        return Color(0.60, 0.60, 0.60)
 
 
@@ -353,6 +397,9 @@ func get_furniture_height(furniture_type) -> float:
 		&"sofa":  return 18.0
 		&"plant": return 24.0
 		&"rug":   return 4.0
+		&"blue_rug": return 4.0
+		&"golden_plant": return 24.0
+		&"lounge_chair": return 17.0
 		_:        return 14.0
 
 

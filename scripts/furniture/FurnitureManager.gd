@@ -289,8 +289,8 @@ func _get_layer(furniture: RefCounted) -> String:
 	if l != null and str(l) != "":
 		return str(l)
 	var t: String = str(furniture.get("type"))
-	if t == "rug": return "floor"
-	if t == "plant": return "decor"
+	if t == "rug" or t == "blue_rug": return "floor"
+	if t == "plant" or t == "golden_plant": return "decor"
 	return "furniture"
 
 

@@ -24,6 +24,9 @@ const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
 const RoomDataScript = preload("res://scripts/room/RoomData.gd")
 const PlacementPreviewScript: GDScript = preload("res://scripts/placement/PlacementPreview.gd")
 const TutorialStateServiceScript: GDScript = preload("res://scripts/tutorial/TutorialStateService.gd")
+const MissionManagerScript: GDScript = preload("res://scripts/missions/MissionManager.gd")
+const CurrencyManagerScript: GDScript = preload("res://scripts/economy/CurrencyManager.gd")
+const ShopManagerScript: GDScript = preload("res://scripts/shop/ShopManager.gd")
 
 const IsoGrid = IsoGridScript
 const PathfindingManager = PathfindingManagerScript
@@ -64,6 +67,9 @@ var npc_manager
 var placement_preview
 var tutorial_state_service
 var tutorial_completed: bool = false
+var mission_manager
+var currency_manager
+var shop_manager
 var npc_root: Node2D
 
 func _ready():
@@ -92,6 +98,12 @@ func _ready():
 	room_save_service = RoomSaveServiceScript.new()
 	tutorial_state_service = TutorialStateServiceScript.new()
 	tutorial_completed = tutorial_state_service.load_completed()
+	mission_manager = MissionManagerScript.new()
+	mission_manager.load_state()
+	currency_manager = CurrencyManagerScript.new()
+	currency_manager.load_state()
+	shop_manager = ShopManagerScript.new()
+	shop_manager.load_state()
 	chat_manager = ChatManagerScript.new()
 	chat_manager.set_player_name(player_profile_manager.player_name)
 
@@ -106,7 +118,7 @@ func _ready():
 	)
 
 	game_ui.update_profile_ui(player_profile_manager.player_name, player_profile_manager.avatar_color)
-	game_ui.build_furniture_catalog(inventory_manager.get_catalog())
+	_refresh_catalog_from_shop()
 	game_ui.setup_furniture_inspector_callbacks(
 		Callable(self, "_on_inspector_move"),
 		Callable(self, "_on_inspector_rotate"),
@@ -119,6 +131,8 @@ func _ready():
 	)
 	game_ui.set_tutorial_closed_callback(Callable(self, "_on_tutorial_closed"))
 	game_ui.set_tutorial_open_requested_callback(Callable(self, "_on_tutorial_open_requested"))
+	game_ui.set_shop_item_buy_callback(Callable(self, "_on_shop_item_buy_requested"))
+	game_ui.set_shop_closed_callback(Callable(self, "_on_shop_closed"))
 	camera_controller = CameraControllerScript.new(self, iso_grid)
 
 	furniture_manager = FurnitureManagerScript.new(
@@ -144,7 +158,7 @@ func _process(delta):
 	if not is_initialized:
 		return
 	if current_state == GameState.IN_ROOM:
-		if not game_ui.is_chat_input_active() and not game_ui.is_profile_open() and not _is_tutorial_visible():
+		if not game_ui.is_chat_input_active() and not game_ui.is_profile_open() and not _is_tutorial_visible() and not _is_shop_visible():
 			camera_controller.process(delta)
 		game_ui.update_chat_bubble(player_node.global_position, delta)
 		if npc_manager != null:
@@ -161,8 +175,17 @@ func _input(event):
 	if event is InputEventKey:
 		var key_event = event as InputEventKey
 		if key_event.pressed and not key_event.echo:
-			if current_state == GameState.IN_ROOM and key_event.keycode == KEY_H and not _is_tutorial_visible() and not game_ui.is_profile_open() and not game_ui.is_chat_input_active():
+			if current_state == GameState.IN_ROOM and key_event.keycode == KEY_B and not _is_tutorial_visible() and not game_ui.is_profile_open() and not game_ui.is_chat_input_active():
+				_toggle_shop()
+				get_viewport().set_input_as_handled()
+				return
+			if current_state == GameState.IN_ROOM and key_event.keycode == KEY_H and not _is_tutorial_visible() and not _is_shop_visible() and not game_ui.is_profile_open() and not game_ui.is_chat_input_active():
 				_open_tutorial_manual()
+				get_viewport().set_input_as_handled()
+				return
+			if _is_shop_visible():
+				if key_event.keycode == KEY_ESCAPE:
+					_close_shop()
 				get_viewport().set_input_as_handled()
 				return
 			if _is_tutorial_visible():
@@ -179,6 +202,8 @@ func _input(event):
 			handle_key_press(key_event.keycode)
 	elif event is InputEventMouseButton:
 		if current_state == GameState.IN_ROOM:
+			if _is_shop_visible():
+				return
 			if _is_tutorial_visible():
 				return
 			if game_ui.is_profile_open() or game_ui.is_chat_input_active():
@@ -210,6 +235,7 @@ func _input(event):
 						if furniture_manager.can_place_furniture(new_furniture, -1) and furniture_manager.place_furniture(new_furniture):
 							game_ui.set_status_message("Mueble colocado")
 							_show_toast(_get_furniture_placed_message(str(new_furniture.get("type"))), "success")
+							_complete_mission("place_first_furniture")
 							update_placement_preview()
 						else:
 							update_placement_preview()
@@ -225,10 +251,13 @@ func _input(event):
 							if path.size() > 0:
 								if not player_controller.move_along_path(path):
 									game_ui.set_status_message("El jugador ya se esta moviendo")
+								else:
+									_complete_mission("first_walk")
 					elif items_at_cell.size() == 1:
 						furniture_manager.select_furniture_item(items_at_cell[0])
 						hide_placement_preview()
 						game_ui.show_furniture_inspector(items_at_cell[0])
+						_complete_mission("inspect_first_furniture")
 						game_ui.set_status_message("Mueble seleccionado — M mover | R rotar | Delete eliminar")
 					else:
 						_overlap_pending_items = items_at_cell
@@ -252,6 +281,7 @@ func enter_state(new_state):
 			game_ui.show_room_selector(room_manager.get_all_rooms())
 		GameState.IN_ROOM:
 			game_ui.show_in_room()
+			_update_missions_ui()
 			_maybe_show_tutorial()
 
 func on_enter_hotel():
@@ -308,6 +338,9 @@ func handle_key_press(keycode):
 		KEY_H:
 			if current_state == GameState.IN_ROOM:
 				_open_tutorial_manual()
+		KEY_B:
+			if current_state == GameState.IN_ROOM:
+				_toggle_shop()
 		KEY_S:
 			if current_state == GameState.IN_ROOM:
 				save_current_room_state()
@@ -400,6 +433,10 @@ func _get_furniture_display_name(furniture_type: String) -> String:
 		"sofa":  return "Sofá"
 		"plant": return "Planta"
 		"rug":   return "Alfombra"
+	match furniture_type:
+		"blue_rug": return "Alfombra Azul"
+		"golden_plant": return "Planta Dorada"
+		"lounge_chair": return "SillÃ³n Lounge"
 	return furniture_type
 
 
@@ -410,12 +447,128 @@ func _get_furniture_placed_message(furniture_type: String) -> String:
 		"sofa": return "Sofá colocado"
 		"plant": return "Planta colocada"
 		"rug": return "Alfombra colocada"
+	match furniture_type:
+		"blue_rug": return "Alfombra Azul colocada"
+		"golden_plant": return "Planta Dorada colocada"
+		"lounge_chair": return "SillÃ³n Lounge colocado"
 	return _get_furniture_display_name(furniture_type) + " colocado"
 
 
 func _show_toast(message: String, kind: String = "info") -> void:
 	if game_ui != null and game_ui.has_method("show_toast"):
 		game_ui.show_toast(message, kind)
+
+
+func _update_missions_ui() -> void:
+	if mission_manager == null or game_ui == null:
+		return
+	if game_ui.has_method("update_missions"):
+		game_ui.update_missions(mission_manager.get_missions())
+	if currency_manager != null and game_ui.has_method("update_credits"):
+		game_ui.update_credits(currency_manager.get_credits())
+	if game_ui.has_method("show_missions_panel"):
+		game_ui.show_missions_panel()
+
+
+func _refresh_catalog_from_shop() -> void:
+	var owned_items: Dictionary = {}
+	if shop_manager != null and shop_manager.has_method("get_owned_items"):
+		owned_items = shop_manager.get_owned_items()
+	inventory_manager.set_available_catalog(owned_items)
+	if game_ui != null and game_ui.has_method("build_furniture_catalog"):
+		game_ui.build_furniture_catalog(inventory_manager.get_catalog())
+
+
+func _update_credits_ui() -> void:
+	if game_ui != null and currency_manager != null and game_ui.has_method("update_credits"):
+		game_ui.update_credits(currency_manager.get_credits())
+
+
+func _toggle_shop() -> void:
+	if _is_shop_visible():
+		_close_shop()
+	else:
+		_open_shop()
+
+
+func _open_shop() -> void:
+	if current_state != GameState.IN_ROOM or game_ui == null or shop_manager == null or currency_manager == null:
+		return
+	if _is_tutorial_visible() or game_ui.is_profile_open() or game_ui.is_chat_input_active():
+		return
+	hide_placement_preview()
+	if game_ui.has_method("show_shop_panel"):
+		game_ui.show_shop_panel(shop_manager.get_shop_items(), currency_manager.get_credits())
+
+
+func _close_shop() -> void:
+	if game_ui != null and game_ui.has_method("hide_shop_panel"):
+		game_ui.hide_shop_panel()
+
+
+func _on_shop_closed() -> void:
+	hide_placement_preview()
+
+
+func _on_shop_item_buy_requested(item_id: String) -> void:
+	if item_id == "__open_shop__":
+		_open_shop()
+		return
+	if shop_manager == null or currency_manager == null:
+		return
+	var result: Dictionary = shop_manager.buy_item(item_id, currency_manager.get_credits())
+	var reason: String = str(result.get("reason", "not_found"))
+	if not bool(result.get("success", false)):
+		match reason:
+			"already_owned":
+				_show_toast("Ya tienes este mueble", "info")
+			"not_enough_credits":
+				_show_toast("Créditos insuficientes", "warning")
+			_:
+				_show_toast("No se pudo comprar", "error")
+		if game_ui != null and game_ui.has_method("update_shop_items"):
+			game_ui.update_shop_items(shop_manager.get_shop_items(), currency_manager.get_credits())
+		return
+	var price: int = int(result.get("price", 0))
+	if not currency_manager.spend_credits(price):
+		_show_toast("Créditos insuficientes", "warning")
+		return
+	shop_manager.mark_owned(item_id)
+	currency_manager.save_state()
+	shop_manager.save_state()
+	_update_credits_ui()
+	_refresh_catalog_from_shop()
+	if game_ui != null and game_ui.has_method("update_shop_items"):
+		game_ui.update_shop_items(shop_manager.get_shop_items(), currency_manager.get_credits())
+	_show_toast("Compraste: " + str(result.get("display_name", item_id)), "success")
+
+
+func _is_shop_visible() -> bool:
+	if game_ui == null or not game_ui.has_method("is_shop_visible"):
+		return false
+	return game_ui.is_shop_visible()
+
+
+func _complete_mission(mission_id: String) -> void:
+	if mission_manager == null:
+		return
+	var completed_mission: Dictionary = mission_manager.complete_mission(mission_id)
+	if completed_mission.is_empty():
+		return
+	mission_manager.save_state()
+	var reward: int = int(completed_mission.get("reward_credits", 0))
+	if reward > 0 and currency_manager != null:
+		currency_manager.add_credits(reward)
+		currency_manager.save_state()
+	if game_ui != null and game_ui.has_method("update_missions"):
+		game_ui.update_missions(mission_manager.get_missions())
+	if game_ui != null and currency_manager != null and game_ui.has_method("update_credits"):
+		game_ui.update_credits(currency_manager.get_credits())
+	var title: String = str(completed_mission.get("title", ""))
+	var message: String = "Misión completada: " + title
+	if reward > 0:
+		message += " · +" + str(reward) + " créditos"
+	_show_toast(message, "success")
 
 
 func _maybe_show_tutorial() -> void:
@@ -505,6 +658,7 @@ func _on_overlap_item_selected(index: int) -> void:
 	furniture_manager.select_furniture_item(furniture)
 	hide_placement_preview()
 	game_ui.show_furniture_inspector(furniture)
+	_complete_mission("inspect_first_furniture")
 	game_ui.set_status_message("Mueble seleccionado — M mover | R rotar | Delete eliminar")
 
 
@@ -519,6 +673,7 @@ func on_chat_submitted(message: String) -> void:
 	var result: Dictionary = chat_manager.submit_message(trimmed)
 	if not result.get("sent", false):
 		return
+	_complete_mission("send_first_chat")
 	game_ui.update_chat_history(chat_manager.get_history())
 	game_ui.show_chat_bubble(result.get("message", ""), player_node.global_position)
 	if npc_manager != null and npc_manager.is_active():
@@ -621,6 +776,8 @@ func _can_show_any_preview() -> bool:
 		return false
 	if _is_tutorial_visible():
 		return false
+	if _is_shop_visible():
+		return false
 	if game_ui.is_chat_input_active() or game_ui.is_profile_open():
 		return false
 	if game_ui.is_overlap_selector_visible():
@@ -638,6 +795,7 @@ func save_current_room_state():
 		current_room.furniture_items = furniture_manager.get_furniture_items()
 		if room_save_service.save_rooms(room_manager.get_all_rooms()):
 			_show_toast("Sala guardada", "success")
+			_complete_mission("save_room")
 		else:
 			_show_toast("No se pudo guardar", "error")
 

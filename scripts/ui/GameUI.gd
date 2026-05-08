@@ -38,7 +38,14 @@ var npc_bubble_label: Label
 var npc_bubble_timer: float = 0.0
 var npc_bubble_visible: bool = false
 var inventory_panel: PanelContainer
+var missions_panel: PanelContainer
+var _missions_list_vbox: VBoxContainer
+var credits_label: Label
 var help_button: Button
+var shop_button: Button
+var shop_panel: PanelContainer
+var _shop_items_vbox: VBoxContainer
+var _shop_credits_label: Label
 var toast_panel: PanelContainer
 var toast_label: Label
 var toast_tween: Tween
@@ -55,6 +62,8 @@ var tutorial_step_index: int = 0
 var tutorial_is_manual: bool = false
 var _on_tutorial_closed: Callable
 var _on_tutorial_open_requested: Callable
+var _on_shop_item_buy: Callable
+var _on_shop_closed: Callable
 var _tutorial_steps: Array[Dictionary] = [
 	{"title": "Bienvenido a Kabbo Hotel", "body": "Camina haciendo click sobre un tile libre."},
 	{"title": "Coloca muebles", "body": "Usa el catálogo de la derecha o las teclas 1, 2 y 3 para elegir muebles."},
@@ -127,9 +136,11 @@ func setup_ui(root: Node) :
 	_build_controls_panel()
 	_build_inventory_panel()
 	_build_chat_ui()
+	_build_missions_panel()
 	_build_furniture_inspector()
 	_build_furniture_catalog()
 	_build_overlap_selector()
+	_build_shop_panel()
 	_build_toast_panel()
 	_build_tutorial_panel()
 
@@ -348,11 +359,16 @@ func _on_profile_back_clicked() :
 	profile_panel.visible = false
 	if help_button != null and controls_panel != null and controls_panel.visible:
 		help_button.visible = true
+	show_shop_button()
+	show_missions_panel()
 
 
 func show_profile() :
 	if help_button != null:
 		help_button.visible = false
+	hide_shop_button()
+	hide_shop_panel()
+	hide_missions_panel()
 	profile_panel.visible = true
 	profile_panel.move_to_front()
 
@@ -412,6 +428,14 @@ func _build_controls_panel() :
 	status_label.add_theme_color_override("font_color", Color(0.84, 0.91, 1.0, 1.0))
 	top_row.add_child(status_label)
 
+	credits_label = Label.new()
+	credits_label.name = "CreditsLabel"
+	credits_label.text = "Créditos: 0"
+	credits_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	credits_label.custom_minimum_size = Vector2(116.0, 0.0)
+	credits_label.add_theme_color_override("font_color", Color(1.0, 0.90, 0.48, 1.0))
+	top_row.add_child(credits_label)
+
 	var back_btn: Button = Button.new()
 	back_btn.text = "Volver a salas"
 	back_btn.pressed.connect(_on_back_to_rooms)
@@ -422,6 +446,12 @@ func _build_controls_panel() :
 	help_button.custom_minimum_size = Vector2(72.0, 0.0)
 	help_button.pressed.connect(_on_help_pressed)
 	top_row.add_child(help_button)
+
+	shop_button = Button.new()
+	shop_button.text = "Tienda"
+	shop_button.custom_minimum_size = Vector2(76.0, 0.0)
+	shop_button.pressed.connect(_on_shop_button_pressed)
+	top_row.add_child(shop_button)
 
 	var controls_label: Label = Label.new()
 	controls_label.name = "ControlsLabel"
@@ -481,6 +511,86 @@ func _build_inventory_panel() :
 		name_label.text = item[1]
 		name_label.add_theme_color_override("font_color", Color(0.9, 0.93, 1.0))
 		row.add_child(name_label)
+
+
+func _build_missions_panel() -> void:
+	missions_panel = PanelContainer.new()
+	missions_panel.name = "MissionsPanel"
+	missions_panel.anchor_left = 0.0
+	missions_panel.anchor_top = 0.0
+	missions_panel.anchor_right = 0.0
+	missions_panel.anchor_bottom = 0.0
+	missions_panel.offset_left = 236.0
+	missions_panel.offset_top = 16.0
+	missions_panel.offset_right = 520.0
+	missions_panel.offset_bottom = 198.0
+	missions_panel.visible = false
+	missions_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.88)))
+	ui_layer.add_child(missions_panel)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	missions_panel.add_child(margin)
+
+	var layout: VBoxContainer = VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 7)
+	margin.add_child(layout)
+
+	var title: Label = Label.new()
+	title.text = "Misiones"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", Color(1.0, 0.95, 0.72))
+	title.add_theme_font_size_override("font_size", 15)
+	layout.add_child(title)
+
+	_missions_list_vbox = VBoxContainer.new()
+	_missions_list_vbox.add_theme_constant_override("separation", 4)
+	layout.add_child(_missions_list_vbox)
+
+
+func show_missions_panel() -> void:
+	if missions_panel != null and not is_tutorial_visible():
+		missions_panel.visible = true
+	if credits_label != null and controls_panel != null and controls_panel.visible and not is_tutorial_visible():
+		credits_label.visible = true
+
+
+func hide_missions_panel() -> void:
+	if missions_panel != null:
+		missions_panel.visible = false
+	if credits_label != null:
+		credits_label.visible = false
+
+
+func update_credits(amount: int) -> void:
+	if credits_label != null:
+		credits_label.text = "Créditos: " + str(amount)
+
+
+func update_missions(missions: Array[Dictionary]) -> void:
+	if _missions_list_vbox == null:
+		return
+	for child: Node in _missions_list_vbox.get_children():
+		_missions_list_vbox.remove_child(child)
+		child.queue_free()
+	for mission: Dictionary in missions:
+		var label: Label = Label.new()
+		var completed: bool = bool(mission.get("completed", false))
+		var reward: int = int(mission.get("reward_credits", 0))
+		var marker: String = "✓" if completed else "□"
+		label.text = marker + " " + str(mission.get("title", "")) + " (+" + str(reward) + ")"
+		label.tooltip_text = str(mission.get("description", ""))
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.add_theme_font_size_override("font_size", 12)
+		label.add_theme_color_override("font_color", Color(0.70, 0.94, 0.72) if completed else Color(0.86, 0.90, 0.96))
+		_missions_list_vbox.add_child(label)
+
+
+func show_mission_completed(mission_title: String) -> void:
+	show_toast("Misión completada: " + mission_title, "success")
 
 
 func _build_chat_ui() :
@@ -759,6 +869,10 @@ func _inspector_display_name(furniture_type: String) -> String:
 		"sofa":  return "Sofá"
 		"plant": return "Planta"
 		"rug":   return "Alfombra"
+	match furniture_type:
+		"blue_rug": return "Alfombra Azul"
+		"golden_plant": return "Planta Dorada"
+		"lounge_chair": return "SillÃ³n Lounge"
 	return furniture_type
 
 
@@ -1019,6 +1133,14 @@ func set_tutorial_open_requested_callback(callback: Callable) -> void:
 	_on_tutorial_open_requested = callback
 
 
+func set_shop_item_buy_callback(callback: Callable) -> void:
+	_on_shop_item_buy = callback
+
+
+func set_shop_closed_callback(callback: Callable) -> void:
+	_on_shop_closed = callback
+
+
 func show_overlap_selector(items: Array) -> void:
 	if overlap_selector_panel == null or _overlap_items_vbox == null:
 		return
@@ -1084,6 +1206,9 @@ func show_main_menu() :
 		inventory_panel.visible = false
 	if help_button != null:
 		help_button.visible = false
+	hide_shop_button()
+	hide_shop_panel()
+	hide_missions_panel()
 	hide_chat_bubble()
 	hide_npc_bubble()
 	hide_toast()
@@ -1104,6 +1229,7 @@ func show_room_select() :
 		inventory_panel.visible = false
 	if help_button != null:
 		help_button.visible = false
+	hide_missions_panel()
 	hide_chat_bubble()
 	hide_npc_bubble()
 	hide_toast()
@@ -1120,6 +1246,8 @@ func show_in_room() :
 	controls_panel.visible = true
 	if help_button != null:
 		help_button.visible = true
+	show_shop_button()
+	show_missions_panel()
 	show_furniture_catalog()
 
 
@@ -1364,6 +1492,9 @@ func show_tutorial(is_manual: bool = false) -> void:
 	if tutorial_overlay == null:
 		return
 	tutorial_is_manual = is_manual
+	hide_shop_button()
+	hide_shop_panel()
+	hide_missions_panel()
 	set_tutorial_step(0)
 	tutorial_overlay.visible = true
 	tutorial_overlay.move_to_front()
@@ -1372,6 +1503,9 @@ func show_tutorial(is_manual: bool = false) -> void:
 func hide_tutorial() -> void:
 	if tutorial_overlay != null:
 		tutorial_overlay.visible = false
+	if controls_panel != null and controls_panel.visible:
+		show_shop_button()
+		show_missions_panel()
 
 
 func is_tutorial_visible() -> bool:
@@ -1422,6 +1556,133 @@ func _on_tutorial_finish_pressed() -> void:
 func _on_help_pressed() -> void:
 	if _on_tutorial_open_requested.is_valid():
 		_on_tutorial_open_requested.call()
+
+
+func _build_shop_panel() -> void:
+	shop_panel = PanelContainer.new()
+	shop_panel.name = "ShopPanel"
+	shop_panel.anchor_left = 0.5
+	shop_panel.anchor_top = 0.5
+	shop_panel.anchor_right = 0.5
+	shop_panel.anchor_bottom = 0.5
+	shop_panel.offset_left = -260.0
+	shop_panel.offset_top = -190.0
+	shop_panel.offset_right = 260.0
+	shop_panel.offset_bottom = 190.0
+	shop_panel.visible = false
+	shop_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.97)))
+	ui_layer.add_child(shop_panel)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	shop_panel.add_child(margin)
+
+	var layout: VBoxContainer = VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 10)
+	margin.add_child(layout)
+
+	var title: Label = Label.new()
+	title.text = "Tienda"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", Color(1.0, 0.95, 0.72))
+	layout.add_child(title)
+
+	_shop_credits_label = Label.new()
+	_shop_credits_label.text = "Créditos: 0"
+	_shop_credits_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_shop_credits_label.add_theme_color_override("font_color", Color(1.0, 0.90, 0.48))
+	layout.add_child(_shop_credits_label)
+
+	_shop_items_vbox = VBoxContainer.new()
+	_shop_items_vbox.add_theme_constant_override("separation", 6)
+	layout.add_child(_shop_items_vbox)
+
+	var close_btn: Button = Button.new()
+	close_btn.text = "Cerrar"
+	close_btn.pressed.connect(_on_shop_close_pressed)
+	layout.add_child(close_btn)
+
+
+func show_shop_panel(items: Array[Dictionary], credits: int) -> void:
+	update_shop_items(items, credits)
+	if shop_panel != null:
+		shop_panel.visible = true
+		shop_panel.move_to_front()
+	hide_missions_panel()
+
+
+func hide_shop_panel() -> void:
+	if shop_panel != null:
+		shop_panel.visible = false
+	if controls_panel != null and controls_panel.visible:
+		show_missions_panel()
+	if _on_shop_closed.is_valid():
+		_on_shop_closed.call()
+
+
+func update_shop_items(items: Array[Dictionary], credits: int) -> void:
+	if _shop_credits_label != null:
+		_shop_credits_label.text = "Créditos: " + str(credits)
+	if _shop_items_vbox == null:
+		return
+	for child: Node in _shop_items_vbox.get_children():
+		_shop_items_vbox.remove_child(child)
+		child.queue_free()
+	for item: Dictionary in items:
+		var item_id: String = str(item.get("id", ""))
+		var display_name: String = str(item.get("display_name", item_id))
+		var price: int = int(item.get("price", 0))
+		var owned: bool = bool(item.get("owned", false))
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		_shop_items_vbox.add_child(row)
+
+		var label: Label = Label.new()
+		label.text = display_name + " — " + str(price) + " créditos"
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.add_theme_font_size_override("font_size", 13)
+		label.add_theme_color_override("font_color", Color(0.90, 0.94, 1.0))
+		row.add_child(label)
+
+		var buy_btn: Button = Button.new()
+		buy_btn.text = "Comprado" if owned else "Comprar"
+		buy_btn.disabled = owned
+		buy_btn.pressed.connect(_on_shop_buy_pressed.bind(item_id))
+		row.add_child(buy_btn)
+
+
+func is_shop_visible() -> bool:
+	return shop_panel != null and shop_panel.visible
+
+
+func show_shop_button() -> void:
+	if shop_button != null:
+		shop_button.visible = true
+
+
+func hide_shop_button() -> void:
+	if shop_button != null:
+		shop_button.visible = false
+
+
+func _on_shop_button_pressed() -> void:
+	if is_shop_visible():
+		hide_shop_panel()
+	elif _on_shop_item_buy.is_valid():
+		_on_shop_item_buy.call("__open_shop__")
+
+
+func _on_shop_buy_pressed(item_id: String) -> void:
+	if _on_shop_item_buy.is_valid():
+		_on_shop_item_buy.call(item_id)
+
+
+func _on_shop_close_pressed() -> void:
+	hide_shop_panel()
 
 
 func _build_toast_panel() -> void:

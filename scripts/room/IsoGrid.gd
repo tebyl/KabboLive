@@ -106,16 +106,19 @@ func redraw_tiles(blocked_cells: Array[Vector2i]) :
 		for y in range(grid_height):
 			var cell = Vector2i(x, y)
 			var tile: Polygon2D = Polygon2D.new()
-
 			tile.polygon = get_iso_diamond_polygon()
 			tile.position = grid_to_iso(cell)
 			tile.z_index = get_draw_z_index(cell) - 8
-			tile.color = Color(0.70, 0.82, 0.68)
 
 			if blocked_cells.has(cell):
-				tile.color = Color(0.55, 0.64, 0.58)
+				tile.color = Color(0.60, 0.68, 0.60)
+			elif (x + y) % 2 == 0:
+				tile.color = Color(0.86, 0.80, 0.66)
+			else:
+				tile.color = Color(0.79, 0.73, 0.58)
 
 			floor_node.add_child(tile)
+			_draw_tile_inner(cell)
 			draw_tile_outline(cell)
 
 
@@ -129,13 +132,27 @@ func clear_floor() :
 		child.queue_free()
 
 
+func _draw_tile_inner(cell) -> void:
+	var inner: Polygon2D = Polygon2D.new()
+	var s: float = 0.62
+	var hw: float = float(tile_width) * 0.5 * s
+	var hh: float = float(tile_height) * 0.5 * s
+	inner.polygon = PackedVector2Array([
+		Vector2(0, -hh), Vector2(hw, 0), Vector2(0, hh), Vector2(-hw, 0)
+	])
+	inner.position = grid_to_iso(cell)
+	inner.color = Color(1.0, 1.0, 1.0, 0.06)
+	inner.z_index = get_draw_z_index(cell) - 7
+	floor_node.add_child(inner)
+
+
 func draw_tile_outline(cell) :
 	var outline: Line2D = Line2D.new()
 	var outline_points: PackedVector2Array = get_iso_diamond_polygon()
 	outline_points.append(outline_points[0])
 	outline.points = outline_points
 	outline.position = grid_to_iso(cell)
-	outline.width = 1.2
-	outline.default_color = Color(0.20, 0.29, 0.24, 0.32)
+	outline.width = 1.4
+	outline.default_color = Color(0.46, 0.38, 0.28, 0.42)
 	outline.z_index = get_draw_z_index(cell) - 7
 	floor_node.add_child(outline)

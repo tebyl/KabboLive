@@ -152,14 +152,10 @@ func get_furniture_save_items(furniture_items) -> Array[Dictionary]:
 	for furniture in furniture_items:
 		var save_item: Dictionary = {
 			"type": str(furniture.type),
-			"cell": {
-				"x": furniture.cell.x,
-				"y": furniture.cell.y
-			},
-			"size": {
-				"x": furniture.size.x,
-				"y": furniture.size.y
-			}
+			"cell": {"x": furniture.cell.x, "y": furniture.cell.y},
+			"size": {"x": furniture.size.x, "y": furniture.size.y},
+			"blocks_movement": furniture.blocks_movement,
+			"layer": str(furniture.layer)
 		}
 		save_items.append(save_item)
 
@@ -185,7 +181,21 @@ func create_furniture_from_save_data(item_data: Dictionary):
 		int(size_data.get("y", 0))
 	)
 
-	return FurnitureDataScript.new(cell, StringName(type_text), size)
+	var f: RefCounted = FurnitureDataScript.new(cell, StringName(type_text), size)
+	if item_data.has("blocks_movement"):
+		f.blocks_movement = bool(item_data["blocks_movement"])
+	else:
+		f.blocks_movement = type_text != "rug"
+	if item_data.has("layer"):
+		f.layer = str(item_data["layer"])
+	else:
+		if type_text == "rug":
+			f.layer = "floor"
+		elif type_text == "plant":
+			f.layer = "decor"
+		else:
+			f.layer = "furniture"
+	return f
 
 
 func is_save_furniture_valid(furniture) :

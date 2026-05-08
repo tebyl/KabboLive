@@ -43,6 +43,7 @@ var blocks_node: Node2D
 var player_node: Sprite2D
 var is_initialized = false
 var current_state = GameState.MAIN_MENU
+var _overlap_pending_items: Array = []
 
 # Manager instances (se manejan como Variant por el ruido de símbolos en Godot)
 var iso_grid
@@ -98,11 +99,16 @@ func _ready():
 	)
 
 	game_ui.update_profile_ui(player_profile_manager.player_name, player_profile_manager.avatar_color)
+	game_ui.build_furniture_catalog(inventory_manager.get_catalog())
 	game_ui.setup_furniture_inspector_callbacks(
 		Callable(self, "_on_inspector_move"),
 		Callable(self, "_on_inspector_rotate"),
 		Callable(self, "_on_inspector_delete"),
 		Callable(self, "_on_inspector_close")
+	)
+	game_ui.setup_overlap_selector_callbacks(
+		Callable(self, "_on_overlap_item_selected"),
+		Callable(self, "_on_overlap_selector_closed")
 	)
 	camera_controller = CameraControllerScript.new(self, iso_grid)
 
@@ -174,20 +180,23 @@ func _input(event):
 						else:
 							game_ui.set_status_message("No se puede colocar ahí")
 				else:
-					# Try to select furniture first
-					if furniture_manager.select_furniture_at_cell(cell):
-						var sel: Object = furniture_manager.get_selected_furniture()
-						if sel != null:
-							game_ui.show_furniture_inspector(sel)
-						game_ui.set_status_message("Mueble seleccionado — M mover | R rotar | Delete eliminar")
-					else:
-						# If no furniture at cell, move player to cell
+					var items_at_cell: Array = furniture_manager.get_furniture_items_at_cell(cell)
+					if items_at_cell.size() == 0:
+						# No furniture — move player
 						if iso_grid.is_valid_cell(cell) and not pathfinding_manager.is_point_solid(cell):
-							var player_cell = player_controller.get_player_cell()
-							var path = pathfinding_manager.get_path(player_cell, cell)
+							var player_cell: Vector2i = player_controller.get_player_cell()
+							var path: Array = pathfinding_manager.get_path(player_cell, cell)
 							if path.size() > 0:
 								if not player_controller.move_along_path(path):
 									game_ui.set_status_message("El jugador ya se esta moviendo")
+					elif items_at_cell.size() == 1:
+						furniture_manager.select_furniture_item(items_at_cell[0])
+						game_ui.show_furniture_inspector(items_at_cell[0])
+						game_ui.set_status_message("Mueble seleccionado — M mover | R rotar | Delete eliminar")
+					else:
+						_overlap_pending_items = items_at_cell
+						game_ui.hide_furniture_inspector()
+						game_ui.show_overlap_selector(_overlap_pending_items)
 
 func resolve_required_nodes() -> bool:
 	floor_node = get_node_or_null("Floor")
@@ -224,7 +233,10 @@ func handle_key_press(keycode):
 	match keycode:
 		KEY_ESCAPE:
 			if current_state == GameState.IN_ROOM:
-				if inventory_manager.has_selected_furniture():
+				if game_ui.is_overlap_selector_visible():
+					game_ui.hide_overlap_selector()
+					_overlap_pending_items = []
+				elif inventory_manager.has_selected_furniture():
 					inventory_manager.cancel_selection()
 					game_ui.set_catalog_selected_furniture("")
 					game_ui.set_status_message("Sin seleccion")
@@ -257,24 +269,21 @@ func handle_key_press(keycode):
 						npc_manager.reapply_pathfinding_solid()
 		KEY_1:
 			if current_state == GameState.IN_ROOM:
-				inventory_manager.select_index(0)
-				var type1: String = inventory_manager.get_selected_type_text()
-				game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(type1))
-				game_ui.set_catalog_selected_furniture(type1)
+				inventory_manager.select_type("chair")
+				game_ui.set_status_message("Modo colocar: Silla")
+				game_ui.set_catalog_selected_furniture("chair")
 				game_ui.hide_furniture_inspector()
 		KEY_2:
 			if current_state == GameState.IN_ROOM:
-				inventory_manager.select_index(1)
-				var type2: String = inventory_manager.get_selected_type_text()
-				game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(type2))
-				game_ui.set_catalog_selected_furniture(type2)
+				inventory_manager.select_type("table")
+				game_ui.set_status_message("Modo colocar: Mesa")
+				game_ui.set_catalog_selected_furniture("table")
 				game_ui.hide_furniture_inspector()
 		KEY_3:
 			if current_state == GameState.IN_ROOM:
-				inventory_manager.select_index(2)
-				var type3: String = inventory_manager.get_selected_type_text()
-				game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(type3))
-				game_ui.set_catalog_selected_furniture(type3)
+				inventory_manager.select_type("sofa")
+				game_ui.set_status_message("Modo colocar: Sofá")
+				game_ui.set_catalog_selected_furniture("sofa")
 				game_ui.hide_furniture_inspector()
 		KEY_M:
 			if current_state == GameState.IN_ROOM:
@@ -313,19 +322,18 @@ func _get_furniture_display_name(furniture_type: String) -> String:
 	match furniture_type:
 		"chair": return "Silla"
 		"table": return "Mesa"
-		"sofa": return "Sofá"
+		"sofa":  return "Sofá"
+		"plant": return "Planta"
+		"rug":   return "Alfombra"
 	return furniture_type
 
 
 func on_catalog_selected(furniture_type: String) -> void:
-	var type_to_index: Dictionary = {"chair": 0, "table": 1, "sofa": 2}
-	var idx: int = type_to_index.get(furniture_type, -1)
-	if idx < 0:
-		return
-	inventory_manager.select_index(idx)
+	inventory_manager.select_type(furniture_type)
 	game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(furniture_type))
 	game_ui.set_catalog_selected_furniture(furniture_type)
 	game_ui.hide_furniture_inspector()
+	furniture_manager.clear_selection()
 
 
 func _on_inspector_move() -> void:
@@ -356,6 +364,20 @@ func _on_inspector_delete() -> void:
 
 func _on_inspector_close() -> void:
 	game_ui.hide_furniture_inspector()
+
+
+func _on_overlap_item_selected(index: int) -> void:
+	if index < 0 or index >= _overlap_pending_items.size():
+		return
+	var furniture: RefCounted = _overlap_pending_items[index]
+	_overlap_pending_items = []
+	furniture_manager.select_furniture_item(furniture)
+	game_ui.show_furniture_inspector(furniture)
+	game_ui.set_status_message("Mueble seleccionado — M mover | R rotar | Delete eliminar")
+
+
+func _on_overlap_selector_closed() -> void:
+	_overlap_pending_items = []
 
 
 func on_chat_submitted(message: String) -> void:

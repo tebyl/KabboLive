@@ -129,82 +129,86 @@ func setup_avatar_visual() :
 	avatar_root.name = "AvatarRoot"
 	player_node.add_child(avatar_root)
 
+	# Shadow
 	avatar_shadow = create_avatar_part(
-		PackedVector2Array([
-			Vector2(0, -4),
-			Vector2(18, 0),
-			Vector2(0, 4),
-			Vector2(-18, 0)
-		]),
-		Color(0.04, 0.05, 0.06, 0.34),
-		Vector2(0, 1),
-		0
+		PackedVector2Array([Vector2(0,-5), Vector2(20,0), Vector2(0,5), Vector2(-20,0)]),
+		Color(0.04, 0.05, 0.06, 0.36), Vector2(0, 2), 0
 	)
 	player_node.add_child(avatar_shadow)
 
+	# Boots
+	var left_boot: Polygon2D = create_avatar_part(
+		get_rect_polygon(Vector2(7, 5)), Color(0.22, 0.14, 0.08), Vector2(-5, -3), 1
+	)
+	avatar_root.add_child(left_boot)
+	var right_boot: Polygon2D = create_avatar_part(
+		get_rect_polygon(Vector2(7, 5)), Color(0.22, 0.14, 0.08), Vector2(5, -3), 1
+	)
+	avatar_root.add_child(right_boot)
+
+	# Legs (pants)
 	avatar_left_leg = create_avatar_part(
-		get_rect_polygon(Vector2(6, 12)),
-		Color(0.08, 0.10, 0.18),
-		Vector2(-5, -8),
-		1
+		get_rect_polygon(Vector2(7, 13)), Color(0.14, 0.16, 0.30), Vector2(-5, -11), 2
 	)
 	avatar_root.add_child(avatar_left_leg)
-
 	avatar_right_leg = create_avatar_part(
-		get_rect_polygon(Vector2(6, 12)),
-		Color(0.08, 0.10, 0.18),
-		Vector2(5, -8),
-		1
+		get_rect_polygon(Vector2(7, 13)), Color(0.14, 0.16, 0.30), Vector2(5, -11), 2
 	)
 	avatar_root.add_child(avatar_right_leg)
 
+	# Body / shirt
 	avatar_body = create_avatar_part(
-		get_rect_polygon(Vector2(18, 22)),
-		Color(0.14, 0.32, 0.72),
-		Vector2(0, -22),
-		2
+		get_rect_polygon(Vector2(20, 20)), Color(0.14, 0.32, 0.72), Vector2(0, -28), 3
 	)
 	avatar_root.add_child(avatar_body)
 
-	var shirt_highlight: Polygon2D = create_avatar_part(
-		get_rect_polygon(Vector2(12, 4)),
-		Color(0.28, 0.55, 0.94),
-		Vector2(0, -31),
-		3
+	# Shirt pocket / highlight stripe
+	var shirt_stripe: Polygon2D = create_avatar_part(
+		get_rect_polygon(Vector2(14, 4)), Color(0.32, 0.58, 0.96), Vector2(0, -34), 4
 	)
-	avatar_root.add_child(shirt_highlight)
+	avatar_root.add_child(shirt_stripe)
 
+	# Collar
+	var collar: Polygon2D = create_avatar_part(
+		get_rect_polygon(Vector2(10, 4)), Color(0.90, 0.88, 0.84), Vector2(0, -39), 4
+	)
+	avatar_root.add_child(collar)
+
+	# Head (chibi — big round)
 	avatar_head = create_avatar_part(
-		get_circle_polygon(10.0, 14),
-		Color(0.78, 0.54, 0.38),
-		Vector2(0, -44),
-		4
+		get_circle_polygon(13.0, 18), Color(0.82, 0.60, 0.42), Vector2(0, -56), 5
 	)
 	avatar_root.add_child(avatar_head)
 
-	var hair: Polygon2D = create_avatar_part(
-		get_rect_polygon(Vector2(18, 6)),
-		Color(0.18, 0.10, 0.06),
-		Vector2(0, -52),
-		5
+	# Hair (top + sides)
+	var hair_top: Polygon2D = create_avatar_part(
+		get_rect_polygon(Vector2(24, 9)), Color(0.20, 0.12, 0.06), Vector2(0, -66), 6
 	)
-	avatar_root.add_child(hair)
+	avatar_root.add_child(hair_top)
+	var hair_side: Polygon2D = create_avatar_part(
+		get_rect_polygon(Vector2(6, 10)), Color(0.20, 0.12, 0.06), Vector2(-11, -60), 6
+	)
+	avatar_root.add_child(hair_side)
 
+	# Eyes (bigger, pixel style)
 	var left_eye: Polygon2D = create_avatar_part(
-		get_rect_polygon(Vector2(3, 2)),
-		Color(0.08, 0.08, 0.08),
-		Vector2(-4, -45),
-		6
+		get_rect_polygon(Vector2(5, 4)), Color(0.10, 0.08, 0.08), Vector2(-5, -56), 7
 	)
 	avatar_root.add_child(left_eye)
-
 	var right_eye: Polygon2D = create_avatar_part(
-		get_rect_polygon(Vector2(3, 2)),
-		Color(0.08, 0.08, 0.08),
-		Vector2(5, -45),
-		6
+		get_rect_polygon(Vector2(5, 4)), Color(0.10, 0.08, 0.08), Vector2(5, -56), 7
 	)
 	avatar_root.add_child(right_eye)
+
+	# Eye shine
+	var shine_l: Polygon2D = create_avatar_part(
+		get_rect_polygon(Vector2(2, 2)), Color(1.0, 1.0, 1.0, 0.90), Vector2(-4, -57), 8
+	)
+	avatar_root.add_child(shine_l)
+	var shine_r: Polygon2D = create_avatar_part(
+		get_rect_polygon(Vector2(2, 2)), Color(1.0, 1.0, 1.0, 0.90), Vector2(6, -57), 8
+	)
+	avatar_root.add_child(shine_r)
 
 
 func create_avatar_part(polygon: PackedVector2Array, color: Color, position, z_index) -> Polygon2D:
@@ -244,13 +248,13 @@ func set_avatar_idle_pose() :
 	avatar_root.position = Vector2.ZERO
 	avatar_root.rotation = 0.0
 	avatar_root.scale = Vector2(avatar_facing_sign, 1.0)
-	avatar_left_leg.position = Vector2(-5, -8)
-	avatar_right_leg.position = Vector2(5, -8)
+	avatar_left_leg.position = Vector2(-5, -11)
+	avatar_right_leg.position = Vector2(5, -11)
 	avatar_left_leg.rotation = 0.0
 	avatar_right_leg.rotation = 0.0
 	avatar_shadow.scale = Vector2.ONE
-	avatar_body.position = Vector2(0, -22)
-	avatar_head.position = Vector2(0, -44)
+	avatar_body.position = Vector2(0, -28)
+	avatar_head.position = Vector2(0, -56)
 
 
 func animate_avatar_step(step_direction, step_duration, tween: Tween) :
@@ -258,17 +262,17 @@ func animate_avatar_step(step_direction, step_duration, tween: Tween) :
 		return
 
 	set_avatar_facing(step_direction)
-	var lean = get_avatar_direction_lean(step_direction)
-	var half_duration = step_duration / 2.0
+	var lean: float = get_avatar_direction_lean(step_direction)
+	var half_duration: float = step_duration / 2.0
 
 	tween.set_parallel(true)
 	tween.tween_property(avatar_root, "position", Vector2(0, -5), half_duration)
 	tween.tween_property(avatar_root, "rotation", lean, half_duration)
 	tween.tween_property(avatar_shadow, "scale", Vector2(0.82, 0.82), half_duration)
-	tween.tween_property(avatar_left_leg, "rotation", -0.32, half_duration)
-	tween.tween_property(avatar_right_leg, "rotation", 0.32, half_duration)
-	tween.tween_property(avatar_body, "position", Vector2(0, -24), half_duration)
-	tween.tween_property(avatar_head, "position", Vector2(2 * avatar_facing_sign, -46), half_duration)
+	tween.tween_property(avatar_left_leg, "rotation", -0.34, half_duration)
+	tween.tween_property(avatar_right_leg, "rotation", 0.34, half_duration)
+	tween.tween_property(avatar_body, "position", Vector2(0, -30), half_duration)
+	tween.tween_property(avatar_head, "position", Vector2(2 * avatar_facing_sign, -58), half_duration)
 	tween.chain()
 	tween.set_parallel(true)
 	tween.tween_property(avatar_root, "position", Vector2.ZERO, half_duration)
@@ -276,8 +280,8 @@ func animate_avatar_step(step_direction, step_duration, tween: Tween) :
 	tween.tween_property(avatar_shadow, "scale", Vector2.ONE, half_duration)
 	tween.tween_property(avatar_left_leg, "rotation", 0.22, half_duration)
 	tween.tween_property(avatar_right_leg, "rotation", -0.22, half_duration)
-	tween.tween_property(avatar_body, "position", Vector2(0, -22), half_duration)
-	tween.tween_property(avatar_head, "position", Vector2(0, -44), half_duration)
+	tween.tween_property(avatar_body, "position", Vector2(0, -28), half_duration)
+	tween.tween_property(avatar_head, "position", Vector2(0, -56), half_duration)
 
 
 func get_avatar_direction_lean(step_direction) -> float:

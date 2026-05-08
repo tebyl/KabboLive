@@ -11,8 +11,8 @@ var pathfinding_manager
 var player_controller
 var visual_factory
 var furniture_items: Array[RefCounted] = []
-var selected_furniture_index = -1
-var is_move_mode = false
+var selected_furniture_index: int = -1
+var is_move_mode: bool = false
 
 
 func _init(
@@ -21,7 +21,7 @@ func _init(
 	p_player_controller,
 	p_visual_factory,
 	initial_items: Array
-) :
+) -> void:
 	iso_grid = p_iso_grid
 	pathfinding_manager = p_pathfinding_manager
 	player_controller = p_player_controller
@@ -29,8 +29,8 @@ func _init(
 	furniture_items = []
 
 	for item in initial_items:
-		if item is RefCounted and item.has_method("get_script"):
-			furniture_items.append(item.get_script().new(item.cell, item.type, item.size))
+		if item is RefCounted and item.has_method("duplicate_data"):
+			furniture_items.append(item.duplicate_data())
 		else:
 			furniture_items.append(item)
 
@@ -38,63 +38,87 @@ func _init(
 	redraw()
 
 
-func get_furniture_items():
-	var copied_items = []
-
+func get_furniture_items() -> Array:
+	var copied_items: Array = []
 	for furniture in furniture_items:
-		if furniture is RefCounted and furniture.has_method("get_script"):
-			copied_items.append(furniture.get_script().new(furniture.cell, furniture.type, furniture.size))
+		if furniture is RefCounted and furniture.has_method("duplicate_data"):
+			copied_items.append(furniture.duplicate_data())
 		else:
 			copied_items.append(furniture)
-
 	return copied_items
 
 
 func get_blocked_cells() -> Array[Vector2i]:
 	var blocked_cells: Array[Vector2i] = []
-
 	for furniture in furniture_items:
-		for cell in furniture.get_occupied_cells():
+		if _get_layer(furniture) == "floor":
+			continue
+		for cell: Vector2i in furniture.get_occupied_cells():
 			blocked_cells.append(cell)
-
 	return blocked_cells
 
 
-func redraw() :
+func redraw() -> void:
 	iso_grid.redraw_tiles(get_blocked_cells())
 	visual_factory.redraw(furniture_items, selected_furniture_index)
 
 
-func rebuild_solids() :
+func rebuild_solids() -> void:
 	pathfinding_manager.clear_all_solids(iso_grid.grid_width, iso_grid.grid_height)
-
 	for furniture in furniture_items:
 		pathfinding_manager.mark_furniture_solid(furniture, true)
 
 
-func clear_selection() :
+func clear_selection() -> void:
 	selected_furniture_index = -1
 	is_move_mode = false
 	redraw()
 
 
-func has_selected_placed_furniture() :
+func has_selected_placed_furniture() -> bool:
 	return selected_furniture_index >= 0 and selected_furniture_index < furniture_items.size()
 
 
-func get_selected_furniture():
+func get_selected_furniture() -> RefCounted:
 	if not has_selected_placed_furniture():
 		return null
 	return furniture_items[selected_furniture_index]
 
 
-func select_furniture_at_cell(cell) :
-	var furniture_index = get_furniture_index_at_cell(cell)
+func get_furniture_items_at_cell(cell: Vector2i) -> Array:
+	var found: Array = []
+	for f: RefCounted in furniture_items:
+		if f.get_occupied_cells().has(cell):
+			found.append(f)
+	found.sort_custom(func(a: RefCounted, b: RefCounted) -> bool:
+		return _layer_priority(_get_layer(a)) > _layer_priority(_get_layer(b))
+	)
+	return found
 
-	if furniture_index == -1:
+
+func select_furniture_item(furniture: RefCounted) -> void:
+	for i: int in range(furniture_items.size()):
+		if furniture_items[i] == furniture:
+			selected_furniture_index = i
+			is_move_mode = false
+			redraw()
+			return
+
+
+func select_furniture_at_cell(cell: Vector2i) -> bool:
+	var best_index: int = -1
+	var best_priority: int = -1
+	for i: int in range(furniture_items.size()):
+		var f: RefCounted = furniture_items[i]
+		if not f.get_occupied_cells().has(cell):
+			continue
+		var p: int = _layer_priority(_get_layer(f))
+		if p > best_priority:
+			best_priority = p
+			best_index = i
+	if best_index == -1:
 		return false
-
-	selected_furniture_index = furniture_index
+	selected_furniture_index = best_index
 	is_move_mode = false
 	redraw()
 	return true
@@ -103,35 +127,22 @@ func select_furniture_at_cell(cell) :
 func get_selected_cell() -> Vector2i:
 	if not has_selected_placed_furniture():
 		return Vector2i(-1, -1)
-
 	return furniture_items[selected_furniture_index].cell
 
 
-func get_furniture_index_at_cell(cell) :
-	for index in range(furniture_items.size()):
-		var furniture = furniture_items[index]
-
-		if furniture.get_occupied_cells().has(cell):
-			return index
-
-	return -1
-
-
-func place_furniture(furniture) :
+func place_furniture(furniture: RefCounted) -> bool:
 	if not can_place_furniture(furniture, -1):
 		return false
-
 	furniture_items.append(furniture)
 	pathfinding_manager.mark_furniture_solid(furniture, true)
 	redraw()
 	return true
 
 
-func delete_selected_furniture() :
+func delete_selected_furniture() -> bool:
 	if not has_selected_placed_furniture():
 		return false
-
-	var furniture = furniture_items[selected_furniture_index]
+	var furniture: RefCounted = furniture_items[selected_furniture_index]
 	pathfinding_manager.mark_furniture_solid(furniture, false)
 	furniture_items.remove_at(selected_furniture_index)
 	selected_furniture_index = -1
@@ -140,29 +151,27 @@ func delete_selected_furniture() :
 	return true
 
 
-func start_move_selected_furniture() :
+func start_move_selected_furniture() -> bool:
 	if not has_selected_placed_furniture():
 		return false
-
 	is_move_mode = true
 	return true
 
 
-func is_move_mode_active() :
+func is_move_mode_active() -> bool:
 	return is_move_mode
 
 
-func move_selected_furniture(target_cell) :
+func move_selected_furniture(target_cell: Vector2i) -> bool:
 	if not has_selected_placed_furniture():
 		is_move_mode = false
 		return false
-
-	var furniture = furniture_items[selected_furniture_index]
-	var moved_furniture = furniture.get_script().new(target_cell, furniture.type, furniture.size)
-
+	var furniture: RefCounted = furniture_items[selected_furniture_index]
+	var moved_furniture: RefCounted = furniture.get_script().new(target_cell, furniture.type, furniture.size)
+	moved_furniture.blocks_movement = furniture.blocks_movement
+	moved_furniture.layer = furniture.layer
 	if not can_place_furniture(moved_furniture, selected_furniture_index):
 		return false
-
 	pathfinding_manager.mark_furniture_solid(furniture, false)
 	furniture.cell = target_cell
 	pathfinding_manager.mark_furniture_solid(furniture, true)
@@ -171,17 +180,16 @@ func move_selected_furniture(target_cell) :
 	return true
 
 
-func rotate_selected_furniture() :
+func rotate_selected_furniture() -> bool:
 	if not has_selected_placed_furniture():
 		return false
-
-	var furniture = furniture_items[selected_furniture_index]
-	var rotated_size = Vector2i(furniture.size.y, furniture.size.x)
-	var rotated_furniture = furniture.get_script().new(furniture.cell, furniture.type, rotated_size)
-
+	var furniture: RefCounted = furniture_items[selected_furniture_index]
+	var rotated_size: Vector2i = Vector2i(furniture.size.y, furniture.size.x)
+	var rotated_furniture: RefCounted = furniture.get_script().new(furniture.cell, furniture.type, rotated_size)
+	rotated_furniture.blocks_movement = furniture.blocks_movement
+	rotated_furniture.layer = furniture.layer
 	if not can_place_furniture(rotated_furniture, selected_furniture_index):
 		return false
-
 	pathfinding_manager.mark_furniture_solid(furniture, false)
 	furniture.size = rotated_size
 	pathfinding_manager.mark_furniture_solid(furniture, true)
@@ -189,7 +197,7 @@ func rotate_selected_furniture() :
 	return true
 
 
-func replace_furniture_items(items, warning_callback: Callable) :
+func replace_furniture_items(items: Array, warning_callback: Callable) -> void:
 	selected_furniture_index = -1
 	is_move_mode = false
 	furniture_items.clear()
@@ -199,30 +207,67 @@ func replace_furniture_items(items, warning_callback: Callable) :
 		if not can_place_furniture(furniture, -1):
 			warning_callback.call("Advertencia: mueble invalido saltado")
 			continue
-
 		furniture_items.append(furniture)
 		pathfinding_manager.mark_furniture_solid(furniture, true)
 
 	redraw()
 
 
-func can_place_furniture(furniture, ignored_furniture_index) :
+func can_place_furniture(furniture: RefCounted, ignored_index: int) -> bool:
 	if furniture.size.x <= 0 or furniture.size.y <= 0:
 		return false
 
-	for cell in furniture.get_occupied_cells():
+	var incoming_layer: String = _get_layer(furniture)
+
+	for cell: Vector2i in furniture.get_occupied_cells():
 		if not iso_grid.is_valid_cell(cell):
 			return false
 
-		var blocking_furniture_index = get_furniture_index_at_cell(cell)
-
-		if blocking_furniture_index != -1 and blocking_furniture_index != ignored_furniture_index:
+		# Player cell: only block furniture/decor, not floor items
+		if incoming_layer != "floor" and cell == player_controller.get_player_cell():
 			return false
 
-		if cell == player_controller.get_player_cell():
-			return false
+		# Check all existing furniture at this cell
+		var cell_has_blocking_furniture: bool = false
+		for i: int in range(furniture_items.size()):
+			if i == ignored_index:
+				continue
+			var existing: RefCounted = furniture_items[i]
+			if not existing.get_occupied_cells().has(cell):
+				continue
+			var existing_layer: String = _get_layer(existing)
+			if not _layers_can_overlap(existing_layer, incoming_layer):
+				return false
+			var bm: Variant = existing.get("blocks_movement")
+			if bm == null or bool(bm):
+				cell_has_blocking_furniture = true
 
-		if pathfinding_manager.is_point_solid(cell) and blocking_furniture_index != ignored_furniture_index:
-			return false
+		# For non-floor: check pathfinding solid (catches NPC, etc.)
+		# Only when no furniture at cell explains the solid (e.g. NPC is sole reason)
+		if incoming_layer != "floor" and not cell_has_blocking_furniture:
+			if pathfinding_manager.is_point_solid(cell):
+				return false
 
 	return true
+
+
+func _get_layer(furniture: RefCounted) -> String:
+	var l: Variant = furniture.get("layer")
+	if l != null and str(l) != "":
+		return str(l)
+	var t: String = str(furniture.get("type"))
+	if t == "rug": return "floor"
+	if t == "plant": return "decor"
+	return "furniture"
+
+
+func _layer_priority(layer: String) -> int:
+	match layer:
+		"decor": return 3
+		"furniture": return 2
+		"floor": return 1
+	return 2
+
+
+func _layers_can_overlap(layer_a: String, layer_b: String) -> bool:
+	return (layer_a == "floor") != (layer_b == "floor")

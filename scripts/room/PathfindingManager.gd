@@ -38,8 +38,11 @@ func set_point_solid(cell, is_solid) :
 	astar.set_point_solid(cell, is_solid)
 
 
-func mark_furniture_solid(furniture, is_solid) :
-	for cell in furniture.get_occupied_cells():
+func mark_furniture_solid(furniture, is_solid: bool) -> void:
+	var bm: Variant = furniture.get("blocks_movement")
+	if bm != null and not bool(bm):
+		return
+	for cell: Vector2i in furniture.get_occupied_cells():
 		astar.set_point_solid(cell, is_solid)
 
 

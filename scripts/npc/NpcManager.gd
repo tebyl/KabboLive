@@ -163,27 +163,51 @@ func _build_visual() -> void:
 	_npc_node.name = "BotGuia"
 	_npc_root.add_child(_npc_node)
 
+	# Shadow
 	var shadow: Polygon2D = Polygon2D.new()
 	shadow.polygon = PackedVector2Array([
-		Vector2(0.0, -4.0), Vector2(18.0, 0.0), Vector2(0.0, 4.0), Vector2(-18.0, 0.0)
+		Vector2(0.0, -5.0), Vector2(20.0, 0.0), Vector2(0.0, 5.0), Vector2(-20.0, 0.0)
 	])
-	shadow.color = Color(0.04, 0.05, 0.06, 0.34)
-	shadow.position = Vector2(0.0, 1.0)
+	shadow.color = Color(0.04, 0.05, 0.06, 0.36)
+	shadow.position = Vector2(0.0, 2.0)
 	shadow.z_index = 0
 	_npc_node.add_child(shadow)
 
-	_npc_node.add_child(_make_rect_part(Vector2(6.0, 12.0), Color(0.08, 0.10, 0.18), Vector2(-5.0, -8.0), 1))
-	_npc_node.add_child(_make_rect_part(Vector2(6.0, 12.0), Color(0.08, 0.10, 0.18), Vector2(5.0, -8.0), 1))
-	_npc_node.add_child(_make_rect_part(Vector2(18.0, 22.0), NPC_BODY_COLOR, Vector2(0.0, -22.0), 2))
-	_npc_node.add_child(_make_rect_part(Vector2(12.0, 4.0), NPC_BODY_COLOR.lightened(0.3), Vector2(0.0, -31.0), 3))
-	_npc_node.add_child(_make_circle_part(10.0, 14, Color(0.78, 0.54, 0.38), Vector2(0.0, -44.0), 4))
-	_npc_node.add_child(_make_rect_part(Vector2(18.0, 6.0), NPC_HAIR_COLOR, Vector2(0.0, -52.0), 5))
-	_npc_node.add_child(_make_rect_part(Vector2(3.0, 2.0), Color(0.08, 0.08, 0.08), Vector2(-4.0, -45.0), 6))
-	_npc_node.add_child(_make_rect_part(Vector2(3.0, 2.0), Color(0.08, 0.08, 0.08), Vector2(5.0, -45.0), 6))
+	# Boots
+	_npc_node.add_child(_make_rect_part(Vector2(7.0, 5.0), Color(0.18, 0.12, 0.06), Vector2(-5.0, -3.0), 1))
+	_npc_node.add_child(_make_rect_part(Vector2(7.0, 5.0), Color(0.18, 0.12, 0.06), Vector2(5.0, -3.0), 1))
+
+	# Legs (pants)
+	_npc_node.add_child(_make_rect_part(Vector2(7.0, 13.0), Color(0.12, 0.14, 0.28), Vector2(-5.0, -11.0), 2))
+	_npc_node.add_child(_make_rect_part(Vector2(7.0, 13.0), Color(0.12, 0.14, 0.28), Vector2(5.0, -11.0), 2))
+
+	# Body / shirt
+	_npc_node.add_child(_make_rect_part(Vector2(20.0, 20.0), NPC_BODY_COLOR, Vector2(0.0, -28.0), 3))
+
+	# Shirt stripe
+	_npc_node.add_child(_make_rect_part(Vector2(14.0, 4.0), NPC_BODY_COLOR.lightened(0.32), Vector2(0.0, -34.0), 4))
+
+	# Collar
+	_npc_node.add_child(_make_rect_part(Vector2(10.0, 4.0), Color(0.90, 0.88, 0.84), Vector2(0.0, -39.0), 4))
+
+	# Head (chibi — big)
+	_npc_node.add_child(_make_circle_part(13.0, 18, Color(0.82, 0.60, 0.42), Vector2(0.0, -56.0), 5))
+
+	# Hair
+	_npc_node.add_child(_make_rect_part(Vector2(26.0, 9.0), NPC_HAIR_COLOR, Vector2(0.0, -66.0), 6))
+	_npc_node.add_child(_make_rect_part(Vector2(6.0, 10.0), NPC_HAIR_COLOR, Vector2(-11.0, -60.0), 6))
+
+	# Eyes
+	_npc_node.add_child(_make_rect_part(Vector2(5.0, 4.0), Color(0.08, 0.08, 0.10), Vector2(-5.0, -56.0), 7))
+	_npc_node.add_child(_make_rect_part(Vector2(5.0, 4.0), Color(0.08, 0.08, 0.10), Vector2(5.0, -56.0), 7))
+
+	# Eye shine
+	_npc_node.add_child(_make_rect_part(Vector2(2.0, 2.0), Color(1.0, 1.0, 1.0, 0.90), Vector2(-4.0, -57.0), 8))
+	_npc_node.add_child(_make_rect_part(Vector2(2.0, 2.0), Color(1.0, 1.0, 1.0, 0.90), Vector2(6.0, -57.0), 8))
 
 	var name_label: Label = Label.new()
 	name_label.text = NPC_NAME
-	name_label.position = Vector2(-30.0, -72.0)
+	name_label.position = Vector2(-32.0, -84.0)
 	name_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.95))
 	name_label.add_theme_font_size_override("font_size", 11)
 	name_label.z_index = 10

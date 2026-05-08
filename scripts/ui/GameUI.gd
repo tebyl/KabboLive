@@ -40,17 +40,31 @@ var npc_bubble_visible: bool = false
 var inventory_panel: PanelContainer
 
 var catalog_panel: PanelContainer
-var _catalog_buttons: Array[Button] = []
-var _catalog_types: Array[String] = []
+var _catalog_tab_hbox: HBoxContainer
+var _catalog_items_vbox: VBoxContainer
+var _catalog_data: Dictionary = {}
+var _catalog_categories: Array[String] = []
+var _current_category: String = ""
+var _catalog_selected_type: String = ""
+var _catalog_tab_buttons: Array[Button] = []
+var _catalog_item_buttons: Array[Button] = []
+var _catalog_item_types: Array[String] = []
 var furniture_inspector_panel: PanelContainer
 var _inspector_name_label: Label
 var _inspector_cell_label: Label
 var _inspector_size_label: Label
 var _inspector_state_label: Label
+var _inspector_blocks_label: Label
+var _inspector_layer_label: Label
 var _on_inspector_move: Callable
 var _on_inspector_rotate: Callable
 var _on_inspector_delete: Callable
 var _on_inspector_close: Callable
+
+var overlap_selector_panel: PanelContainer
+var _overlap_items_vbox: VBoxContainer
+var _on_overlap_item_selected: Callable
+var _on_overlap_selector_closed: Callable
 
 var _on_enter_hotel: Callable
 var _on_room_selected: Callable
@@ -90,6 +104,7 @@ func setup_ui(root: Node) :
 	_build_chat_ui()
 	_build_furniture_inspector()
 	_build_furniture_catalog()
+	_build_overlap_selector()
 
 
 func _build_main_menu() :
@@ -552,7 +567,7 @@ func _build_furniture_inspector() -> void:
 	furniture_inspector_panel.offset_left = 16.0
 	furniture_inspector_panel.offset_top = 16.0
 	furniture_inspector_panel.offset_right = 220.0
-	furniture_inspector_panel.offset_bottom = 248.0
+	furniture_inspector_panel.offset_bottom = 290.0
 	furniture_inspector_panel.visible = false
 	furniture_inspector_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.92)))
 	ui_layer.add_child(furniture_inspector_panel)
@@ -596,6 +611,16 @@ func _build_furniture_inspector() -> void:
 	_inspector_state_label.add_theme_font_size_override("font_size", 13)
 	_inspector_state_label.add_theme_color_override("font_color", Color(0.65, 0.90, 0.65))
 	vbox.add_child(_inspector_state_label)
+
+	_inspector_blocks_label = Label.new()
+	_inspector_blocks_label.add_theme_font_size_override("font_size", 12)
+	_inspector_blocks_label.add_theme_color_override("font_color", Color(0.78, 0.78, 0.78))
+	vbox.add_child(_inspector_blocks_label)
+
+	_inspector_layer_label = Label.new()
+	_inspector_layer_label.add_theme_font_size_override("font_size", 12)
+	_inspector_layer_label.add_theme_color_override("font_color", Color(0.72, 0.82, 0.96))
+	vbox.add_child(_inspector_layer_label)
 
 	var btn_sep: HSeparator = HSeparator.new()
 	vbox.add_child(btn_sep)
@@ -671,13 +696,28 @@ func _update_inspector_data(furniture: Object) -> void:
 	var size: Vector2i = furniture.get("size")
 	_inspector_size_label.text = "Tamaño: " + str(size.x) + "×" + str(size.y)
 	_inspector_state_label.text = "Seleccionado"
+	var bm: Variant = furniture.get("blocks_movement")
+	var blocks: bool = bm == null or bool(bm)
+	_inspector_blocks_label.text = "Bloquea paso: " + ("Sí" if blocks else "No")
+	var layer_val: Variant = furniture.get("layer")
+	_inspector_layer_label.text = "Capa: " + _layer_display_name(str(layer_val) if layer_val != null else "furniture")
+
+
+func _layer_display_name(layer: String) -> String:
+	match layer:
+		"floor": return "Piso"
+		"furniture": return "Mueble"
+		"decor": return "Decoración"
+	return layer
 
 
 func _inspector_display_name(furniture_type: String) -> String:
 	match furniture_type:
 		"chair": return "Silla"
 		"table": return "Mesa"
-		"sofa": return "Sofá"
+		"sofa":  return "Sofá"
+		"plant": return "Planta"
+		"rug":   return "Alfombra"
 	return furniture_type
 
 
@@ -708,20 +748,16 @@ func _on_inspector_close_pressed() -> void:
 
 
 func _build_furniture_catalog() -> void:
-	_catalog_types = ["chair", "table", "sofa"]
-	var display_names: Array[String] = ["Silla", "Mesa", "Sofá"]
-	var shortcuts: Array[String] = ["1", "2", "3"]
-
 	catalog_panel = PanelContainer.new()
 	catalog_panel.name = "CatalogPanel"
 	catalog_panel.anchor_left = 1.0
 	catalog_panel.anchor_top = 0.5
 	catalog_panel.anchor_right = 1.0
 	catalog_panel.anchor_bottom = 0.5
-	catalog_panel.offset_left = -152.0
-	catalog_panel.offset_top = -105.0
+	catalog_panel.offset_left = -182.0
+	catalog_panel.offset_top = -170.0
 	catalog_panel.offset_right = -16.0
-	catalog_panel.offset_bottom = 105.0
+	catalog_panel.offset_bottom = 170.0
 	catalog_panel.visible = false
 	catalog_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.90)))
 	ui_layer.add_child(catalog_panel)
@@ -734,7 +770,7 @@ func _build_furniture_catalog() -> void:
 	catalog_panel.add_child(margin)
 
 	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 8)
+	vbox.add_theme_constant_override("separation", 6)
 	margin.add_child(vbox)
 
 	var title: Label = Label.new()
@@ -743,45 +779,239 @@ func _build_furniture_catalog() -> void:
 	title.add_theme_color_override("font_color", Color(0.92, 0.96, 1.0))
 	vbox.add_child(title)
 
-	_catalog_buttons.clear()
-	for i: int in range(_catalog_types.size()):
+	var sep: HSeparator = HSeparator.new()
+	vbox.add_child(sep)
+
+	_catalog_tab_hbox = HBoxContainer.new()
+	_catalog_tab_hbox.add_theme_constant_override("separation", 2)
+	vbox.add_child(_catalog_tab_hbox)
+
+	var sep2: HSeparator = HSeparator.new()
+	vbox.add_child(sep2)
+
+	_catalog_items_vbox = VBoxContainer.new()
+	_catalog_items_vbox.add_theme_constant_override("separation", 4)
+	vbox.add_child(_catalog_items_vbox)
+
+
+func build_furniture_catalog(catalog_data: Dictionary) -> void:
+	_catalog_data = catalog_data
+	_catalog_categories.clear()
+	for type: String in catalog_data:
+		var cat: String = catalog_data[type].get("category", "")
+		if cat != "" and not _catalog_categories.has(cat):
+			_catalog_categories.append(cat)
+	_rebuild_catalog_tab_buttons()
+	if not _catalog_categories.is_empty():
+		set_catalog_category(_catalog_categories[0])
+
+
+func _rebuild_catalog_tab_buttons() -> void:
+	if _catalog_tab_hbox == null:
+		return
+	for child: Node in _catalog_tab_hbox.get_children():
+		_catalog_tab_hbox.remove_child(child)
+		child.queue_free()
+	_catalog_tab_buttons.clear()
+	for cat: String in _catalog_categories:
 		var btn: Button = Button.new()
-		btn.text = "[" + shortcuts[i] + "] " + display_names[i]
+		btn.text = cat
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.add_theme_font_size_override("font_size", 11)
+		btn.pressed.connect(set_catalog_category.bind(cat))
+		_catalog_tab_hbox.add_child(btn)
+		_catalog_tab_buttons.append(btn)
+
+
+func set_catalog_category(category: String) -> void:
+	_current_category = category
+	var active_style: StyleBoxFlat = StyleBoxFlat.new()
+	active_style.bg_color = Color(0.20, 0.38, 0.58, 0.92)
+	active_style.corner_radius_top_left = 4
+	active_style.corner_radius_top_right = 4
+	active_style.corner_radius_bottom_right = 4
+	active_style.corner_radius_bottom_left = 4
+	for i: int in range(_catalog_tab_buttons.size()):
+		if i < _catalog_categories.size() and _catalog_categories[i] == category:
+			_catalog_tab_buttons[i].add_theme_stylebox_override("normal", active_style)
+			_catalog_tab_buttons[i].add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+		else:
+			_catalog_tab_buttons[i].remove_theme_stylebox_override("normal")
+			_catalog_tab_buttons[i].remove_theme_color_override("font_color")
+	_rebuild_catalog_items()
+
+
+func _rebuild_catalog_items() -> void:
+	if _catalog_items_vbox == null:
+		return
+	for child: Node in _catalog_items_vbox.get_children():
+		_catalog_items_vbox.remove_child(child)
+		child.queue_free()
+	_catalog_item_buttons.clear()
+	_catalog_item_types.clear()
+	for type: String in _catalog_data:
+		var info: Dictionary = _catalog_data[type]
+		if info.get("category", "") != _current_category:
+			continue
+		var shortcut: int = info.get("shortcut", 0)
+		var shortcut_text: String = ""
+		if shortcut != 0:
+			shortcut_text = "[" + _shortcut_key_label(shortcut) + "] "
+		var sz: Vector2i = info.get("size", Vector2i(1, 1))
+		var btn: Button = Button.new()
+		btn.text = shortcut_text + info.get("display_name", type) + "  " + str(sz.x) + "×" + str(sz.y)
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.pressed.connect(_on_catalog_button_pressed.bind(i))
-		vbox.add_child(btn)
-		_catalog_buttons.append(btn)
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.pressed.connect(_on_catalog_item_pressed.bind(type))
+		_catalog_items_vbox.add_child(btn)
+		_catalog_item_buttons.append(btn)
+		_catalog_item_types.append(type)
+	_apply_catalog_item_highlight()
 
 
-func _on_catalog_button_pressed(index: int) -> void:
+func _apply_catalog_item_highlight() -> void:
+	var sel_style: StyleBoxFlat = StyleBoxFlat.new()
+	sel_style.bg_color = Color(0.12, 0.40, 0.18, 0.92)
+	sel_style.corner_radius_top_left = 6
+	sel_style.corner_radius_top_right = 6
+	sel_style.corner_radius_bottom_right = 6
+	sel_style.corner_radius_bottom_left = 6
+	sel_style.border_color = Color(0.35, 0.85, 0.42, 1.0)
+	sel_style.border_width_left = 2
+	sel_style.border_width_top = 2
+	sel_style.border_width_right = 2
+	sel_style.border_width_bottom = 2
+	for i: int in range(_catalog_item_buttons.size()):
+		if i < _catalog_item_types.size() and _catalog_item_types[i] == _catalog_selected_type:
+			_catalog_item_buttons[i].add_theme_stylebox_override("normal", sel_style)
+			_catalog_item_buttons[i].add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+		else:
+			_catalog_item_buttons[i].remove_theme_stylebox_override("normal")
+			_catalog_item_buttons[i].remove_theme_color_override("font_color")
+
+
+func _on_catalog_item_pressed(type: String) -> void:
 	if is_chat_input_active():
 		return
 	if _on_catalog_selected.is_valid():
-		_on_catalog_selected.call(_catalog_types[index])
+		_on_catalog_selected.call(type)
 
 
 func set_catalog_selected_furniture(furniture_type: String) -> void:
-	var selected_style: StyleBoxFlat = StyleBoxFlat.new()
-	selected_style.bg_color = Color(0.12, 0.40, 0.18, 0.92)
-	selected_style.corner_radius_top_left = 6
-	selected_style.corner_radius_top_right = 6
-	selected_style.corner_radius_bottom_right = 6
-	selected_style.corner_radius_bottom_left = 6
-	selected_style.border_color = Color(0.35, 0.85, 0.42, 1.0)
-	selected_style.border_width_left = 2
-	selected_style.border_width_top = 2
-	selected_style.border_width_right = 2
-	selected_style.border_width_bottom = 2
+	_catalog_selected_type = furniture_type
+	if _catalog_data.has(furniture_type):
+		var cat: String = _catalog_data[furniture_type].get("category", "")
+		if cat != "" and cat != _current_category:
+			set_catalog_category(cat)
+			return
+	_apply_catalog_item_highlight()
 
-	for i: int in range(_catalog_types.size()):
-		var btn: Button = _catalog_buttons[i]
-		if _catalog_types[i] == furniture_type:
-			btn.add_theme_stylebox_override("normal", selected_style)
-			btn.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 1.0))
-		else:
-			btn.remove_theme_stylebox_override("normal")
-			btn.remove_theme_color_override("font_color")
+
+func _shortcut_key_label(keycode: int) -> String:
+	match keycode:
+		KEY_1: return "1"
+		KEY_2: return "2"
+		KEY_3: return "3"
+	return ""
+
+
+func _build_overlap_selector() -> void:
+	overlap_selector_panel = PanelContainer.new()
+	overlap_selector_panel.name = "OverlapSelectorPanel"
+	overlap_selector_panel.anchor_left = 0.5
+	overlap_selector_panel.anchor_top = 0.5
+	overlap_selector_panel.anchor_right = 0.5
+	overlap_selector_panel.anchor_bottom = 0.5
+	overlap_selector_panel.offset_left = -120.0
+	overlap_selector_panel.offset_top = -110.0
+	overlap_selector_panel.offset_right = 120.0
+	overlap_selector_panel.offset_bottom = 110.0
+	overlap_selector_panel.visible = false
+	overlap_selector_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.95)))
+	ui_layer.add_child(overlap_selector_panel)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	overlap_selector_panel.add_child(margin)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	margin.add_child(vbox)
+
+	var title: Label = Label.new()
+	title.text = "Seleccionar objeto"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", Color(0.92, 0.96, 1.0))
+	vbox.add_child(title)
+
+	var sep: HSeparator = HSeparator.new()
+	vbox.add_child(sep)
+
+	_overlap_items_vbox = VBoxContainer.new()
+	_overlap_items_vbox.add_theme_constant_override("separation", 4)
+	vbox.add_child(_overlap_items_vbox)
+
+	var sep2: HSeparator = HSeparator.new()
+	vbox.add_child(sep2)
+
+	var close_btn: Button = Button.new()
+	close_btn.text = "Cerrar"
+	close_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	close_btn.pressed.connect(_on_overlap_close_pressed)
+	vbox.add_child(close_btn)
+
+
+func setup_overlap_selector_callbacks(item_selected_cb: Callable, closed_cb: Callable) -> void:
+	_on_overlap_item_selected = item_selected_cb
+	_on_overlap_selector_closed = closed_cb
+
+
+func show_overlap_selector(items: Array) -> void:
+	if overlap_selector_panel == null or _overlap_items_vbox == null:
+		return
+	for child: Node in _overlap_items_vbox.get_children():
+		_overlap_items_vbox.remove_child(child)
+		child.queue_free()
+	for i: int in range(items.size()):
+		var furniture: Object = items[i]
+		var type_str: String = str(furniture.get("type"))
+		var layer_str: String = str(furniture.get("layer") if furniture.get("layer") != null else "furniture")
+		var size_val: Vector2i = furniture.get("size")
+		var display: String = _inspector_display_name(type_str) + " · " + _layer_display_name(layer_str) + "  " + str(size_val.x) + "×" + str(size_val.y)
+		var btn: Button = Button.new()
+		btn.text = display
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.pressed.connect(_on_overlap_item_pressed.bind(i))
+		_overlap_items_vbox.add_child(btn)
+	overlap_selector_panel.visible = true
+	overlap_selector_panel.move_to_front()
+
+
+func hide_overlap_selector() -> void:
+	if overlap_selector_panel != null:
+		overlap_selector_panel.visible = false
+
+
+func is_overlap_selector_visible() -> bool:
+	return overlap_selector_panel != null and overlap_selector_panel.visible
+
+
+func _on_overlap_item_pressed(index: int) -> void:
+	hide_overlap_selector()
+	if _on_overlap_item_selected.is_valid():
+		_on_overlap_item_selected.call(index)
+
+
+func _on_overlap_close_pressed() -> void:
+	hide_overlap_selector()
+	if _on_overlap_selector_closed.is_valid():
+		_on_overlap_selector_closed.call()
 
 
 func show_furniture_catalog() -> void:
@@ -807,6 +1037,7 @@ func show_main_menu() :
 	hide_npc_bubble()
 	hide_furniture_catalog()
 	hide_furniture_inspector()
+	hide_overlap_selector()
 
 
 func show_room_select() :
@@ -822,6 +1053,7 @@ func show_room_select() :
 	hide_npc_bubble()
 	hide_furniture_catalog()
 	hide_furniture_inspector()
+	hide_overlap_selector()
 
 
 func show_in_room() :

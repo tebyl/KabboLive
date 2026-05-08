@@ -89,7 +89,8 @@ func _ready():
 		Callable(self, "on_enter_hotel"),
 		Callable(self, "on_room_selected"),
 		Callable(self, "on_back_to_rooms"),
-		Callable(self, "on_save_profile")
+		Callable(self, "on_save_profile"),
+		Callable(self, "on_chat_submitted")
 	)
 
 	game_ui.update_profile_ui(player_profile_manager.player_name, player_profile_manager.avatar_color)
@@ -124,6 +125,7 @@ func _input(event):
 				if game_ui.is_profile_open():
 					return
 				if handle_chat_key_press(key_event.keycode):
+					get_viewport().set_input_as_handled()
 					return
 				if game_ui.is_chat_input_active():
 					return
@@ -159,7 +161,8 @@ func _input(event):
 							var player_cell = player_controller.get_player_cell()
 							var path = pathfinding_manager.get_path(player_cell, cell)
 							if path.size() > 0:
-								player_controller.move_along_path(path)
+								if not player_controller.move_along_path(path):
+									game_ui.set_status_message("El jugador ya se esta moviendo")
 
 func resolve_required_nodes() -> bool:
 	floor_node = get_node_or_null("Floor")
@@ -259,18 +262,22 @@ func handle_key_press(keycode):
 			if current_state == GameState.IN_ROOM:
 				switch_room("room_large")
 
-func handle_chat_key_press(keycode) -> bool:
+func on_chat_submitted(message: String) :
+	if message.strip_edges() != "":
+		var result = chat_manager.submit_message(message)
+		if result.sent:
+			game_ui.update_chat_history(chat_manager.get_history())
+			game_ui.show_chat_bubble(result.message, player_node.global_position)
+
+
+func handle_chat_key_press(keycode: int) -> bool:
 	if keycode == KEY_ENTER:
-		if game_ui.is_chat_input_active():
-			var message = game_ui.get_chat_text()
-			if message != "":
-				var result = chat_manager.submit_message(message)
-				if result.sent:
-					game_ui.update_chat_history(chat_manager.get_history())
-					game_ui.show_chat_bubble(result.message, player_node.global_position)
-			game_ui.close_chat_input(true)
-		else:
+		if not game_ui.is_chat_input_active():
 			game_ui.open_chat_input()
+			return true
+		return false
+	if keycode == KEY_ESCAPE and game_ui.is_chat_input_active():
+		game_ui.close_chat_input(true)
 		return true
 	return false
 

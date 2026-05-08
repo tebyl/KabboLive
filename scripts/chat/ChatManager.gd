@@ -15,20 +15,8 @@ const PathfindingManager = PathfindingManagerScript
 const MAX_MESSAGE_LENGTH = 120
 
 var player_name = "Invitado"
-var _is_chat_active = false
 var _history: Array[String] = []
 
-
-func is_chat_active() :
-	return _is_chat_active
-
-
-func open_chat() :
-	_is_chat_active = true
-
-
-func cancel_chat() :
-	_is_chat_active = false
 
 
 func set_player_name(new_name) :
@@ -68,7 +56,6 @@ func submit_message(raw_text) -> Dictionary:
 	if _history.size() > MAX_HISTORY_MESSAGES:
 		_history.remove_at(0)
 
-	_is_chat_active = false
 	return {
 		"sent": true,
 		"reason": "ok",

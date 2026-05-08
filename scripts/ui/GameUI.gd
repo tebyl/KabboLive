@@ -33,18 +33,21 @@ var chat_bubble_panel: PanelContainer
 var chat_bubble_label: Label
 var chat_bubble_timer = 0.0
 var chat_bubble_visible = false
+var inventory_panel: PanelContainer
 
 var _on_enter_hotel: Callable
 var _on_room_selected: Callable
 var _on_back_to_rooms: Callable
 var _on_save_profile: Callable
+var _on_chat_submitted: Callable
 
 
-func _init(root: Node, on_enter_hotel: Callable, on_room_selected: Callable, on_back_to_rooms: Callable, on_save_profile: Callable) :
+func _init(root: Node, on_enter_hotel: Callable, on_room_selected: Callable, on_back_to_rooms: Callable, on_save_profile: Callable, on_chat_submitted: Callable = Callable()) :
 	_on_enter_hotel = on_enter_hotel
 	_on_room_selected = on_room_selected
 	_on_back_to_rooms = on_back_to_rooms
 	_on_save_profile = on_save_profile
+	_on_chat_submitted = on_chat_submitted
 	setup_ui(root)
 
 
@@ -64,6 +67,7 @@ func setup_ui(root: Node) :
 	_build_room_select()
 	_build_profile_panel()
 	_build_controls_panel()
+	_build_inventory_panel()
 	_build_chat_ui()
 
 
@@ -356,6 +360,56 @@ func _build_controls_panel() :
 	layout.add_child(controls_label)
 
 
+func _build_inventory_panel() :
+	inventory_panel = PanelContainer.new()
+	inventory_panel.name = "InventoryPanel"
+	inventory_panel.anchor_left = 1.0
+	inventory_panel.anchor_top = 0.5
+	inventory_panel.anchor_right = 1.0
+	inventory_panel.anchor_bottom = 0.5
+	inventory_panel.offset_left = -196.0
+	inventory_panel.offset_top = -120.0
+	inventory_panel.offset_right = -16.0
+	inventory_panel.offset_bottom = 120.0
+	inventory_panel.visible = false
+	inventory_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.92)))
+	ui_layer.add_child(inventory_panel)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	inventory_panel.add_child(margin)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	margin.add_child(vbox)
+
+	var title: Label = Label.new()
+	title.text = "Inventario"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", Color(0.92, 0.96, 1.0))
+	vbox.add_child(title)
+
+	var items = [["1", "Silla"], ["2", "Mesa"], ["3", "Sofá"]]
+	for item in items:
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		vbox.add_child(row)
+
+		var key_label: Label = Label.new()
+		key_label.text = "[" + item[0] + "]"
+		key_label.custom_minimum_size = Vector2(28, 0)
+		key_label.add_theme_color_override("font_color", Color(0.6, 0.85, 1.0))
+		row.add_child(key_label)
+
+		var name_label: Label = Label.new()
+		name_label.text = item[1]
+		name_label.add_theme_color_override("font_color", Color(0.9, 0.93, 1.0))
+		row.add_child(name_label)
+
+
 func _build_chat_ui() :
 	chat_history_panel = PanelContainer.new()
 	chat_history_panel.name = "ChatHistoryPanel"
@@ -411,6 +465,7 @@ func _build_chat_ui() :
 	chat_input.max_length = 120
 	chat_input.placeholder_text = "Escribe un mensaje y presiona Enter"
 	chat_input.clear_button_enabled = true
+	chat_input.text_submitted.connect(_on_chat_input_submitted)
 	input_margin.add_child(chat_input)
 
 	chat_bubble_panel = PanelContainer.new()
@@ -447,6 +502,8 @@ func show_main_menu() :
 	controls_panel.visible = false
 	chat_history_panel.visible = false
 	chat_input_panel.visible = false
+	if inventory_panel != null:
+		inventory_panel.visible = false
 	hide_chat_bubble()
 
 
@@ -457,6 +514,8 @@ func show_room_select() :
 	controls_panel.visible = false
 	chat_history_panel.visible = false
 	chat_input_panel.visible = false
+	if inventory_panel != null:
+		inventory_panel.visible = false
 	hide_chat_bubble()
 
 
@@ -599,8 +658,14 @@ func toggle_profile() :
 
 
 func toggle_inventory(_items: Array) :
-	# Placeholder for inventory toggle - can be expanded later
-	pass
+	if inventory_panel != null:
+		inventory_panel.visible = not inventory_panel.visible
+
+
+func _on_chat_input_submitted(text: String) :
+	if _on_chat_submitted.is_valid():
+		_on_chat_submitted.call(text)
+	close_chat_input(true)
 
 
 func open_chat_input() :

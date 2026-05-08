@@ -39,5 +39,7 @@ func get_selected_type_text() :
 
 
 func create_selected_furniture(target_cell):
+	if not has_selected_furniture():
+		return null
 	var selected_item = items[selected_index]
 	return FurnitureDataScript.new(target_cell, selected_item.type, selected_item.size)

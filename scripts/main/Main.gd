@@ -22,6 +22,7 @@ const NpcManagerScript: GDScript = preload("res://scripts/npc/NpcManager.gd")
 const CameraControllerScript = preload("res://scripts/camera/CameraController.gd")
 const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
 const RoomDataScript = preload("res://scripts/room/RoomData.gd")
+const PlacementPreviewScript: GDScript = preload("res://scripts/placement/PlacementPreview.gd")
 
 const IsoGrid = IsoGridScript
 const PathfindingManager = PathfindingManagerScript
@@ -59,6 +60,7 @@ var chat_manager
 var game_ui
 var camera_controller
 var npc_manager
+var placement_preview
 var npc_root: Node2D
 
 func _ready():
@@ -120,6 +122,9 @@ func _ready():
 		room_manager.get_current_furniture_items()
 	)
 
+	placement_preview = PlacementPreviewScript.new()
+	placement_preview.setup(self, iso_grid)
+
 	npc_root = Node2D.new()
 	npc_root.name = "Npcs"
 	add_child(npc_root)
@@ -139,6 +144,9 @@ func _process(delta):
 			npc_manager.process(delta)
 			if npc_manager.is_active():
 				game_ui.update_npc_bubble(npc_manager.get_world_position(), delta)
+		update_placement_preview()
+	else:
+		hide_placement_preview()
 
 func _input(event):
 	if not is_initialized:
@@ -158,26 +166,34 @@ func _input(event):
 	elif event is InputEventMouseButton:
 		if current_state == GameState.IN_ROOM:
 			if game_ui.is_profile_open() or game_ui.is_chat_input_active():
+				hide_placement_preview()
 				return
 			var mouse_event = event as InputEventMouseButton
+			if get_viewport().gui_get_hovered_control() != null:
+				hide_placement_preview()
+				return
 			camera_controller.handle_mouse_button(mouse_event)
 			if mouse_event.pressed and mouse_event.button_index == MOUSE_BUTTON_LEFT:
 				var world_pos = camera_controller.screen_to_world(mouse_event.position)
 				var cell = iso_grid.iso_to_grid(world_pos)
 				if furniture_manager.is_move_mode_active():
-					if furniture_manager.move_selected_furniture(cell):
+					if furniture_manager.can_move_selected_furniture_to(cell) and furniture_manager.move_selected_furniture(cell):
 						var moved: Object = furniture_manager.get_selected_furniture()
 						if moved != null:
 							game_ui.update_furniture_inspector(moved)
-						game_ui.set_status_message("Mueble movido — M mover | R rotar | Delete eliminar")
+						hide_placement_preview()
+						game_ui.set_status_message("Mueble movido")
 					else:
+						update_placement_preview()
 						game_ui.set_status_message("No se puede mover ahí")
 				elif inventory_manager.has_selected_furniture():
-					var new_furniture = inventory_manager.create_selected_furniture(cell)
+					var new_furniture: RefCounted = inventory_manager.create_selected_furniture_at(cell)
 					if new_furniture:
-						if furniture_manager.place_furniture(new_furniture):
+						if furniture_manager.can_place_furniture(new_furniture, -1) and furniture_manager.place_furniture(new_furniture):
 							game_ui.set_status_message("Mueble colocado")
+							update_placement_preview()
 						else:
+							update_placement_preview()
 							game_ui.set_status_message("No se puede colocar ahí")
 				else:
 					var items_at_cell: Array = furniture_manager.get_furniture_items_at_cell(cell)
@@ -191,10 +207,12 @@ func _input(event):
 									game_ui.set_status_message("El jugador ya se esta moviendo")
 					elif items_at_cell.size() == 1:
 						furniture_manager.select_furniture_item(items_at_cell[0])
+						hide_placement_preview()
 						game_ui.show_furniture_inspector(items_at_cell[0])
 						game_ui.set_status_message("Mueble seleccionado — M mover | R rotar | Delete eliminar")
 					else:
 						_overlap_pending_items = items_at_cell
+						hide_placement_preview()
 						game_ui.hide_furniture_inspector()
 						game_ui.show_overlap_selector(_overlap_pending_items)
 
@@ -205,6 +223,7 @@ func resolve_required_nodes() -> bool:
 	return floor_node != null and blocks_node != null and player_node != null
 
 func enter_state(new_state):
+	hide_placement_preview()
 	current_state = new_state
 	match current_state:
 		GameState.MAIN_MENU:
@@ -236,13 +255,20 @@ func handle_key_press(keycode):
 				if game_ui.is_overlap_selector_visible():
 					game_ui.hide_overlap_selector()
 					_overlap_pending_items = []
+				elif furniture_manager.is_move_mode_active():
+					furniture_manager.cancel_move_mode()
+					hide_placement_preview()
+					game_ui.set_furniture_inspector_message("Seleccionado")
+					game_ui.set_status_message("Modo mover cancelado")
 				elif inventory_manager.has_selected_furniture():
 					inventory_manager.cancel_selection()
 					game_ui.set_catalog_selected_furniture("")
+					hide_placement_preview()
 					game_ui.set_status_message("Sin seleccion")
 				elif furniture_manager.has_selected_placed_furniture() or furniture_manager.is_move_mode_active():
 					furniture_manager.clear_selection()
 					game_ui.hide_furniture_inspector()
+					hide_placement_preview()
 					game_ui.set_status_message("Sin seleccion")
 				else:
 					on_back_to_rooms()
@@ -254,6 +280,7 @@ func handle_key_press(keycode):
 		KEY_P:
 			if current_state == GameState.IN_ROOM:
 				game_ui.toggle_profile()
+				hide_placement_preview()
 		KEY_S:
 			if current_state == GameState.IN_ROOM:
 				save_current_room_state()
@@ -265,32 +292,43 @@ func handle_key_press(keycode):
 				if current_room:
 					furniture_manager.replace_furniture_items(current_room.furniture_items, Callable(game_ui, "report_status"))
 					game_ui.hide_furniture_inspector()
+					hide_placement_preview()
 					if npc_manager != null:
 						npc_manager.reapply_pathfinding_solid()
 		KEY_1:
 			if current_state == GameState.IN_ROOM:
 				inventory_manager.select_type("chair")
+				furniture_manager.clear_selection()
 				game_ui.set_status_message("Modo colocar: Silla")
 				game_ui.set_catalog_selected_furniture("chair")
 				game_ui.hide_furniture_inspector()
+				update_placement_preview()
 		KEY_2:
 			if current_state == GameState.IN_ROOM:
 				inventory_manager.select_type("table")
+				furniture_manager.clear_selection()
 				game_ui.set_status_message("Modo colocar: Mesa")
 				game_ui.set_catalog_selected_furniture("table")
 				game_ui.hide_furniture_inspector()
+				update_placement_preview()
 		KEY_3:
 			if current_state == GameState.IN_ROOM:
 				inventory_manager.select_type("sofa")
+				furniture_manager.clear_selection()
 				game_ui.set_status_message("Modo colocar: Sofá")
 				game_ui.set_catalog_selected_furniture("sofa")
 				game_ui.hide_furniture_inspector()
+				update_placement_preview()
 		KEY_M:
 			if current_state == GameState.IN_ROOM:
 				if furniture_manager.has_selected_placed_furniture():
 					furniture_manager.start_move_selected_furniture()
+					inventory_manager.cancel_selection()
+					game_ui.set_catalog_selected_furniture("")
+					update_placement_preview()
+					game_ui.set_status_message("Modo mover: selecciona destino")
 					game_ui.set_furniture_inspector_message("Modo mover — clic en destino")
-					game_ui.set_status_message("Modo mover — clic en celda destino")
+					game_ui.set_status_message("Modo mover: selecciona destino")
 		KEY_R:
 			if current_state == GameState.IN_ROOM:
 				if furniture_manager.has_selected_placed_furniture():
@@ -334,13 +372,18 @@ func on_catalog_selected(furniture_type: String) -> void:
 	game_ui.set_catalog_selected_furniture(furniture_type)
 	game_ui.hide_furniture_inspector()
 	furniture_manager.clear_selection()
+	update_placement_preview()
 
 
 func _on_inspector_move() -> void:
 	if furniture_manager.has_selected_placed_furniture():
 		furniture_manager.start_move_selected_furniture()
+		inventory_manager.cancel_selection()
+		game_ui.set_catalog_selected_furniture("")
+		update_placement_preview()
+		game_ui.set_status_message("Modo mover: selecciona destino")
 		game_ui.set_furniture_inspector_message("Modo mover — clic en destino")
-		game_ui.set_status_message("Modo mover — clic en celda destino")
+		game_ui.set_status_message("Modo mover: selecciona destino")
 
 
 func _on_inspector_rotate() -> void:
@@ -372,6 +415,7 @@ func _on_overlap_item_selected(index: int) -> void:
 	var furniture: RefCounted = _overlap_pending_items[index]
 	_overlap_pending_items = []
 	furniture_manager.select_furniture_item(furniture)
+	hide_placement_preview()
 	game_ui.show_furniture_inspector(furniture)
 	game_ui.set_status_message("Mueble seleccionado — M mover | R rotar | Delete eliminar")
 
@@ -401,20 +445,111 @@ func handle_chat_key_press(keycode: int) -> bool:
 	if keycode == KEY_ENTER:
 		if not game_ui.is_chat_input_active():
 			game_ui.open_chat_input()
+			hide_placement_preview()
 			return true
 		return false
 	if keycode == KEY_ESCAPE and game_ui.is_chat_input_active():
 		game_ui.close_chat_input(true)
+		update_placement_preview()
 		return true
 	return false
 
+
+func update_placement_preview() -> void:
+	if placement_preview == null:
+		return
+	if _can_show_move_preview():
+		update_move_preview()
+		return
+	if _can_show_placement_preview():
+		update_new_furniture_preview()
+		return
+	hide_placement_preview()
+
+
+func update_new_furniture_preview() -> void:
+	var mouse_position: Vector2 = get_viewport().get_mouse_position()
+	var world_pos: Vector2 = camera_controller.screen_to_world(mouse_position)
+	var cell: Vector2i = iso_grid.iso_to_grid(world_pos)
+	if not iso_grid.is_valid_cell(cell):
+		hide_placement_preview()
+		return
+	var preview_furniture: RefCounted = inventory_manager.create_selected_furniture_at(cell)
+	if preview_furniture == null:
+		hide_placement_preview()
+		return
+	show_furniture_preview(preview_furniture, -1)
+
+
+func update_move_preview() -> void:
+	var mouse_position: Vector2 = get_viewport().get_mouse_position()
+	var world_pos: Vector2 = camera_controller.screen_to_world(mouse_position)
+	var cell: Vector2i = iso_grid.iso_to_grid(world_pos)
+	if not iso_grid.is_valid_cell(cell):
+		hide_placement_preview()
+		return
+	var preview_furniture: RefCounted = furniture_manager.create_selected_move_preview(cell)
+	if preview_furniture == null:
+		hide_placement_preview()
+		return
+	show_furniture_preview(preview_furniture, furniture_manager.get_selected_furniture_index())
+
+
+func show_furniture_preview(preview_furniture: RefCounted, ignored_index: int) -> void:
+	var occupied_cells: Array[Vector2i] = preview_furniture.get_occupied_cells()
+	var is_valid: bool = furniture_manager.can_place_furniture(preview_furniture, ignored_index)
+	placement_preview.show_preview(occupied_cells, is_valid)
+
+
+func hide_placement_preview() -> void:
+	if placement_preview != null:
+		placement_preview.hide_preview()
+
+
+func _can_show_placement_preview() -> bool:
+	if not _can_show_any_preview():
+		return false
+	if not inventory_manager.has_selected_furniture():
+		return false
+	if furniture_manager.is_move_mode_active():
+		return false
+	if game_ui.is_furniture_inspector_visible():
+		return false
+	return true
+
+
+func _can_show_move_preview() -> bool:
+	if not _can_show_any_preview():
+		return false
+	if not furniture_manager.is_move_mode_active():
+		return false
+	if not furniture_manager.has_selected_placed_furniture():
+		return false
+	return true
+
+
+func _can_show_any_preview() -> bool:
+	if current_state != GameState.IN_ROOM:
+		return false
+	if game_ui.is_chat_input_active() or game_ui.is_profile_open():
+		return false
+	if game_ui.is_overlap_selector_visible():
+		return false
+	var hovered_control: Control = get_viewport().gui_get_hovered_control()
+	if hovered_control != null:
+		return false
+	return true
+
+
 func save_current_room_state():
+	hide_placement_preview()
 	var current_room = room_manager.get_current_room()
 	if current_room:
 		current_room.furniture_items = furniture_manager.get_furniture_items()
 		room_save_service.save_rooms(room_manager.get_all_rooms())
 
 func switch_room(room_id):
+	hide_placement_preview()
 	var old_room = room_manager.get_current_room()
 	if old_room:
 		old_room.furniture_items = furniture_manager.get_furniture_items()

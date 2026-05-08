@@ -6,6 +6,8 @@ const FLOOR_B        := Color(0.82, 0.76, 0.61)   # odd tile  — darker sand
 const FLOOR_BLOCKED  := Color(0.58, 0.66, 0.58)   # occupied tile
 const FLOOR_OUTLINE  := Color(0.40, 0.32, 0.22, 0.48)
 const FLOOR_SHADOW   := Color(0.00, 0.00, 0.00, 0.09)
+const PLACEMENT_VALID := Color(0.20, 1.00, 0.35, 0.45)
+const PLACEMENT_INVALID := Color(1.00, 0.15, 0.15, 0.45)
 
 # ──── Wood (chair / table shared base) ────
 const WOOD_LIGHT     := Color(0.74, 0.52, 0.26)

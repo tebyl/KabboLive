@@ -45,13 +45,21 @@ func get_selected_type_text() -> String:
 	return _selected_type
 
 
+func get_selected_furniture_type() -> String:
+	return _selected_type
+
+
 func get_selected_display_name() -> String:
 	if not has_selected_furniture():
 		return ""
 	return FURNITURE_CATALOG[_selected_type].get("display_name", _selected_type)
 
 
-func create_selected_furniture(target_cell) -> Object:
+func create_selected_furniture(target_cell: Vector2i) -> Object:
+	return create_selected_furniture_at(target_cell)
+
+
+func create_selected_furniture_at(target_cell: Vector2i) -> RefCounted:
 	if not has_selected_furniture():
 		return null
 	var info: Dictionary = FURNITURE_CATALOG[_selected_type]

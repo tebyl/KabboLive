@@ -85,6 +85,10 @@ func get_selected_furniture() -> RefCounted:
 	return furniture_items[selected_furniture_index]
 
 
+func get_selected_furniture_index() -> int:
+	return selected_furniture_index
+
+
 func get_furniture_items_at_cell(cell: Vector2i) -> Array:
 	var found: Array = []
 	for f: RefCounted in furniture_items:
@@ -158,8 +162,27 @@ func start_move_selected_furniture() -> bool:
 	return true
 
 
+func cancel_move_mode() -> void:
+	is_move_mode = false
+	redraw()
+
+
 func is_move_mode_active() -> bool:
 	return is_move_mode
+
+
+func can_move_selected_furniture_to(target_cell: Vector2i) -> bool:
+	if not has_selected_placed_furniture():
+		return false
+	var furniture: RefCounted = furniture_items[selected_furniture_index]
+	var moved_furniture: RefCounted = _make_moved_furniture(furniture, target_cell)
+	return can_place_furniture(moved_furniture, selected_furniture_index)
+
+
+func create_selected_move_preview(target_cell: Vector2i) -> RefCounted:
+	if not has_selected_placed_furniture():
+		return null
+	return _make_moved_furniture(furniture_items[selected_furniture_index], target_cell)
 
 
 func move_selected_furniture(target_cell: Vector2i) -> bool:
@@ -167,9 +190,7 @@ func move_selected_furniture(target_cell: Vector2i) -> bool:
 		is_move_mode = false
 		return false
 	var furniture: RefCounted = furniture_items[selected_furniture_index]
-	var moved_furniture: RefCounted = furniture.get_script().new(target_cell, furniture.type, furniture.size)
-	moved_furniture.blocks_movement = furniture.blocks_movement
-	moved_furniture.layer = furniture.layer
+	var moved_furniture: RefCounted = _make_moved_furniture(furniture, target_cell)
 	if not can_place_furniture(moved_furniture, selected_furniture_index):
 		return false
 	pathfinding_manager.mark_furniture_solid(furniture, false)
@@ -218,6 +239,9 @@ func can_place_furniture(furniture: RefCounted, ignored_index: int) -> bool:
 		return false
 
 	var incoming_layer: String = _get_layer(furniture)
+	var ignored_cells: Array[Vector2i] = []
+	if ignored_index >= 0 and ignored_index < furniture_items.size():
+		ignored_cells = furniture_items[ignored_index].get_occupied_cells()
 
 	for cell: Vector2i in furniture.get_occupied_cells():
 		if not iso_grid.is_valid_cell(cell):
@@ -245,10 +269,17 @@ func can_place_furniture(furniture: RefCounted, ignored_index: int) -> bool:
 		# For non-floor: check pathfinding solid (catches NPC, etc.)
 		# Only when no furniture at cell explains the solid (e.g. NPC is sole reason)
 		if incoming_layer != "floor" and not cell_has_blocking_furniture:
-			if pathfinding_manager.is_point_solid(cell):
+			if pathfinding_manager.is_point_solid(cell) and not ignored_cells.has(cell):
 				return false
 
 	return true
+
+
+func _make_moved_furniture(furniture: RefCounted, target_cell: Vector2i) -> RefCounted:
+	var moved_furniture: RefCounted = furniture.get_script().new(target_cell, furniture.type, furniture.size)
+	moved_furniture.blocks_movement = furniture.blocks_movement
+	moved_furniture.layer = furniture.layer
+	return moved_furniture
 
 
 func _get_layer(furniture: RefCounted) -> String:

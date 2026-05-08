@@ -678,6 +678,10 @@ func hide_furniture_inspector() -> void:
 		furniture_inspector_panel.visible = false
 
 
+func is_furniture_inspector_visible() -> bool:
+	return furniture_inspector_panel != null and furniture_inspector_panel.visible
+
+
 func update_furniture_inspector(furniture: Object) -> void:
 	if furniture_inspector_panel == null or not furniture_inspector_panel.visible:
 		return

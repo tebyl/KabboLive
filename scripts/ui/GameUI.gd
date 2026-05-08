@@ -31,8 +31,12 @@ var chat_input_panel: PanelContainer
 var chat_input: LineEdit
 var chat_bubble_panel: PanelContainer
 var chat_bubble_label: Label
-var chat_bubble_timer = 0.0
-var chat_bubble_visible = false
+var chat_bubble_timer: float = 0.0
+var chat_bubble_visible: bool = false
+var npc_bubble_panel: PanelContainer
+var npc_bubble_label: Label
+var npc_bubble_timer: float = 0.0
+var npc_bubble_visible: bool = false
 var inventory_panel: PanelContainer
 
 var _on_enter_hotel: Callable
@@ -494,6 +498,32 @@ func _build_chat_ui() :
 	chat_bubble_label.add_theme_font_size_override("font_size", 14)
 	bubble_margin.add_child(chat_bubble_label)
 
+	npc_bubble_panel = PanelContainer.new()
+	npc_bubble_panel.name = "NpcBubblePanel"
+	npc_bubble_panel.anchor_left = 0.0
+	npc_bubble_panel.anchor_top = 0.0
+	npc_bubble_panel.anchor_right = 0.0
+	npc_bubble_panel.anchor_bottom = 0.0
+	npc_bubble_panel.visible = false
+	npc_bubble_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(1.0, 0.96, 0.88, 0.95)))
+	ui_layer.add_child(npc_bubble_panel)
+
+	var npc_bubble_margin: MarginContainer = MarginContainer.new()
+	npc_bubble_margin.add_theme_constant_override("margin_left", 12)
+	npc_bubble_margin.add_theme_constant_override("margin_top", 8)
+	npc_bubble_margin.add_theme_constant_override("margin_right", 12)
+	npc_bubble_margin.add_theme_constant_override("margin_bottom", 8)
+	npc_bubble_panel.add_child(npc_bubble_margin)
+
+	npc_bubble_label = Label.new()
+	npc_bubble_label.name = "NpcBubbleLabel"
+	npc_bubble_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	npc_bubble_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	npc_bubble_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	npc_bubble_label.add_theme_color_override("font_color", Color(0.22, 0.12, 0.04, 1.0))
+	npc_bubble_label.add_theme_font_size_override("font_size", 14)
+	npc_bubble_margin.add_child(npc_bubble_label)
+
 
 func show_main_menu() :
 	main_menu_panel.visible = true
@@ -505,6 +535,7 @@ func show_main_menu() :
 	if inventory_panel != null:
 		inventory_panel.visible = false
 	hide_chat_bubble()
+	hide_npc_bubble()
 
 
 func show_room_select() :
@@ -517,6 +548,7 @@ func show_room_select() :
 	if inventory_panel != null:
 		inventory_panel.visible = false
 	hide_chat_bubble()
+	hide_npc_bubble()
 
 
 func show_in_room() :
@@ -626,6 +658,43 @@ func hide_chat_bubble() :
 	chat_bubble_timer = 0.0
 	if chat_bubble_panel != null:
 		chat_bubble_panel.visible = false
+
+
+func show_npc_bubble(formatted_message: String, world_position: Vector2) -> void:
+	if npc_bubble_panel == null or npc_bubble_label == null:
+		return
+	npc_bubble_label.text = formatted_message
+	npc_bubble_timer = 3.0
+	npc_bubble_visible = true
+	npc_bubble_panel.visible = true
+	update_npc_bubble(world_position, 0.0)
+
+
+func update_npc_bubble(world_position: Vector2, delta: float) -> void:
+	if not npc_bubble_visible:
+		return
+	if npc_bubble_panel == null or ui_layer == null:
+		npc_bubble_visible = false
+		return
+	npc_bubble_timer -= delta
+	if npc_bubble_timer <= 0.0:
+		hide_npc_bubble()
+		return
+	var canvas_transform: Transform2D = ui_layer.get_viewport().get_canvas_transform()
+	var screen_position: Vector2 = canvas_transform * world_position
+	var chars_per_line: int = 30
+	var line_count: int = maxi(1, int(ceil(float(npc_bubble_label.text.length()) / float(chars_per_line))))
+	var bubble_width: float = clampf(120.0 + float(npc_bubble_label.text.length()) * 2.6, CHAT_BUBBLE_MIN_WIDTH, CHAT_BUBBLE_MAX_WIDTH)
+	var bubble_height: float = 24.0 + float(line_count) * 18.0
+	npc_bubble_panel.size = Vector2(bubble_width, bubble_height)
+	npc_bubble_panel.position = screen_position + Vector2(-bubble_width * 0.5, -132.0 - bubble_height)
+
+
+func hide_npc_bubble() -> void:
+	npc_bubble_visible = false
+	npc_bubble_timer = 0.0
+	if npc_bubble_panel != null:
+		npc_bubble_panel.visible = false
 
 
 func _make_panel_style(bg_color: Color) -> StyleBoxFlat:

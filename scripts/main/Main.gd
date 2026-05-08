@@ -18,6 +18,7 @@ const RoomSaveServiceScript = preload("res://scripts/save/RoomSaveService.gd")
 const PlayerProfileManagerScript = preload("res://scripts/player/PlayerProfileManager.gd")
 const ChatManagerScript = preload("res://scripts/chat/ChatManager.gd")
 const GameUIScript = preload("res://scripts/ui/GameUI.gd")
+const NpcManagerScript: GDScript = preload("res://scripts/npc/NpcManager.gd")
 const CameraControllerScript = preload("res://scripts/camera/CameraController.gd")
 const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
 const RoomDataScript = preload("res://scripts/room/RoomData.gd")
@@ -56,6 +57,8 @@ var player_profile_manager
 var chat_manager
 var game_ui
 var camera_controller
+var npc_manager
+var npc_root: Node2D
 
 func _ready():
 	if not resolve_required_nodes():
@@ -104,6 +107,11 @@ func _ready():
 		room_manager.get_current_furniture_items()
 	)
 
+	npc_root = Node2D.new()
+	npc_root.name = "Npcs"
+	add_child(npc_root)
+	npc_manager = NpcManagerScript.new(npc_root, iso_grid, pathfinding_manager)
+
 	is_initialized = true
 	enter_state(GameState.MAIN_MENU)
 
@@ -114,6 +122,8 @@ func _process(delta):
 		if not game_ui.is_chat_input_active() and not game_ui.is_profile_open():
 			camera_controller.process(delta)
 		game_ui.update_chat_bubble(player_node.global_position, delta)
+		if npc_manager != null and npc_manager.is_active():
+			game_ui.update_npc_bubble(npc_manager.get_world_position(), delta)
 
 func _input(event):
 	if not is_initialized:
@@ -225,6 +235,8 @@ func handle_key_press(keycode):
 				var current_room = room_manager.get_current_room()
 				if current_room:
 					furniture_manager.replace_furniture_items(current_room.furniture_items, Callable(game_ui, "report_status"))
+					if npc_manager != null:
+						npc_manager.reapply_pathfinding_solid()
 		KEY_1:
 			if current_state == GameState.IN_ROOM:
 				inventory_manager.select_index(0)
@@ -262,12 +274,21 @@ func handle_key_press(keycode):
 			if current_state == GameState.IN_ROOM:
 				switch_room("room_large")
 
-func on_chat_submitted(message: String) :
-	if message.strip_edges() != "":
-		var result = chat_manager.submit_message(message)
-		if result.sent:
+func on_chat_submitted(message: String) -> void:
+	var trimmed: String = message.strip_edges()
+	if trimmed.is_empty():
+		return
+	var result: Dictionary = chat_manager.submit_message(trimmed)
+	if not result.get("sent", false):
+		return
+	game_ui.update_chat_history(chat_manager.get_history())
+	game_ui.show_chat_bubble(result.get("message", ""), player_node.global_position)
+	if npc_manager != null and npc_manager.is_active():
+		var response: String = npc_manager.get_response(trimmed)
+		if not response.is_empty():
+			chat_manager.add_raw_message(response)
 			game_ui.update_chat_history(chat_manager.get_history())
-			game_ui.show_chat_bubble(result.message, player_node.global_position)
+			game_ui.show_npc_bubble(response, npc_manager.get_world_position())
 
 
 func handle_chat_key_press(keycode: int) -> bool:
@@ -301,3 +322,9 @@ func switch_room(room_id):
 		player_controller.teleport_to_cell(new_room.player_start_cell)
 		camera_controller.center_on_room()
 		game_ui.set_room_name(new_room.display_name)
+		if npc_manager != null:
+			if room_id == "lobby":
+				npc_manager.activate()
+			else:
+				npc_manager.deactivate()
+			npc_manager.reapply_pathfinding_solid()

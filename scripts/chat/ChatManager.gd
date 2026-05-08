@@ -37,6 +37,14 @@ func get_history() -> Array[String]:
 	return history_copy
 
 
+func add_raw_message(text: String) -> void:
+	if text.is_empty():
+		return
+	_history.append(text)
+	if _history.size() > MAX_HISTORY_MESSAGES:
+		_history.remove_at(0)
+
+
 func submit_message(raw_text) -> Dictionary:
 	var trimmed_message = raw_text.strip_edges()
 

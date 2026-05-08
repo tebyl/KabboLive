@@ -93,7 +93,8 @@ func _ready():
 		Callable(self, "on_room_selected"),
 		Callable(self, "on_back_to_rooms"),
 		Callable(self, "on_save_profile"),
-		Callable(self, "on_chat_submitted")
+		Callable(self, "on_chat_submitted"),
+		Callable(self, "on_catalog_selected")
 	)
 
 	game_ui.update_profile_ui(player_profile_manager.player_name, player_profile_manager.avatar_color)
@@ -110,7 +111,7 @@ func _ready():
 	npc_root = Node2D.new()
 	npc_root.name = "Npcs"
 	add_child(npc_root)
-	npc_manager = NpcManagerScript.new(npc_root, iso_grid, pathfinding_manager)
+	npc_manager = NpcManagerScript.new(npc_root, iso_grid, pathfinding_manager, player_controller)
 
 	is_initialized = true
 	enter_state(GameState.MAIN_MENU)
@@ -122,8 +123,10 @@ func _process(delta):
 		if not game_ui.is_chat_input_active() and not game_ui.is_profile_open():
 			camera_controller.process(delta)
 		game_ui.update_chat_bubble(player_node.global_position, delta)
-		if npc_manager != null and npc_manager.is_active():
-			game_ui.update_npc_bubble(npc_manager.get_world_position(), delta)
+		if npc_manager != null:
+			npc_manager.process(delta)
+			if npc_manager.is_active():
+				game_ui.update_npc_bubble(npc_manager.get_world_position(), delta)
 
 func _input(event):
 	if not is_initialized:
@@ -211,6 +214,7 @@ func handle_key_press(keycode):
 			if current_state == GameState.IN_ROOM:
 				if inventory_manager.has_selected_furniture():
 					inventory_manager.cancel_selection()
+					game_ui.set_catalog_selected_furniture("")
 					game_ui.set_status_message("Sin seleccion")
 				elif furniture_manager.has_selected_placed_furniture() or furniture_manager.is_move_mode_active():
 					furniture_manager.clear_selection()
@@ -240,15 +244,21 @@ func handle_key_press(keycode):
 		KEY_1:
 			if current_state == GameState.IN_ROOM:
 				inventory_manager.select_index(0)
-				game_ui.set_status_message("Seleccionado: " + inventory_manager.get_selected_type_text() + " — clic para colocar")
+				var type1: String = inventory_manager.get_selected_type_text()
+				game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(type1))
+				game_ui.set_catalog_selected_furniture(type1)
 		KEY_2:
 			if current_state == GameState.IN_ROOM:
 				inventory_manager.select_index(1)
-				game_ui.set_status_message("Seleccionado: " + inventory_manager.get_selected_type_text() + " — clic para colocar")
+				var type2: String = inventory_manager.get_selected_type_text()
+				game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(type2))
+				game_ui.set_catalog_selected_furniture(type2)
 		KEY_3:
 			if current_state == GameState.IN_ROOM:
 				inventory_manager.select_index(2)
-				game_ui.set_status_message("Seleccionado: " + inventory_manager.get_selected_type_text() + " — clic para colocar")
+				var type3: String = inventory_manager.get_selected_type_text()
+				game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(type3))
+				game_ui.set_catalog_selected_furniture(type3)
 		KEY_M:
 			if current_state == GameState.IN_ROOM:
 				if furniture_manager.has_selected_placed_furniture():
@@ -273,6 +283,24 @@ func handle_key_press(keycode):
 		KEY_F3:
 			if current_state == GameState.IN_ROOM:
 				switch_room("room_large")
+
+func _get_furniture_display_name(furniture_type: String) -> String:
+	match furniture_type:
+		"chair": return "Silla"
+		"table": return "Mesa"
+		"sofa": return "Sofá"
+	return furniture_type
+
+
+func on_catalog_selected(furniture_type: String) -> void:
+	var type_to_index: Dictionary = {"chair": 0, "table": 1, "sofa": 2}
+	var idx: int = type_to_index.get(furniture_type, -1)
+	if idx < 0:
+		return
+	inventory_manager.select_index(idx)
+	game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(furniture_type))
+	game_ui.set_catalog_selected_furniture(furniture_type)
+
 
 func on_chat_submitted(message: String) -> void:
 	var trimmed: String = message.strip_edges()

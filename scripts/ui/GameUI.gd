@@ -39,19 +39,25 @@ var npc_bubble_timer: float = 0.0
 var npc_bubble_visible: bool = false
 var inventory_panel: PanelContainer
 
+var catalog_panel: PanelContainer
+var _catalog_buttons: Array[Button] = []
+var _catalog_types: Array[String] = []
+
 var _on_enter_hotel: Callable
 var _on_room_selected: Callable
 var _on_back_to_rooms: Callable
 var _on_save_profile: Callable
 var _on_chat_submitted: Callable
+var _on_catalog_selected: Callable
 
 
-func _init(root: Node, on_enter_hotel: Callable, on_room_selected: Callable, on_back_to_rooms: Callable, on_save_profile: Callable, on_chat_submitted: Callable = Callable()) :
+func _init(root: Node, on_enter_hotel: Callable, on_room_selected: Callable, on_back_to_rooms: Callable, on_save_profile: Callable, on_chat_submitted: Callable = Callable(), on_catalog_selected: Callable = Callable()) -> void:
 	_on_enter_hotel = on_enter_hotel
 	_on_room_selected = on_room_selected
 	_on_back_to_rooms = on_back_to_rooms
 	_on_save_profile = on_save_profile
 	_on_chat_submitted = on_chat_submitted
+	_on_catalog_selected = on_catalog_selected
 	setup_ui(root)
 
 
@@ -73,6 +79,7 @@ func setup_ui(root: Node) :
 	_build_controls_panel()
 	_build_inventory_panel()
 	_build_chat_ui()
+	_build_furniture_catalog()
 
 
 func _build_main_menu() :
@@ -525,6 +532,93 @@ func _build_chat_ui() :
 	npc_bubble_margin.add_child(npc_bubble_label)
 
 
+func _build_furniture_catalog() -> void:
+	_catalog_types = ["chair", "table", "sofa"]
+	var display_names: Array[String] = ["Silla", "Mesa", "Sofá"]
+	var shortcuts: Array[String] = ["1", "2", "3"]
+
+	catalog_panel = PanelContainer.new()
+	catalog_panel.name = "CatalogPanel"
+	catalog_panel.anchor_left = 1.0
+	catalog_panel.anchor_top = 0.5
+	catalog_panel.anchor_right = 1.0
+	catalog_panel.anchor_bottom = 0.5
+	catalog_panel.offset_left = -152.0
+	catalog_panel.offset_top = -105.0
+	catalog_panel.offset_right = -16.0
+	catalog_panel.offset_bottom = 105.0
+	catalog_panel.visible = false
+	catalog_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.90)))
+	ui_layer.add_child(catalog_panel)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	catalog_panel.add_child(margin)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	margin.add_child(vbox)
+
+	var title: Label = Label.new()
+	title.text = "Catálogo"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_color_override("font_color", Color(0.92, 0.96, 1.0))
+	vbox.add_child(title)
+
+	_catalog_buttons.clear()
+	for i: int in range(_catalog_types.size()):
+		var btn: Button = Button.new()
+		btn.text = "[" + shortcuts[i] + "] " + display_names[i]
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.pressed.connect(_on_catalog_button_pressed.bind(i))
+		vbox.add_child(btn)
+		_catalog_buttons.append(btn)
+
+
+func _on_catalog_button_pressed(index: int) -> void:
+	if is_chat_input_active():
+		return
+	if _on_catalog_selected.is_valid():
+		_on_catalog_selected.call(_catalog_types[index])
+
+
+func set_catalog_selected_furniture(furniture_type: String) -> void:
+	var selected_style: StyleBoxFlat = StyleBoxFlat.new()
+	selected_style.bg_color = Color(0.12, 0.40, 0.18, 0.92)
+	selected_style.corner_radius_top_left = 6
+	selected_style.corner_radius_top_right = 6
+	selected_style.corner_radius_bottom_right = 6
+	selected_style.corner_radius_bottom_left = 6
+	selected_style.border_color = Color(0.35, 0.85, 0.42, 1.0)
+	selected_style.border_width_left = 2
+	selected_style.border_width_top = 2
+	selected_style.border_width_right = 2
+	selected_style.border_width_bottom = 2
+
+	for i: int in range(_catalog_types.size()):
+		var btn: Button = _catalog_buttons[i]
+		if _catalog_types[i] == furniture_type:
+			btn.add_theme_stylebox_override("normal", selected_style)
+			btn.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 1.0))
+		else:
+			btn.remove_theme_stylebox_override("normal")
+			btn.remove_theme_color_override("font_color")
+
+
+func show_furniture_catalog() -> void:
+	if catalog_panel != null:
+		catalog_panel.visible = true
+
+
+func hide_furniture_catalog() -> void:
+	if catalog_panel != null:
+		catalog_panel.visible = false
+
+
 func show_main_menu() :
 	main_menu_panel.visible = true
 	room_select_panel.visible = false
@@ -536,6 +630,7 @@ func show_main_menu() :
 		inventory_panel.visible = false
 	hide_chat_bubble()
 	hide_npc_bubble()
+	hide_furniture_catalog()
 
 
 func show_room_select() :
@@ -549,6 +644,7 @@ func show_room_select() :
 		inventory_panel.visible = false
 	hide_chat_bubble()
 	hide_npc_bubble()
+	hide_furniture_catalog()
 
 
 func show_in_room() :
@@ -556,6 +652,7 @@ func show_in_room() :
 	room_select_panel.visible = false
 	profile_panel.visible = false
 	controls_panel.visible = true
+	show_furniture_catalog()
 
 
 func set_room_name(room_name) :

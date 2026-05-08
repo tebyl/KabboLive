@@ -2,23 +2,34 @@ extends RefCounted
 
 const NPC_NAME: String = "Bot Guía"
 const HOME_CELL: Vector2i = Vector2i(5, 5)
-const LOBBY_ROOM_ID: String = "lobby"
 const NPC_BODY_COLOR: Color = Color(0.80, 0.38, 0.12)
 const NPC_HAIR_COLOR: Color = Color(0.05, 0.20, 0.45)
+const MOVE_STEP_DURATION: float = 0.40
+const MOVE_DELAY_MIN: float = 4.0
+const MOVE_DELAY_MAX: float = 7.0
 
 var _npc_root: Node2D
 var _iso_grid
 var _pathfinding_manager
+var _player_controller
 var _npc_node: Node2D
 var _npc_cell: Vector2i
 var _is_active: bool = false
+var _is_moving: bool = false
+var _move_timer: float = 0.0
+var _next_move_delay: float = 0.0
+var _active_tween: Tween
+var _rng: RandomNumberGenerator
 
 
-func _init(p_npc_root: Node2D, p_iso_grid, p_pathfinding_manager) -> void:
+func _init(p_npc_root: Node2D, p_iso_grid, p_pathfinding_manager, p_player_controller) -> void:
 	_npc_root = p_npc_root
 	_iso_grid = p_iso_grid
 	_pathfinding_manager = p_pathfinding_manager
+	_player_controller = p_player_controller
 	_npc_cell = HOME_CELL
+	_rng = RandomNumberGenerator.new()
+	_rng.randomize()
 	_build_visual()
 	_npc_node.visible = false
 
@@ -30,14 +41,18 @@ func activate() -> void:
 	_update_z_index()
 	_npc_node.visible = true
 	_pathfinding_manager.set_point_solid(_npc_cell, true)
+	_schedule_next_move()
 
 
 func deactivate() -> void:
 	if not _is_active:
 		return
+	_stop_motion()
 	_pathfinding_manager.set_point_solid(_npc_cell, false)
 	_is_active = false
 	_npc_node.visible = false
+	_move_timer = 0.0
+	_next_move_delay = 0.0
 
 
 func is_active() -> bool:
@@ -55,6 +70,15 @@ func reapply_pathfinding_solid() -> void:
 		_pathfinding_manager.set_point_solid(_npc_cell, true)
 
 
+func process(delta: float) -> void:
+	if not _is_active or _is_moving:
+		return
+	_move_timer += delta
+	if _move_timer >= _next_move_delay:
+		_move_timer = 0.0
+		_try_move_randomly()
+
+
 func get_response(player_message: String) -> String:
 	var lower: String = player_message.to_lower()
 	if "hola" in lower:
@@ -64,6 +88,74 @@ func get_response(player_message: String) -> String:
 	if "salas" in lower:
 		return NPC_NAME + ": Puedes cambiar de sala con F1, F2 y F3."
 	return ""
+
+
+func _schedule_next_move() -> void:
+	_move_timer = 0.0
+	_next_move_delay = _rng.randf_range(MOVE_DELAY_MIN, MOVE_DELAY_MAX)
+
+
+func _try_move_randomly() -> void:
+	var candidates: Array[Vector2i] = _get_candidate_cells()
+	if candidates.is_empty():
+		_schedule_next_move()
+		return
+	var start: int = _rng.randi() % candidates.size()
+	for i: int in range(candidates.size()):
+		var cell: Vector2i = candidates[(start + i) % candidates.size()]
+		if _can_npc_move_to(cell):
+			_move_to_cell(cell)
+			return
+	_schedule_next_move()
+
+
+func _get_candidate_cells() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var directions: Array[Vector2i] = [
+		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)
+	]
+	for dir: Vector2i in directions:
+		result.append(_npc_cell + dir)
+	return result
+
+
+func _can_npc_move_to(cell: Vector2i) -> bool:
+	if not _iso_grid.is_valid_cell(cell):
+		return false
+	if _pathfinding_manager.is_point_solid(cell):
+		return false
+	if _player_controller != null and cell == _player_controller.get_player_cell():
+		return false
+	return true
+
+
+func _move_to_cell(cell: Vector2i) -> void:
+	_pathfinding_manager.set_point_solid(_npc_cell, false)
+	_npc_cell = cell
+	_pathfinding_manager.set_point_solid(_npc_cell, true)
+	_is_moving = true
+	_update_z_index()
+
+	if _active_tween != null and _active_tween.is_valid():
+		_active_tween.kill()
+
+	_active_tween = _npc_node.create_tween()
+	_active_tween.tween_property(_npc_node, "position", _iso_grid.grid_to_iso(_npc_cell), MOVE_STEP_DURATION)
+	_active_tween.finished.connect(_on_move_finished)
+
+
+func _on_move_finished() -> void:
+	_is_moving = false
+	_schedule_next_move()
+
+
+func _stop_motion() -> void:
+	if _active_tween != null and _active_tween.is_valid():
+		_active_tween.kill()
+	_active_tween = null
+	_is_moving = false
+	if _npc_node != null:
+		_npc_node.position = _iso_grid.grid_to_iso(_npc_cell)
 
 
 func _build_visual() -> void:

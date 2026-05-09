@@ -43,6 +43,7 @@ var _missions_list_vbox: VBoxContainer
 var credits_label: Label
 var help_button: Button
 var shop_button: Button
+var _mode_button: Button
 var shop_panel: PanelContainer
 var _shop_items_vbox: VBoxContainer
 var _shop_credits_label: Label
@@ -64,6 +65,7 @@ var _on_tutorial_closed: Callable
 var _on_tutorial_open_requested: Callable
 var _on_shop_item_buy: Callable
 var _on_shop_closed: Callable
+var _on_mode_toggle: Callable
 var _tutorial_steps: Array[Dictionary] = [
 	{"title": "Bienvenido a Kabbo Hotel", "body": "Camina haciendo click sobre un tile libre."},
 	{"title": "Coloca muebles", "body": "Usa el catálogo de la derecha o las teclas 1, 2 y 3 para elegir muebles."},
@@ -452,6 +454,12 @@ func _build_controls_panel() :
 	shop_button.custom_minimum_size = Vector2(76.0, 0.0)
 	shop_button.pressed.connect(_on_shop_button_pressed)
 	top_row.add_child(shop_button)
+
+	_mode_button = Button.new()
+	_mode_button.text = "Decorar"
+	_mode_button.custom_minimum_size = Vector2(84.0, 0.0)
+	_mode_button.pressed.connect(_on_mode_button_pressed)
+	top_row.add_child(_mode_button)
 
 	var controls_label: Label = Label.new()
 	controls_label.name = "ControlsLabel"
@@ -1150,6 +1158,26 @@ func set_shop_closed_callback(callback: Callable) -> void:
 	_on_shop_closed = callback
 
 
+func set_mode_toggle_callback(callback: Callable) -> void:
+	_on_mode_toggle = callback
+
+
+func update_mode_button(mode: String) -> void:
+	if _mode_button == null:
+		return
+	if mode == "decoration":
+		_mode_button.text = "Explorar"
+	else:
+		_mode_button.text = "Decorar"
+
+
+func _on_mode_button_pressed() -> void:
+	if is_chat_input_active():
+		return
+	if _on_mode_toggle.is_valid():
+		_on_mode_toggle.call()
+
+
 func show_overlap_selector(items: Array) -> void:
 	if overlap_selector_panel == null or _overlap_items_vbox == null:
 		return
@@ -1215,6 +1243,8 @@ func show_main_menu() :
 		inventory_panel.visible = false
 	if help_button != null:
 		help_button.visible = false
+	if _mode_button != null:
+		_mode_button.visible = false
 	hide_shop_button()
 	hide_shop_panel()
 	hide_missions_panel()
@@ -1238,6 +1268,8 @@ func show_room_select() :
 		inventory_panel.visible = false
 	if help_button != null:
 		help_button.visible = false
+	if _mode_button != null:
+		_mode_button.visible = false
 	hide_missions_panel()
 	hide_chat_bubble()
 	hide_npc_bubble()
@@ -1255,9 +1287,10 @@ func show_in_room() :
 	controls_panel.visible = true
 	if help_button != null:
 		help_button.visible = true
+	if _mode_button != null:
+		_mode_button.visible = true
 	show_shop_button()
 	show_missions_panel()
-	show_furniture_catalog()
 
 
 func set_room_name(room_name) :

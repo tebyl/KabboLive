@@ -44,11 +44,15 @@ const CameraController = CameraControllerScript
 const FurnitureData = FurnitureDataScript
 const RoomData = RoomDataScript
 
+const ROOM_MODE_EXPLORATION: String = "exploration"
+const ROOM_MODE_DECORATION: String = "decoration"
+
 var floor_node: Node2D
 var blocks_node: Node2D
 var player_node: Sprite2D
 var is_initialized = false
 var current_state = GameState.MAIN_MENU
+var room_mode: String = ROOM_MODE_EXPLORATION
 var _overlap_pending_items: Array = []
 
 # Manager instances (se manejan como Variant por el ruido de símbolos en Godot)
@@ -137,6 +141,7 @@ func _ready():
 	game_ui.set_tutorial_open_requested_callback(Callable(self, "_on_tutorial_open_requested"))
 	game_ui.set_shop_item_buy_callback(Callable(self, "_on_shop_item_buy_requested"))
 	game_ui.set_shop_closed_callback(Callable(self, "_on_shop_closed"))
+	game_ui.set_mode_toggle_callback(Callable(self, "toggle_room_mode"))
 	camera_controller = CameraControllerScript.new(self, iso_grid)
 
 	furniture_manager = FurnitureManagerScript.new(
@@ -179,14 +184,19 @@ func _input(event):
 	if event is InputEventKey:
 		var key_event = event as InputEventKey
 		if key_event.pressed and not key_event.echo:
-			if current_state == GameState.IN_ROOM and key_event.keycode == KEY_B and not _is_tutorial_visible() and not game_ui.is_profile_open() and not game_ui.is_chat_input_active():
-				_toggle_shop()
-				get_viewport().set_input_as_handled()
-				return
-			if current_state == GameState.IN_ROOM and key_event.keycode == KEY_H and not _is_tutorial_visible() and not _is_shop_visible() and not game_ui.is_profile_open() and not game_ui.is_chat_input_active():
-				_open_tutorial_manual()
-				get_viewport().set_input_as_handled()
-				return
+			if current_state == GameState.IN_ROOM and not _is_tutorial_visible() and not _is_shop_visible() and not game_ui.is_profile_open() and not game_ui.is_chat_input_active():
+				if key_event.keycode == KEY_TAB:
+					toggle_room_mode()
+					get_viewport().set_input_as_handled()
+					return
+				if key_event.keycode == KEY_B:
+					_toggle_shop()
+					get_viewport().set_input_as_handled()
+					return
+				if key_event.keycode == KEY_H:
+					_open_tutorial_manual()
+					get_viewport().set_input_as_handled()
+					return
 			if _is_shop_visible():
 				if key_event.keycode == KEY_ESCAPE:
 					_close_shop()
@@ -219,60 +229,12 @@ func _input(event):
 				return
 			camera_controller.handle_mouse_button(mouse_event)
 			if mouse_event.pressed and mouse_event.button_index == MOUSE_BUTTON_LEFT:
-				var world_pos = camera_controller.screen_to_world(mouse_event.position)
-				var cell = iso_grid.iso_to_grid(world_pos)
-				if furniture_manager.is_move_mode_active():
-					if furniture_manager.can_move_selected_furniture_to(cell) and furniture_manager.move_selected_furniture(cell):
-						var moved: Object = furniture_manager.get_selected_furniture()
-						if moved != null:
-							game_ui.update_furniture_inspector(moved)
-						hide_placement_preview()
-						game_ui.set_status_message("Mueble movido")
-						_show_toast("Mueble movido", "success")
-					else:
-						update_placement_preview()
-						_show_toast("No se puede mover aquí", "error")
-						game_ui.set_status_message("No se puede mover ahí")
-				elif inventory_manager.has_selected_furniture():
-					var new_furniture: RefCounted = inventory_manager.create_selected_furniture_at(cell)
-					if new_furniture:
-						if furniture_manager.can_place_furniture(new_furniture, -1) and furniture_manager.place_furniture(new_furniture):
-							var placed_type: String = str(new_furniture.get("type"))
-							if furniture_stock_manager != null:
-								furniture_stock_manager.consume_stock(placed_type)
-								furniture_stock_manager.save_state()
-								_refresh_inventory_ui()
-							game_ui.set_status_message("Mueble colocado")
-							_show_toast(_get_furniture_placed_message(placed_type), "success")
-							_complete_mission("place_first_furniture")
-							update_placement_preview()
-						else:
-							update_placement_preview()
-							_show_toast("No se puede colocar aquí", "error")
-							game_ui.set_status_message("No se puede colocar ahí")
+				var world_pos: Vector2 = camera_controller.screen_to_world(mouse_event.position)
+				var cell: Vector2i = iso_grid.iso_to_grid(world_pos)
+				if room_mode == ROOM_MODE_DECORATION:
+					_handle_decoration_left_click(cell)
 				else:
-					var items_at_cell: Array = furniture_manager.get_furniture_items_at_cell(cell)
-					if items_at_cell.size() == 0:
-						# No furniture — move player
-						if iso_grid.is_valid_cell(cell) and not pathfinding_manager.is_point_solid(cell):
-							var player_cell: Vector2i = player_controller.get_player_cell()
-							var path: Array = pathfinding_manager.get_path(player_cell, cell)
-							if path.size() > 0:
-								if not player_controller.move_along_path(path):
-									game_ui.set_status_message("El jugador ya se esta moviendo")
-								else:
-									_complete_mission("first_walk")
-					elif items_at_cell.size() == 1:
-						furniture_manager.select_furniture_item(items_at_cell[0])
-						hide_placement_preview()
-						game_ui.show_furniture_inspector(items_at_cell[0])
-						_complete_mission("inspect_first_furniture")
-						game_ui.set_status_message("Mueble seleccionado — M mover | R rotar | Delete eliminar")
-					else:
-						_overlap_pending_items = items_at_cell
-						hide_placement_preview()
-						game_ui.hide_furniture_inspector()
-						game_ui.show_overlap_selector(_overlap_pending_items)
+					_handle_exploration_left_click(cell)
 
 func resolve_required_nodes() -> bool:
 	floor_node = get_node_or_null("Floor")
@@ -290,6 +252,8 @@ func enter_state(new_state):
 			game_ui.show_room_selector(room_manager.get_all_rooms())
 		GameState.IN_ROOM:
 			game_ui.show_in_room()
+			room_mode = ""
+			set_room_mode(ROOM_MODE_EXPLORATION)
 			_update_missions_ui()
 			_maybe_show_tutorial()
 
@@ -355,14 +319,13 @@ func handle_key_press(keycode):
 				save_current_room_state()
 		KEY_L:
 			if current_state == GameState.IN_ROOM:
+				_clear_editing_state()
 				var loaded_rooms = room_save_service.load_rooms(Callable(game_ui, "report_status"))
 				room_manager.apply_saved_rooms(loaded_rooms.get("rooms", []))
 				var load_status: StringName = StringName(loaded_rooms.get("status", &"missing"))
 				var current_room = room_manager.get_current_room()
 				if current_room:
 					furniture_manager.replace_furniture_items(current_room.furniture_items, Callable(game_ui, "report_status"))
-					game_ui.hide_furniture_inspector()
-					hide_placement_preview()
 					if npc_manager != null:
 						npc_manager.reapply_pathfinding_solid()
 				if load_status == &"ok":
@@ -372,7 +335,7 @@ func handle_key_press(keycode):
 				else:
 					_show_toast("No se pudo cargar", "error")
 		KEY_1:
-			if current_state == GameState.IN_ROOM:
+			if current_state == GameState.IN_ROOM and is_decoration_mode():
 				inventory_manager.select_type("chair")
 				furniture_manager.clear_selection()
 				game_ui.set_status_message("Modo colocar: Silla")
@@ -380,7 +343,7 @@ func handle_key_press(keycode):
 				game_ui.hide_furniture_inspector()
 				update_placement_preview()
 		KEY_2:
-			if current_state == GameState.IN_ROOM:
+			if current_state == GameState.IN_ROOM and is_decoration_mode():
 				inventory_manager.select_type("table")
 				furniture_manager.clear_selection()
 				game_ui.set_status_message("Modo colocar: Mesa")
@@ -388,7 +351,7 @@ func handle_key_press(keycode):
 				game_ui.hide_furniture_inspector()
 				update_placement_preview()
 		KEY_3:
-			if current_state == GameState.IN_ROOM:
+			if current_state == GameState.IN_ROOM and is_decoration_mode():
 				inventory_manager.select_type("sofa")
 				furniture_manager.clear_selection()
 				game_ui.set_status_message("Modo colocar: Sofá")
@@ -396,7 +359,7 @@ func handle_key_press(keycode):
 				game_ui.hide_furniture_inspector()
 				update_placement_preview()
 		KEY_M:
-			if current_state == GameState.IN_ROOM:
+			if current_state == GameState.IN_ROOM and is_decoration_mode():
 				if furniture_manager.has_selected_placed_furniture():
 					furniture_manager.start_move_selected_furniture()
 					inventory_manager.cancel_selection()
@@ -404,9 +367,8 @@ func handle_key_press(keycode):
 					update_placement_preview()
 					game_ui.set_status_message("Modo mover: selecciona destino")
 					game_ui.set_furniture_inspector_message("Modo mover — clic en destino")
-					game_ui.set_status_message("Modo mover: selecciona destino")
 		KEY_R:
-			if current_state == GameState.IN_ROOM:
+			if current_state == GameState.IN_ROOM and is_decoration_mode():
 				if furniture_manager.has_selected_placed_furniture():
 					if furniture_manager.rotate_selected_furniture():
 						var rotated: Object = furniture_manager.get_selected_furniture()
@@ -419,7 +381,7 @@ func handle_key_press(keycode):
 						game_ui.set_status_message("No se puede rotar aquí")
 						_show_toast("No se puede rotar aquí", "error")
 		KEY_DELETE:
-			if current_state == GameState.IN_ROOM:
+			if current_state == GameState.IN_ROOM and is_decoration_mode():
 				if furniture_manager.has_selected_placed_furniture():
 					var del_furn: Object = furniture_manager.get_selected_furniture()
 					var del_type: String = str(del_furn.get("type")) if del_furn != null else ""
@@ -440,6 +402,121 @@ func handle_key_press(keycode):
 		KEY_F3:
 			if current_state == GameState.IN_ROOM:
 				switch_room("room_large")
+
+func set_room_mode(mode: String) -> void:
+	if mode != ROOM_MODE_EXPLORATION and mode != ROOM_MODE_DECORATION:
+		return
+	if room_mode == mode:
+		return
+	room_mode = mode
+	if room_mode == ROOM_MODE_EXPLORATION:
+		_enter_exploration_mode()
+	else:
+		_enter_decoration_mode()
+
+
+func toggle_room_mode() -> void:
+	if room_mode == ROOM_MODE_EXPLORATION:
+		set_room_mode(ROOM_MODE_DECORATION)
+	else:
+		set_room_mode(ROOM_MODE_EXPLORATION)
+
+
+func is_decoration_mode() -> bool:
+	return room_mode == ROOM_MODE_DECORATION
+
+
+func is_exploration_mode() -> bool:
+	return room_mode == ROOM_MODE_EXPLORATION
+
+
+func _enter_exploration_mode() -> void:
+	_clear_editing_state()
+	if game_ui != null:
+		game_ui.update_mode_button(ROOM_MODE_EXPLORATION)
+		game_ui.hide_furniture_catalog()
+		game_ui.set_status_message("Modo exploración: haz click para caminar")
+	_show_toast("Modo exploración activado", "info")
+
+
+func _enter_decoration_mode() -> void:
+	if game_ui != null:
+		game_ui.update_mode_button(ROOM_MODE_DECORATION)
+		game_ui.show_furniture_catalog()
+		game_ui.set_status_message("Modo decoración: selecciona un mueble del catálogo")
+	_show_toast("Modo decoración activado", "info")
+
+
+func _clear_editing_state() -> void:
+	if inventory_manager != null:
+		inventory_manager.cancel_selection()
+	if furniture_manager != null:
+		if furniture_manager.is_move_mode_active():
+			furniture_manager.cancel_move_mode()
+		furniture_manager.clear_selection()
+	hide_placement_preview()
+	if game_ui != null:
+		game_ui.hide_furniture_inspector()
+		game_ui.hide_overlap_selector()
+		game_ui.set_catalog_selected_furniture("")
+	_overlap_pending_items = []
+
+
+func _handle_exploration_left_click(cell: Vector2i) -> void:
+	if iso_grid.is_valid_cell(cell) and not pathfinding_manager.is_point_solid(cell):
+		var player_cell: Vector2i = player_controller.get_player_cell()
+		var path: Array = pathfinding_manager.get_path(player_cell, cell)
+		if path.size() > 0:
+			if not player_controller.move_along_path(path):
+				game_ui.set_status_message("El jugador ya se está moviendo")
+			else:
+				_complete_mission("first_walk")
+
+
+func _handle_decoration_left_click(cell: Vector2i) -> void:
+	if furniture_manager.is_move_mode_active():
+		if furniture_manager.can_move_selected_furniture_to(cell) and furniture_manager.move_selected_furniture(cell):
+			var moved: Object = furniture_manager.get_selected_furniture()
+			if moved != null:
+				game_ui.update_furniture_inspector(moved)
+			hide_placement_preview()
+			game_ui.set_status_message("Mueble movido")
+			_show_toast("Mueble movido", "success")
+		else:
+			update_placement_preview()
+			_show_toast("No se puede mover aquí", "error")
+			game_ui.set_status_message("No se puede mover ahí")
+	elif inventory_manager.has_selected_furniture():
+		var new_furniture: RefCounted = inventory_manager.create_selected_furniture_at(cell)
+		if new_furniture:
+			if furniture_manager.can_place_furniture(new_furniture, -1) and furniture_manager.place_furniture(new_furniture):
+				var placed_type: String = str(new_furniture.get("type"))
+				if furniture_stock_manager != null:
+					furniture_stock_manager.consume_stock(placed_type)
+					furniture_stock_manager.save_state()
+					_refresh_inventory_ui()
+				game_ui.set_status_message("Mueble colocado")
+				_show_toast(_get_furniture_placed_message(placed_type), "success")
+				_complete_mission("place_first_furniture")
+				update_placement_preview()
+			else:
+				update_placement_preview()
+				_show_toast("No se puede colocar aquí", "error")
+				game_ui.set_status_message("No se puede colocar ahí")
+	else:
+		var items_at_cell: Array = furniture_manager.get_furniture_items_at_cell(cell)
+		if items_at_cell.size() == 1:
+			furniture_manager.select_furniture_item(items_at_cell[0])
+			hide_placement_preview()
+			game_ui.show_furniture_inspector(items_at_cell[0])
+			_complete_mission("inspect_first_furniture")
+			game_ui.set_status_message("Mueble seleccionado — M mover | R rotar | Delete eliminar")
+		elif items_at_cell.size() > 1:
+			_overlap_pending_items = items_at_cell
+			hide_placement_preview()
+			game_ui.hide_furniture_inspector()
+			game_ui.show_overlap_selector(_overlap_pending_items)
+
 
 func _get_furniture_display_name(furniture_type: String) -> String:
 	match furniture_type:
@@ -624,6 +701,8 @@ func _is_tutorial_visible() -> bool:
 
 
 func on_catalog_selected(furniture_type: String) -> void:
+	if not is_decoration_mode():
+		return
 	if furniture_stock_manager != null and not furniture_stock_manager.can_consume(furniture_type):
 		_show_toast("No tienes unidades disponibles", "warning")
 		return
@@ -802,6 +881,8 @@ func _can_show_move_preview() -> bool:
 func _can_show_any_preview() -> bool:
 	if current_state != GameState.IN_ROOM:
 		return false
+	if room_mode != ROOM_MODE_DECORATION:
+		return false
 	if _is_tutorial_visible():
 		return false
 	if _is_shop_visible():
@@ -828,6 +909,7 @@ func save_current_room_state():
 			_show_toast("No se pudo guardar", "error")
 
 func switch_room(room_id):
+	_clear_editing_state()
 	hide_placement_preview()
 	var old_room = room_manager.get_current_room()
 	if old_room:
@@ -848,3 +930,6 @@ func switch_room(room_id):
 			else:
 				npc_manager.deactivate()
 			npc_manager.reapply_pathfinding_solid()
+		if current_state == GameState.IN_ROOM:
+			room_mode = ""
+			set_room_mode(ROOM_MODE_EXPLORATION)

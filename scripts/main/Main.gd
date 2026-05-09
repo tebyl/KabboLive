@@ -28,6 +28,7 @@ const MissionManagerScript: GDScript = preload("res://scripts/missions/MissionMa
 const CurrencyManagerScript: GDScript = preload("res://scripts/economy/CurrencyManager.gd")
 const ShopManagerScript: GDScript = preload("res://scripts/shop/ShopManager.gd")
 const FurnitureStockManagerScript: GDScript = preload("res://scripts/inventory/FurnitureStockManager.gd")
+const AutosaveManagerScript: GDScript = preload("res://scripts/save/AutosaveManager.gd")
 
 const IsoGrid = IsoGridScript
 const PathfindingManager = PathfindingManagerScript
@@ -76,6 +77,7 @@ var mission_manager
 var currency_manager
 var shop_manager
 var furniture_stock_manager
+var autosave_manager
 var npc_root: Node2D
 
 func _ready():
@@ -112,6 +114,7 @@ func _ready():
 	shop_manager.load_state()
 	furniture_stock_manager = FurnitureStockManagerScript.new()
 	furniture_stock_manager.load_state()
+	autosave_manager = AutosaveManagerScript.new(60.0)
 	chat_manager = ChatManagerScript.new()
 	chat_manager.set_player_name(player_profile_manager.player_name)
 
@@ -175,6 +178,8 @@ func _process(delta):
 			if npc_manager.is_active():
 				game_ui.update_npc_bubble(npc_manager.get_world_position(), delta)
 		update_placement_preview()
+		if autosave_manager != null and autosave_manager.process(delta):
+			_perform_autosave(true)
 	else:
 		hide_placement_preview()
 
@@ -265,12 +270,15 @@ func on_room_selected(room_id):
 	enter_state(GameState.IN_ROOM)
 
 func on_back_to_rooms():
+	if current_state == GameState.IN_ROOM:
+		_perform_autosave(false)
 	enter_state(GameState.ROOM_SELECT)
 
 func on_save_profile(new_name, new_color):
 	if player_profile_manager.update_profile(new_name, new_color):
 		chat_manager.set_player_name(player_profile_manager.player_name)
 		player_controller.update_avatar_color(player_profile_manager.avatar_color)
+		_mark_dirty()
 		_show_toast("Perfil guardado", "success")
 	else:
 		_show_toast("Nombre inválido", "error")
@@ -329,6 +337,7 @@ func handle_key_press(keycode):
 					if npc_manager != null:
 						npc_manager.reapply_pathfinding_solid()
 				if load_status == &"ok":
+					_clear_dirty()
 					_show_toast("Sala cargada", "success")
 				elif load_status == &"missing":
 					_show_toast("No hay sala guardada", "warning")
@@ -374,6 +383,7 @@ func handle_key_press(keycode):
 						var rotated: Object = furniture_manager.get_selected_furniture()
 						if rotated != null:
 							game_ui.update_furniture_inspector(rotated)
+						_mark_dirty()
 						game_ui.set_status_message("Mueble rotado")
 						_show_toast("Mueble rotado", "success")
 					else:
@@ -390,6 +400,7 @@ func handle_key_press(keycode):
 							furniture_stock_manager.return_stock(del_type)
 							furniture_stock_manager.save_state()
 							_refresh_inventory_ui()
+						_mark_dirty()
 						game_ui.hide_furniture_inspector()
 						game_ui.set_status_message("Mueble eliminado")
 						_show_toast("Mueble eliminado", "success")
@@ -480,6 +491,7 @@ func _handle_decoration_left_click(cell: Vector2i) -> void:
 			if moved != null:
 				game_ui.update_furniture_inspector(moved)
 			hide_placement_preview()
+			_mark_dirty()
 			game_ui.set_status_message("Mueble movido")
 			_show_toast("Mueble movido", "success")
 		else:
@@ -495,6 +507,7 @@ func _handle_decoration_left_click(cell: Vector2i) -> void:
 					furniture_stock_manager.consume_stock(placed_type)
 					furniture_stock_manager.save_state()
 					_refresh_inventory_ui()
+				_mark_dirty()
 				game_ui.set_status_message("Mueble colocado")
 				_show_toast(_get_furniture_placed_message(placed_type), "success")
 				_complete_mission("place_first_furniture")
@@ -633,6 +646,7 @@ func _on_shop_item_buy_requested(item_id: String) -> void:
 		furniture_stock_manager.save_state()
 	currency_manager.save_state()
 	shop_manager.save_state()
+	_mark_dirty()
 	_update_credits_ui()
 	_refresh_inventory_ui()
 	var display_name: String = str(result.get("display_name", item_id))
@@ -652,6 +666,7 @@ func _complete_mission(mission_id: String) -> void:
 	if completed_mission.is_empty():
 		return
 	mission_manager.save_state()
+	_mark_dirty()
 	var reward: int = int(completed_mission.get("reward_credits", 0))
 	if reward > 0 and currency_manager != null:
 		currency_manager.add_credits(reward)
@@ -731,6 +746,7 @@ func _on_inspector_rotate() -> void:
 			var rotated: Object = furniture_manager.get_selected_furniture()
 			if rotated != null:
 				game_ui.update_furniture_inspector(rotated)
+			_mark_dirty()
 			game_ui.set_status_message("Mueble rotado")
 			_show_toast("Mueble rotado", "success")
 		else:
@@ -748,6 +764,7 @@ func _on_inspector_delete() -> void:
 				furniture_stock_manager.return_stock(del_type)
 				furniture_stock_manager.save_state()
 				_refresh_inventory_ui()
+			_mark_dirty()
 			game_ui.hide_furniture_inspector()
 			game_ui.set_status_message("Mueble eliminado")
 			_show_toast("Mueble eliminado", "success")
@@ -897,20 +914,59 @@ func _can_show_any_preview() -> bool:
 	return true
 
 
-func save_current_room_state():
-	hide_placement_preview()
+func _mark_dirty() -> void:
+	if autosave_manager != null:
+		autosave_manager.set_dirty()
+
+
+func _clear_dirty() -> void:
+	if autosave_manager != null:
+		autosave_manager.clear_dirty()
+
+
+func _save_all_local_state(_silent: bool = false) -> bool:
 	var current_room = room_manager.get_current_room()
-	if current_room:
+	if current_room != null:
 		current_room.furniture_items = furniture_manager.get_furniture_items()
-		if room_save_service.save_rooms(room_manager.get_all_rooms()):
-			_show_toast("Sala guardada", "success")
-			_complete_mission("save_room")
-		else:
-			_show_toast("No se pudo guardar", "error")
+	var rooms_ok: bool = room_save_service.save_rooms(room_manager.get_all_rooms())
+	if currency_manager != null:
+		currency_manager.save_state()
+	if shop_manager != null:
+		shop_manager.save_state()
+	if furniture_stock_manager != null:
+		furniture_stock_manager.save_state()
+	if mission_manager != null:
+		mission_manager.save_state()
+	return rooms_ok
+
+
+func _perform_autosave(show_feedback: bool = false) -> bool:
+	if autosave_manager == null or not autosave_manager.has_dirty_changes():
+		return false
+	var saved: bool = _save_all_local_state(true)
+	if saved:
+		_clear_dirty()
+		if show_feedback:
+			_show_toast("Guardado automático", "info")
+	return saved
+
+
+func save_current_room_state() -> void:
+	hide_placement_preview()
+	var saved: bool = _save_all_local_state(true)
+	if saved:
+		_clear_dirty()
+		autosave_manager.reset_timer()
+		_show_toast("Sala guardada", "success")
+		_complete_mission("save_room")
+	else:
+		_show_toast("No se pudo guardar", "error")
 
 func switch_room(room_id):
 	_clear_editing_state()
 	hide_placement_preview()
+	if current_state == GameState.IN_ROOM:
+		_perform_autosave(false)
 	var old_room = room_manager.get_current_room()
 	if old_room:
 		old_room.furniture_items = furniture_manager.get_furniture_items()

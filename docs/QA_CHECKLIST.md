@@ -198,3 +198,27 @@
 - [ ] Sin `furniture_stock_state.json` → stock vacío, sin crash
 - [ ] `settings_state.json` corrupto → usa defaults
 - [ ] `player_profile.json` corrupto → usa nombre/color por defecto
+
+---
+
+## QA Build Windows
+
+Checklist para validar el `.exe` exportado (`build/windows/KabboLike.exe`):
+
+- [ ] El `.exe` abre sin Godot instalado
+- [ ] Inicia en el menú principal (no en sala interactiva)
+- [ ] No hay errores críticos ni ventanas de error al arrancar
+- [ ] Entrar al Lobby funciona correctamente
+- [ ] Movimiento del avatar funciona
+- [ ] Modo decoración funciona (catálogo visible, preview, colocación)
+- [ ] Catálogo muestra items con stock correcto
+- [ ] Tienda abre, permite comprar, descuenta créditos
+- [ ] Chat abre con Enter, envía mensaje, bot responde en Lobby
+- [ ] Guardar (S) funciona y muestra toast
+- [ ] Cargar (L) restaura el estado guardado
+- [ ] Cerrar el `.exe` y volver a abrirlo mantiene los datos guardados
+- [ ] Reset de datos (desde Configuración) funciona y pide confirmación
+- [ ] El juego no depende de archivos fuera de la carpeta del export
+- [ ] No usa rutas absolutas del editor (sin crasheo por rutas `res://` externas)
+- [ ] Menú pausa abre con Escape y todas sus opciones funcionan
+- [ ] Configuración abre con valores actuales (no vacíos/default)

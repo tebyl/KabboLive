@@ -1,6 +1,6 @@
-# Guía para Testers — KabboLike Demo
+# Guía para Testers — Kabbo Hotel v0.1.0-demo
 
-Gracias por probar KabboLike. Este documento explica cómo jugar y qué probar.
+Gracias por probar **Kabbo Hotel**. Demo local de un juego social isométrico. Este documento explica cómo jugar y qué probar.
 
 ---
 

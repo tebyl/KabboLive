@@ -48,6 +48,8 @@ const RoomData = RoomDataScript
 
 const ROOM_MODE_EXPLORATION: String = "exploration"
 const ROOM_MODE_DECORATION: String = "decoration"
+const GAME_TITLE: String = "Kabbo Hotel"
+const GAME_VERSION: String = "v0.1.0-demo"
 
 var floor_node: Node2D
 var blocks_node: Node2D
@@ -162,6 +164,7 @@ func _ready():
 	game_ui.set_pause_settings_callback(Callable(self, "_on_pause_settings_requested"))
 	game_ui.set_pause_back_to_rooms_callback(Callable(self, "_on_pause_back_to_rooms_requested"))
 	game_ui.set_pause_exit_confirm_callback(Callable(self, "_on_pause_exit_to_main_confirmed"))
+	game_ui.set_about_closed_callback(Callable(self, "_on_about_closed"))
 	camera_controller = CameraControllerScript.new(self, iso_grid)
 
 	furniture_manager = FurnitureManagerScript.new(
@@ -181,7 +184,7 @@ func _ready():
 	npc_manager = NpcManagerScript.new(npc_root, iso_grid, pathfinding_manager, player_controller)
 
 	is_initialized = true
-	enter_state(GameState.MAIN_MENU)
+	game_ui.show_splash(Callable(self, "_on_splash_done"))
 
 func _process(delta):
 	if not is_initialized:
@@ -208,6 +211,13 @@ func _input(event):
 			var pause_key = event as InputEventKey
 			if pause_key.pressed and not pause_key.echo and pause_key.keycode == KEY_ESCAPE:
 				_close_pause_menu()
+				get_viewport().set_input_as_handled()
+		return
+	if _is_about_visible():
+		if event is InputEventKey:
+			var about_key = event as InputEventKey
+			if about_key.pressed and not about_key.echo and about_key.keycode == KEY_ESCAPE:
+				_close_about()
 				get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey:
@@ -1183,3 +1193,22 @@ func switch_room(room_id):
 		if current_state == GameState.IN_ROOM:
 			room_mode = ""
 			set_room_mode(ROOM_MODE_EXPLORATION)
+
+
+func _on_splash_done() -> void:
+	enter_state(GameState.MAIN_MENU)
+
+
+func _is_about_visible() -> bool:
+	if game_ui == null or not game_ui.has_method("is_about_visible"):
+		return false
+	return game_ui.is_about_visible()
+
+
+func _close_about() -> void:
+	if game_ui != null and game_ui.has_method("hide_about_panel"):
+		game_ui.hide_about_panel()
+
+
+func _on_about_closed() -> void:
+	pass

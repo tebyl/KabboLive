@@ -1,4 +1,4 @@
-# Export Windows — KabboLike
+# Export Windows — Kabbo Hotel v0.1.0-demo
 
 ## Versión recomendada de Godot
 

@@ -201,6 +201,28 @@
 
 ---
 
+## QA Pre-Steam / Identidad (MVP 33)
+
+### 23. Splash screen
+- [ ] Aparece al arrancar el juego (~1s) con "Kabbo Hotel" + "Cargando demo local..."
+- [ ] Desaparece automáticamente y muestra el menú principal
+- [ ] No bloquea entrada después de desaparecer
+
+### 24. Menú principal — identidad
+- [ ] Título "Kabbo Hotel" visible en fuente grande
+- [ ] Versión "v0.1.0-demo" visible debajo del título en color secundario
+- [ ] Botón "Acerca de" presente
+
+### 25. Panel "Acerca de"
+- [ ] Se abre desde el botón "Acerca de" en menú principal
+- [ ] Muestra título, versión, descripción, estado y créditos
+- [ ] Botón "Cerrar" cierra el panel
+- [ ] Escape cierra el panel (sin abrir menú pausa)
+- [ ] El panel bloquea clicks al fondo mientras está abierto
+- [ ] Cambiar a sala oculta el panel correctamente
+
+---
+
 ## QA Build Windows
 
 Checklist para validar el `.exe` exportado (`build/windows/KabboLike.exe`):

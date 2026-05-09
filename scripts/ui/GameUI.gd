@@ -1,5 +1,7 @@
 extends RefCounted
 
+const GAME_TITLE: String = "Kabbo Hotel"
+const GAME_VERSION: String = "v0.1.0-demo"
 
 const CHAT_HISTORY_LEFT_MARGIN = 24.0
 const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
@@ -88,6 +90,9 @@ var _on_pause_save: Callable
 var _on_pause_settings: Callable
 var _on_pause_back_to_rooms: Callable
 var _on_pause_exit_confirm: Callable
+var _about_panel: PanelContainer
+var _splash_panel: Control
+var _on_about_closed_cb: Callable
 var _tutorial_steps: Array[Dictionary] = [
 	{"title": "Bienvenido a Kabbo Hotel", "body": "Camina haciendo click sobre un tile libre."},
 	{"title": "Coloca muebles", "body": "Usa el catálogo de la derecha o las teclas 1, 2 y 3 para elegir muebles."},
@@ -169,6 +174,8 @@ func setup_ui(root: Node) :
 	_build_pause_menu()
 	_build_toast_panel()
 	_build_tutorial_panel()
+	_build_about_panel()
+	_build_splash_panel()
 
 
 func _build_main_menu() :
@@ -179,9 +186,9 @@ func _build_main_menu() :
 	main_menu_panel.anchor_right = 0.5
 	main_menu_panel.anchor_bottom = 0.5
 	main_menu_panel.offset_left = -180.0
-	main_menu_panel.offset_top = -100.0
+	main_menu_panel.offset_top = -130.0
 	main_menu_panel.offset_right = 180.0
-	main_menu_panel.offset_bottom = 100.0
+	main_menu_panel.offset_bottom = 130.0
 	ui_layer.add_child(main_menu_panel)
 
 	var margin: MarginContainer = MarginContainer.new()
@@ -197,9 +204,16 @@ func _build_main_menu() :
 	margin.add_child(vbox)
 
 	var title: Label = Label.new()
-	title.text = "Kabbo Hotel"
+	title.text = GAME_TITLE
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 24)
 	vbox.add_child(title)
+
+	var version_label: Label = Label.new()
+	version_label.text = GAME_VERSION
+	version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	version_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	vbox.add_child(version_label)
 
 	var enter_btn: Button = Button.new()
 	enter_btn.text = "Entrar al hotel"
@@ -215,6 +229,11 @@ func _build_main_menu() :
 	cfg_btn.text = "Configuración"
 	cfg_btn.pressed.connect(_on_main_menu_settings_pressed)
 	vbox.add_child(cfg_btn)
+
+	var about_btn: Button = Button.new()
+	about_btn.text = "Acerca de"
+	about_btn.pressed.connect(show_about_panel)
+	vbox.add_child(about_btn)
 
 
 func _build_room_select() :
@@ -1584,6 +1603,7 @@ func show_main_menu() :
 	hide_furniture_catalog()
 	hide_furniture_inspector()
 	hide_overlap_selector()
+	hide_about_panel()
 
 
 func show_room_select() :
@@ -1612,6 +1632,7 @@ func show_room_select() :
 	hide_furniture_catalog()
 	hide_furniture_inspector()
 	hide_overlap_selector()
+	hide_about_panel()
 
 
 func show_in_room() :
@@ -2451,3 +2472,192 @@ func display_chat_message(chat_entry) :
 		update_chat_history([formatted])
 	elif chat_entry is String:
 		update_chat_history([chat_entry])
+
+
+func set_about_closed_callback(cb: Callable) -> void:
+	_on_about_closed_cb = cb
+
+
+func _build_about_panel() -> void:
+	var overlay: Control = Control.new()
+	overlay.name = "AboutOverlay"
+	overlay.anchor_left = 0.0
+	overlay.anchor_top = 0.0
+	overlay.anchor_right = 1.0
+	overlay.anchor_bottom = 1.0
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.visible = false
+	ui_layer.add_child(overlay)
+
+	var dim: ColorRect = ColorRect.new()
+	dim.color = Color(0.02, 0.03, 0.06, 0.60)
+	dim.anchor_left = 0.0
+	dim.anchor_top = 0.0
+	dim.anchor_right = 1.0
+	dim.anchor_bottom = 1.0
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(dim)
+
+	_about_panel = PanelContainer.new()
+	_about_panel.name = "AboutPanel"
+	_about_panel.anchor_left = 0.5
+	_about_panel.anchor_top = 0.5
+	_about_panel.anchor_right = 0.5
+	_about_panel.anchor_bottom = 0.5
+	_about_panel.offset_left = -250.0
+	_about_panel.offset_top = -220.0
+	_about_panel.offset_right = 250.0
+	_about_panel.offset_bottom = 220.0
+	_about_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.07, 0.10, 0.16, 0.97)))
+	overlay.add_child(_about_panel)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 28)
+	margin.add_theme_constant_override("margin_top", 22)
+	margin.add_theme_constant_override("margin_right", 28)
+	margin.add_theme_constant_override("margin_bottom", 18)
+	_about_panel.add_child(margin)
+
+	var layout: VBoxContainer = VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 10)
+	margin.add_child(layout)
+
+	var title_lbl: Label = Label.new()
+	title_lbl.text = GAME_TITLE
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_lbl.add_theme_font_size_override("font_size", 26)
+	title_lbl.add_theme_color_override("font_color", Color(1.0, 0.95, 0.72))
+	layout.add_child(title_lbl)
+
+	var version_lbl: Label = Label.new()
+	version_lbl.text = GAME_VERSION
+	version_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	version_lbl.add_theme_color_override("font_color", Color(0.60, 0.70, 0.90))
+	layout.add_child(version_lbl)
+
+	layout.add_child(HSeparator.new())
+
+	var desc_lbl: Label = Label.new()
+	desc_lbl.text = "Demo local de un juego social isométrico.\nDecora habitaciones, camina, chatea y completa misiones."
+	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	desc_lbl.add_theme_font_size_override("font_size", 13)
+	desc_lbl.add_theme_color_override("font_color", Color(0.88, 0.92, 1.0))
+	layout.add_child(desc_lbl)
+
+	var status_lbl: Label = Label.new()
+	status_lbl.text = "Estado: Prototipo offline/local — sin multijugador ni servidores."
+	status_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status_lbl.add_theme_font_size_override("font_size", 12)
+	status_lbl.add_theme_color_override("font_color", Color(0.70, 0.80, 0.70))
+	layout.add_child(status_lbl)
+
+	layout.add_child(HSeparator.new())
+
+	var credits_lbl: Label = Label.new()
+	credits_lbl.text = "Desarrollado por Esteban Rojas\nMotor: Godot Engine 4\nArte: placeholders procedurales"
+	credits_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	credits_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	credits_lbl.add_theme_font_size_override("font_size", 12)
+	credits_lbl.add_theme_color_override("font_color", Color(0.70, 0.75, 0.85))
+	layout.add_child(credits_lbl)
+
+	var close_btn: Button = Button.new()
+	close_btn.text = "Cerrar"
+	close_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close_btn.pressed.connect(hide_about_panel)
+	layout.add_child(close_btn)
+
+	overlay.set_meta("_is_about_overlay", true)
+
+
+func show_about_panel() -> void:
+	for child: Node in ui_layer.get_children():
+		if child.has_meta("_is_about_overlay"):
+			child.visible = true
+			child.move_to_front()
+			return
+
+
+func hide_about_panel() -> void:
+	for child: Node in ui_layer.get_children():
+		if child.has_meta("_is_about_overlay"):
+			child.visible = false
+	if _on_about_closed_cb.is_valid():
+		_on_about_closed_cb.call()
+
+
+func is_about_visible() -> bool:
+	for child: Node in ui_layer.get_children():
+		if child.has_meta("_is_about_overlay"):
+			return child.visible
+	return false
+
+
+func _build_splash_panel() -> void:
+	_splash_panel = Control.new()
+	_splash_panel.name = "SplashPanel"
+	_splash_panel.anchor_left = 0.0
+	_splash_panel.anchor_top = 0.0
+	_splash_panel.anchor_right = 1.0
+	_splash_panel.anchor_bottom = 1.0
+	_splash_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_splash_panel.visible = false
+
+	var bg: ColorRect = ColorRect.new()
+	bg.color = Color(0.05, 0.07, 0.12, 1.0)
+	bg.anchor_left = 0.0
+	bg.anchor_top = 0.0
+	bg.anchor_right = 1.0
+	bg.anchor_bottom = 1.0
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_splash_panel.add_child(bg)
+
+	var center: CenterContainer = CenterContainer.new()
+	center.anchor_left = 0.0
+	center.anchor_top = 0.0
+	center.anchor_right = 1.0
+	center.anchor_bottom = 1.0
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_splash_panel.add_child(center)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 14)
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.add_child(vbox)
+
+	var title_lbl: Label = Label.new()
+	title_lbl.text = GAME_TITLE
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_lbl.add_theme_font_size_override("font_size", 40)
+	title_lbl.add_theme_color_override("font_color", Color(1.0, 0.95, 0.72))
+	vbox.add_child(title_lbl)
+
+	var sub_lbl: Label = Label.new()
+	sub_lbl.text = "Cargando demo local..."
+	sub_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub_lbl.add_theme_font_size_override("font_size", 16)
+	sub_lbl.add_theme_color_override("font_color", Color(0.60, 0.70, 0.90))
+	vbox.add_child(sub_lbl)
+
+	ui_layer.add_child(_splash_panel)
+
+
+func show_splash(on_done: Callable) -> void:
+	if _splash_panel == null:
+		on_done.call()
+		return
+	_splash_panel.visible = true
+	_splash_panel.modulate.a = 1.0
+	_splash_panel.move_to_front()
+	var tw: Tween = ui_layer.create_tween()
+	tw.tween_interval(0.9)
+	tw.tween_property(_splash_panel, "modulate:a", 0.0, 0.25)
+	tw.tween_callback(Callable(self, "_finish_splash").bind(on_done))
+
+
+func _finish_splash(on_done: Callable) -> void:
+	if _splash_panel != null:
+		_splash_panel.visible = false
+	on_done.call()

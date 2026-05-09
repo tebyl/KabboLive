@@ -243,6 +243,33 @@
 - [ ] Guardar (S) después de la primera entrada guarda el estado actual correctamente
 - [ ] Eliminar muebles del layout inicial y guardar → no vuelven al reiniciar
 
+### 28. UI demo compacta — modo exploración (MVP 36)
+- [ ] Al entrar a sala, barra inferior muestra solo: sala · créditos · Decorar · Tienda(oculta) · ? · Menú
+- [ ] Hint inferior dice: "Click para caminar · Enter chat · Tab decorar · Esc menú"
+- [ ] Botón Tienda NO visible en exploración
+- [ ] Panel de misiones muestra solo el primer objetivo pendiente (no lista completa)
+- [ ] Si todas las misiones están completas, muestra "✓ Misiones iniciales completas"
+- [ ] El panel de misiones no tiene título "Misiones" redundante
+- [ ] No hay lista larga de atajos en pantalla
+
+### 29. UI demo compacta — modo decoración (MVP 36)
+- [ ] Al activar decoración (Tab o botón), botón Tienda aparece
+- [ ] Hint inferior dice: "Catálogo activo · Click colocar/seleccionar · Tab explorar · Esc cancelar"
+- [ ] Al seleccionar un mueble del catálogo, hint cambia a: "Colocando: verde = válido · rojo = inválido · Esc cancelar"
+- [ ] Al activar modo mover (M o botón inspector), hint cambia a: "Moviendo mueble: elige destino · Esc cancelar"
+- [ ] Al cancelar con Esc, hint vuelve al de decoración
+- [ ] Al volver a exploración, botón Tienda se oculta y hint vuelve al de exploración
+
+### 30. UI demo compacta — chat y flujo general (MVP 36)
+- [ ] Al abrir chat (Enter), hint cambia a: "Chat: escribe y presiona Enter · Esc cancelar"
+- [ ] Al cerrar chat (Esc o enviar), hint vuelve al modo actual
+- [ ] Botón "?" abre tutorial igual que tecla H
+- [ ] Botón "Menú" abre menú de pausa igual que Esc
+- [ ] Config accesible desde Menú → Configuracion (no hay botón Config permanente)
+- [ ] Barra inferior es de una sola fila (no dos filas de texto)
+- [ ] Toasts siguen apareciendo correctamente
+- [ ] Tab, S, L, F1/F2/F3, B, H, O siguen funcionando aunque no estén visibles en pantalla
+
 ---
 
 ## QA Build Windows

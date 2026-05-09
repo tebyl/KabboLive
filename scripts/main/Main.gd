@@ -348,17 +348,17 @@ func handle_key_press(keycode):
 					furniture_manager.cancel_move_mode()
 					hide_placement_preview()
 					game_ui.set_furniture_inspector_message("Seleccionado")
-					game_ui.set_status_message("Modo mover cancelado")
+					game_ui.update_context_hint(room_mode)
 				elif inventory_manager.has_selected_furniture():
 					inventory_manager.cancel_selection()
 					game_ui.set_catalog_selected_furniture("")
 					hide_placement_preview()
-					game_ui.set_status_message("Sin seleccion")
+					game_ui.update_context_hint(room_mode)
 				elif furniture_manager.has_selected_placed_furniture() or furniture_manager.is_move_mode_active():
 					furniture_manager.clear_selection()
 					game_ui.hide_furniture_inspector()
 					hide_placement_preview()
-					game_ui.set_status_message("Sin seleccion")
+					game_ui.update_context_hint(room_mode)
 				else:
 					_open_pause_menu()
 			elif current_state == GameState.ROOM_SELECT:
@@ -428,8 +428,8 @@ func handle_key_press(keycode):
 					inventory_manager.cancel_selection()
 					game_ui.set_catalog_selected_furniture("")
 					update_placement_preview()
-					game_ui.set_status_message("Modo mover: selecciona destino")
 					game_ui.set_furniture_inspector_message("Modo mover — clic en destino")
+					game_ui.update_context_hint("decoration", "moving")
 		KEY_R:
 			if current_state == GameState.IN_ROOM and is_decoration_mode():
 				if furniture_manager.has_selected_placed_furniture():
@@ -652,16 +652,16 @@ func _enter_exploration_mode() -> void:
 	if game_ui != null:
 		game_ui.update_mode_button(ROOM_MODE_EXPLORATION)
 		game_ui.hide_furniture_catalog()
-		game_ui.set_status_message("Modo exploración: haz click para caminar")
-	_show_toast("Modo exploración activado", "info")
+		game_ui.show_exploration_ui()
+	_show_toast("Modo exploración", "info")
 
 
 func _enter_decoration_mode() -> void:
 	if game_ui != null:
 		game_ui.update_mode_button(ROOM_MODE_DECORATION)
 		game_ui.show_furniture_catalog()
-		game_ui.set_status_message("Modo decoración: selecciona un mueble del catálogo")
-	_show_toast("Modo decoración activado", "info")
+		game_ui.show_decoration_ui()
+	_show_toast("Modo decoración", "info")
 
 
 func _clear_editing_state() -> void:
@@ -774,7 +774,7 @@ func _update_missions_ui() -> void:
 	if mission_manager == null or game_ui == null:
 		return
 	if game_ui.has_method("update_missions"):
-		game_ui.update_missions(mission_manager.get_missions())
+		game_ui.update_missions_compact(mission_manager.get_missions())
 	if currency_manager != null and game_ui.has_method("update_credits"):
 		game_ui.update_credits(currency_manager.get_credits())
 	var show_m: bool = settings_manager == null or settings_manager.get_show_missions()
@@ -879,7 +879,7 @@ func _complete_mission(mission_id: String) -> void:
 		currency_manager.add_credits(reward)
 		currency_manager.save_state()
 	if game_ui != null and game_ui.has_method("update_missions"):
-		game_ui.update_missions(mission_manager.get_missions())
+		game_ui.update_missions_compact(mission_manager.get_missions())
 	if game_ui != null and currency_manager != null and game_ui.has_method("update_credits"):
 		game_ui.update_credits(currency_manager.get_credits())
 	var title: String = str(completed_mission.get("title", ""))
@@ -929,10 +929,10 @@ func on_catalog_selected(furniture_type: String) -> void:
 		_show_toast("No tienes unidades disponibles", "warning")
 		return
 	inventory_manager.select_type(furniture_type)
-	game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(furniture_type))
 	game_ui.set_catalog_selected_furniture(furniture_type)
 	game_ui.hide_furniture_inspector()
 	furniture_manager.clear_selection()
+	game_ui.update_context_hint("decoration", "placing")
 	update_placement_preview()
 
 
@@ -942,9 +942,8 @@ func _on_inspector_move() -> void:
 		inventory_manager.cancel_selection()
 		game_ui.set_catalog_selected_furniture("")
 		update_placement_preview()
-		game_ui.set_status_message("Modo mover: selecciona destino")
 		game_ui.set_furniture_inspector_message("Modo mover — clic en destino")
-		game_ui.set_status_message("Modo mover: selecciona destino")
+		game_ui.update_context_hint("decoration", "moving")
 
 
 func _on_inspector_rotate() -> void:
@@ -1020,11 +1019,13 @@ func handle_chat_key_press(keycode: int) -> bool:
 		if not game_ui.is_chat_input_active():
 			game_ui.open_chat_input()
 			hide_placement_preview()
+			game_ui.update_context_hint(room_mode, "chat")
 			return true
 		return false
 	if keycode == KEY_ESCAPE and game_ui.is_chat_input_active():
 		game_ui.close_chat_input(true)
 		update_placement_preview()
+		game_ui.update_context_hint(room_mode)
 		return true
 	return false
 

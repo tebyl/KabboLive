@@ -11,7 +11,7 @@ const IsoGridScript = preload("res://scripts/room/IsoGrid.gd")
 const FurnitureData = FurnitureDataScript
 const RoomData = RoomDataScript
 const IsoGrid = IsoGridScript
-const CHAT_HISTORY_BOTTOM_GAP = 152.0
+const CHAT_HISTORY_BOTTOM_GAP = 96.0
 const CHAT_HISTORY_WIDTH = 380.0
 const CHAT_BUBBLE_MAX_WIDTH = 300.0
 const CHAT_BUBBLE_MIN_WIDTH = 140.0
@@ -85,6 +85,7 @@ var _pause_overlay: Control
 var _pause_menu_panel: PanelContainer
 var _pause_exit_confirm_panel: PanelContainer
 var _pause_menu_btn: Button
+var _hint_label: Label
 var _on_pause_continue: Callable
 var _on_pause_save: Callable
 var _on_pause_settings: Callable
@@ -407,16 +408,10 @@ func _on_save_clicked() :
 
 func _on_profile_back_clicked() :
 	profile_panel.visible = false
-	if help_button != null and controls_panel != null and controls_panel.visible:
-		help_button.visible = true
-	show_shop_button()
 	show_missions_panel()
 
 
 func show_profile() :
-	if help_button != null:
-		help_button.visible = false
-	hide_shop_button()
 	hide_shop_panel()
 	hide_missions_panel()
 	profile_panel.visible = true
@@ -441,7 +436,7 @@ func _build_controls_panel() :
 	controls_panel.anchor_right = 1.0
 	controls_panel.anchor_bottom = 1.0
 	controls_panel.offset_left = 16.0
-	controls_panel.offset_top = -128.0
+	controls_panel.offset_top = -72.0
 	controls_panel.offset_right = -16.0
 	controls_panel.offset_bottom = -16.0
 	controls_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.84)))
@@ -470,38 +465,17 @@ func _build_controls_panel() :
 	room_label.add_theme_color_override("font_color", Color(0.92, 0.96, 1.0, 1.0))
 	top_row.add_child(room_label)
 
-	status_label = Label.new()
-	status_label.name = "StatusLabel"
-	status_label.text = "Sin seleccion"
-	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	status_label.add_theme_color_override("font_color", Color(0.84, 0.91, 1.0, 1.0))
-	top_row.add_child(status_label)
-
 	credits_label = Label.new()
 	credits_label.name = "CreditsLabel"
 	credits_label.text = "Créditos: 0"
 	credits_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	credits_label.custom_minimum_size = Vector2(116.0, 0.0)
 	credits_label.add_theme_color_override("font_color", Color(1.0, 0.90, 0.48, 1.0))
 	top_row.add_child(credits_label)
 
-	var back_btn: Button = Button.new()
-	back_btn.text = "Volver a salas"
-	back_btn.pressed.connect(_on_back_to_rooms)
-	top_row.add_child(back_btn)
-
-	help_button = Button.new()
-	help_button.text = "Ayuda"
-	help_button.custom_minimum_size = Vector2(72.0, 0.0)
-	help_button.pressed.connect(_on_help_pressed)
-	top_row.add_child(help_button)
-
-	shop_button = Button.new()
-	shop_button.text = "Tienda"
-	shop_button.custom_minimum_size = Vector2(76.0, 0.0)
-	shop_button.pressed.connect(_on_shop_button_pressed)
-	top_row.add_child(shop_button)
+	status_label = Label.new()
+	status_label.name = "StatusLabel"
+	status_label.visible = false
+	ui_layer.add_child(status_label)
 
 	_mode_button = Button.new()
 	_mode_button.text = "Decorar"
@@ -509,26 +483,37 @@ func _build_controls_panel() :
 	_mode_button.pressed.connect(_on_mode_button_pressed)
 	top_row.add_child(_mode_button)
 
-	_settings_btn_in_room = Button.new()
-	_settings_btn_in_room.text = "Config"
-	_settings_btn_in_room.custom_minimum_size = Vector2(60.0, 0.0)
-	_settings_btn_in_room.pressed.connect(_on_in_room_settings_pressed)
-	top_row.add_child(_settings_btn_in_room)
+	shop_button = Button.new()
+	shop_button.text = "Tienda"
+	shop_button.custom_minimum_size = Vector2(76.0, 0.0)
+	shop_button.pressed.connect(_on_shop_button_pressed)
+	shop_button.visible = false
+	top_row.add_child(shop_button)
+
+	help_button = Button.new()
+	help_button.text = "?"
+	help_button.custom_minimum_size = Vector2(36.0, 0.0)
+	help_button.tooltip_text = "Ayuda / Tutorial (H)"
+	help_button.pressed.connect(_on_help_pressed)
+	top_row.add_child(help_button)
 
 	_pause_menu_btn = Button.new()
-	_pause_menu_btn.text = "Menu"
+	_pause_menu_btn.text = "Menú"
 	_pause_menu_btn.custom_minimum_size = Vector2(60.0, 0.0)
 	_pause_menu_btn.pressed.connect(_on_pause_menu_btn_pressed)
 	top_row.add_child(_pause_menu_btn)
 
-	var controls_label: Label = Label.new()
-	controls_label.name = "ControlsLabel"
-	controls_label.text = "Enter Chat  |  Esc Deseleccionar / Volver  |  S Guardar  |  L Cargar  |  F1 Lobby  |  F2 Sala pequeña  |  F3 Sala grande"
-	controls_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	controls_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	controls_label.add_theme_font_size_override("font_size", 13)
-	controls_label.add_theme_color_override("font_color", Color(0.78, 0.86, 0.94, 1.0))
-	layout.add_child(controls_label)
+	_settings_btn_in_room = Button.new()
+	_settings_btn_in_room.visible = false
+	ui_layer.add_child(_settings_btn_in_room)
+
+	_hint_label = Label.new()
+	_hint_label.name = "HintLabel"
+	_hint_label.text = "Click para caminar · Enter chat · Tab decorar · Esc menú"
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_hint_label.add_theme_font_size_override("font_size", 12)
+	_hint_label.add_theme_color_override("font_color", Color(0.65, 0.75, 0.88, 1.0))
+	layout.add_child(_hint_label)
 
 
 func _build_inventory_panel() :
@@ -588,10 +573,10 @@ func _build_missions_panel() -> void:
 	missions_panel.anchor_top = 0.0
 	missions_panel.anchor_right = 0.0
 	missions_panel.anchor_bottom = 0.0
-	missions_panel.offset_left = 236.0
+	missions_panel.offset_left = 16.0
 	missions_panel.offset_top = 16.0
-	missions_panel.offset_right = 520.0
-	missions_panel.offset_bottom = 198.0
+	missions_panel.offset_right = 340.0
+	missions_panel.offset_bottom = 100.0
 	missions_panel.visible = false
 	missions_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.88)))
 	ui_layer.add_child(missions_panel)
@@ -607,13 +592,6 @@ func _build_missions_panel() -> void:
 	layout.add_theme_constant_override("separation", 7)
 	margin.add_child(layout)
 
-	var title: Label = Label.new()
-	title.text = "Misiones"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_color_override("font_color", Color(1.0, 0.95, 0.72))
-	title.add_theme_font_size_override("font_size", 15)
-	layout.add_child(title)
-
 	_missions_list_vbox = VBoxContainer.new()
 	_missions_list_vbox.add_theme_constant_override("separation", 4)
 	layout.add_child(_missions_list_vbox)
@@ -622,15 +600,11 @@ func _build_missions_panel() -> void:
 func show_missions_panel() -> void:
 	if missions_panel != null and not is_tutorial_visible():
 		missions_panel.visible = true
-	if credits_label != null and controls_panel != null and controls_panel.visible and not is_tutorial_visible():
-		credits_label.visible = true
 
 
 func hide_missions_panel() -> void:
 	if missions_panel != null:
 		missions_panel.visible = false
-	if credits_label != null:
-		credits_label.visible = false
 
 
 func update_credits(amount: int) -> void:
@@ -639,22 +613,7 @@ func update_credits(amount: int) -> void:
 
 
 func update_missions(missions: Array[Dictionary]) -> void:
-	if _missions_list_vbox == null:
-		return
-	for child: Node in _missions_list_vbox.get_children():
-		_missions_list_vbox.remove_child(child)
-		child.queue_free()
-	for mission: Dictionary in missions:
-		var label: Label = Label.new()
-		var completed: bool = bool(mission.get("completed", false))
-		var reward: int = int(mission.get("reward_credits", 0))
-		var marker: String = "✓" if completed else "□"
-		label.text = marker + " " + str(mission.get("title", "")) + " (+" + str(reward) + ")"
-		label.tooltip_text = str(mission.get("description", ""))
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.add_theme_font_size_override("font_size", 12)
-		label.add_theme_color_override("font_color", Color(0.70, 0.94, 0.72) if completed else Color(0.86, 0.90, 0.96))
-		_missions_list_vbox.add_child(label)
+	update_missions_compact(missions)
 
 
 func show_mission_completed(mission_title: String) -> void:
@@ -1231,6 +1190,77 @@ func update_mode_button(mode: String) -> void:
 		_mode_button.text = "Decorar"
 
 
+func show_exploration_ui() -> void:
+	hide_shop_button()
+	update_context_hint("exploration")
+
+
+func show_decoration_ui() -> void:
+	show_shop_button()
+	update_context_hint("decoration")
+
+
+func update_context_hint(mode: String, submode: String = "") -> void:
+	if _hint_label == null:
+		return
+	match submode:
+		"placing":
+			_hint_label.text = "Colocando: verde = válido · rojo = inválido · Esc cancelar"
+			return
+		"moving":
+			_hint_label.text = "Moviendo mueble: elige destino · Esc cancelar"
+			return
+		"chat":
+			_hint_label.text = "Chat: escribe y presiona Enter · Esc cancelar"
+			return
+	match mode:
+		"decoration":
+			_hint_label.text = "Catálogo activo · Click colocar/seleccionar · Tab explorar · Esc cancelar"
+		_:
+			_hint_label.text = "Click para caminar · Enter chat · Tab decorar · Esc menú"
+
+
+func update_missions_compact(missions: Array[Dictionary]) -> void:
+	if _missions_list_vbox == null:
+		return
+	for child: Node in _missions_list_vbox.get_children():
+		_missions_list_vbox.remove_child(child)
+		child.queue_free()
+
+	var pending: Array[Dictionary] = []
+	var completed_count: int = 0
+	for m: Dictionary in missions:
+		if bool(m.get("completed", false)):
+			completed_count += 1
+		else:
+			pending.append(m)
+
+	if pending.is_empty():
+		var lbl: Label = Label.new()
+		lbl.text = "✓ Misiones iniciales completas"
+		lbl.add_theme_font_size_override("font_size", 12)
+		lbl.add_theme_color_override("font_color", Color(0.70, 0.94, 0.72))
+		_missions_list_vbox.add_child(lbl)
+		return
+
+	var first: Dictionary = pending[0]
+	var reward: int = int(first.get("reward_credits", 0))
+	var lbl: Label = Label.new()
+	lbl.text = "Objetivo: " + str(first.get("title", "")) + " (+" + str(reward) + ")"
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_color_override("font_color", Color(0.86, 0.90, 0.96))
+	lbl.tooltip_text = str(first.get("description", ""))
+	_missions_list_vbox.add_child(lbl)
+
+	if pending.size() > 1:
+		var more: Label = Label.new()
+		more.text = "+" + str(pending.size() - 1) + " pendientes"
+		more.add_theme_font_size_override("font_size", 11)
+		more.add_theme_color_override("font_color", Color(0.55, 0.65, 0.80))
+		_missions_list_vbox.add_child(more)
+
+
 func _on_mode_button_pressed() -> void:
 	if is_chat_input_active():
 		return
@@ -1587,8 +1617,6 @@ func show_main_menu() :
 		help_button.visible = false
 	if _mode_button != null:
 		_mode_button.visible = false
-	if _settings_btn_in_room != null:
-		_settings_btn_in_room.visible = false
 	if _pause_menu_btn != null:
 		_pause_menu_btn.visible = false
 	hide_shop_button()
@@ -1619,8 +1647,6 @@ func show_room_select() :
 		help_button.visible = false
 	if _mode_button != null:
 		_mode_button.visible = false
-	if _settings_btn_in_room != null:
-		_settings_btn_in_room.visible = false
 	if _pause_menu_btn != null:
 		_pause_menu_btn.visible = false
 	hide_pause_menu()
@@ -1644,11 +1670,8 @@ func show_in_room() :
 		help_button.visible = true
 	if _mode_button != null:
 		_mode_button.visible = true
-	if _settings_btn_in_room != null:
-		_settings_btn_in_room.visible = true
 	if _pause_menu_btn != null:
 		_pause_menu_btn.visible = true
-	show_shop_button()
 	show_missions_panel()
 
 

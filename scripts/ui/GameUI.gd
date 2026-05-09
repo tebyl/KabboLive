@@ -78,6 +78,15 @@ var _on_settings_show_missions: Callable
 var _on_settings_tutorial_restart: Callable
 var _on_settings_reset_data: Callable
 var _on_settings_closed_cb: Callable
+var _pause_overlay: Control
+var _pause_menu_panel: PanelContainer
+var _pause_exit_confirm_panel: PanelContainer
+var _pause_menu_btn: Button
+var _on_pause_continue: Callable
+var _on_pause_save: Callable
+var _on_pause_settings: Callable
+var _on_pause_back_to_rooms: Callable
+var _on_pause_exit_confirm: Callable
 var _tutorial_steps: Array[Dictionary] = [
 	{"title": "Bienvenido a Kabbo Hotel", "body": "Camina haciendo click sobre un tile libre."},
 	{"title": "Coloca muebles", "body": "Usa el catálogo de la derecha o las teclas 1, 2 y 3 para elegir muebles."},
@@ -156,6 +165,7 @@ func setup_ui(root: Node) :
 	_build_overlap_selector()
 	_build_shop_panel()
 	_build_settings_panel()
+	_build_pause_menu()
 	_build_toast_panel()
 	_build_tutorial_panel()
 
@@ -484,6 +494,12 @@ func _build_controls_panel() :
 	_settings_btn_in_room.custom_minimum_size = Vector2(60.0, 0.0)
 	_settings_btn_in_room.pressed.connect(_on_in_room_settings_pressed)
 	top_row.add_child(_settings_btn_in_room)
+
+	_pause_menu_btn = Button.new()
+	_pause_menu_btn.text = "Menu"
+	_pause_menu_btn.custom_minimum_size = Vector2(60.0, 0.0)
+	_pause_menu_btn.pressed.connect(_on_pause_menu_btn_pressed)
+	top_row.add_child(_pause_menu_btn)
 
 	var controls_label: Label = Label.new()
 	controls_label.name = "ControlsLabel"
@@ -1548,9 +1564,12 @@ func show_main_menu() :
 		_mode_button.visible = false
 	if _settings_btn_in_room != null:
 		_settings_btn_in_room.visible = false
+	if _pause_menu_btn != null:
+		_pause_menu_btn.visible = false
 	hide_shop_button()
 	hide_shop_panel()
 	hide_settings_panel()
+	hide_pause_menu()
 	hide_missions_panel()
 	hide_chat_bubble()
 	hide_npc_bubble()
@@ -1576,6 +1595,9 @@ func show_room_select() :
 		_mode_button.visible = false
 	if _settings_btn_in_room != null:
 		_settings_btn_in_room.visible = false
+	if _pause_menu_btn != null:
+		_pause_menu_btn.visible = false
+	hide_pause_menu()
 	hide_missions_panel()
 	hide_chat_bubble()
 	hide_npc_bubble()
@@ -1597,6 +1619,8 @@ func show_in_room() :
 		_mode_button.visible = true
 	if _settings_btn_in_room != null:
 		_settings_btn_in_room.visible = true
+	if _pause_menu_btn != null:
+		_pause_menu_btn.visible = true
 	show_shop_button()
 	show_missions_panel()
 
@@ -2168,6 +2192,250 @@ func open_chat_input() :
 
 func get_chat_text() :
 	return get_chat_input_text()
+
+
+func _build_pause_menu() -> void:
+	_pause_overlay = Control.new()
+	_pause_overlay.name = "PauseOverlay"
+	_pause_overlay.anchor_left = 0.0
+	_pause_overlay.anchor_top = 0.0
+	_pause_overlay.anchor_right = 1.0
+	_pause_overlay.anchor_bottom = 1.0
+	_pause_overlay.offset_left = 0.0
+	_pause_overlay.offset_top = 0.0
+	_pause_overlay.offset_right = 0.0
+	_pause_overlay.offset_bottom = 0.0
+	_pause_overlay.visible = false
+	_pause_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui_layer.add_child(_pause_overlay)
+
+	var dim: ColorRect = ColorRect.new()
+	dim.color = Color(0.02, 0.03, 0.06, 0.55)
+	dim.anchor_left = 0.0
+	dim.anchor_top = 0.0
+	dim.anchor_right = 1.0
+	dim.anchor_bottom = 1.0
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause_overlay.add_child(dim)
+
+	_pause_menu_panel = PanelContainer.new()
+	_pause_menu_panel.name = "PauseMenuPanel"
+	_pause_menu_panel.anchor_left = 0.5
+	_pause_menu_panel.anchor_top = 0.5
+	_pause_menu_panel.anchor_right = 0.5
+	_pause_menu_panel.anchor_bottom = 0.5
+	_pause_menu_panel.offset_left = -150.0
+	_pause_menu_panel.offset_top = -185.0
+	_pause_menu_panel.offset_right = 150.0
+	_pause_menu_panel.offset_bottom = 185.0
+	_pause_menu_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.97)))
+	_pause_overlay.add_child(_pause_menu_panel)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 22)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_right", 22)
+	margin.add_theme_constant_override("margin_bottom", 18)
+	_pause_menu_panel.add_child(margin)
+
+	var layout: VBoxContainer = VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 8)
+	margin.add_child(layout)
+
+	var title: Label = Label.new()
+	title.text = "Menu"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", Color(1.0, 0.95, 0.72))
+	layout.add_child(title)
+
+	layout.add_child(HSeparator.new())
+
+	var continue_btn: Button = Button.new()
+	continue_btn.text = "Continuar"
+	continue_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	continue_btn.pressed.connect(_on_pause_continue_pressed)
+	layout.add_child(continue_btn)
+
+	var save_btn: Button = Button.new()
+	save_btn.text = "Guardar ahora"
+	save_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	save_btn.pressed.connect(_on_pause_save_pressed)
+	layout.add_child(save_btn)
+
+	var settings_btn: Button = Button.new()
+	settings_btn.text = "Configuracion"
+	settings_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	settings_btn.pressed.connect(_on_pause_settings_pressed)
+	layout.add_child(settings_btn)
+
+	var back_rooms_btn: Button = Button.new()
+	back_rooms_btn.text = "Volver a salas"
+	back_rooms_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	back_rooms_btn.pressed.connect(_on_pause_back_to_rooms_pressed)
+	layout.add_child(back_rooms_btn)
+
+	var exit_btn: Button = Button.new()
+	exit_btn.text = "Salir al menu principal"
+	exit_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	exit_btn.add_theme_color_override("font_color", Color(1.0, 0.65, 0.65))
+	exit_btn.pressed.connect(_on_pause_exit_to_main_pressed)
+	layout.add_child(exit_btn)
+
+	_build_pause_exit_confirm()
+
+
+func _build_pause_exit_confirm() -> void:
+	_pause_exit_confirm_panel = PanelContainer.new()
+	_pause_exit_confirm_panel.name = "PauseExitConfirmPanel"
+	_pause_exit_confirm_panel.anchor_left = 0.5
+	_pause_exit_confirm_panel.anchor_top = 0.5
+	_pause_exit_confirm_panel.anchor_right = 0.5
+	_pause_exit_confirm_panel.anchor_bottom = 0.5
+	_pause_exit_confirm_panel.offset_left = -210.0
+	_pause_exit_confirm_panel.offset_top = -90.0
+	_pause_exit_confirm_panel.offset_right = 210.0
+	_pause_exit_confirm_panel.offset_bottom = 90.0
+	_pause_exit_confirm_panel.visible = false
+	_pause_exit_confirm_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.14, 0.10, 0.07, 0.98)))
+	_pause_overlay.add_child(_pause_exit_confirm_panel)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	_pause_exit_confirm_panel.add_child(margin)
+
+	var layout: VBoxContainer = VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 12)
+	margin.add_child(layout)
+
+	var msg: Label = Label.new()
+	msg.text = "Salir al menu principal?\nSe guardaran los cambios locales."
+	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	msg.add_theme_font_size_override("font_size", 13)
+	msg.add_theme_color_override("font_color", Color(1.0, 0.90, 0.80))
+	layout.add_child(msg)
+
+	var btn_row: HBoxContainer = HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 12)
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	layout.add_child(btn_row)
+
+	var cancel_btn: Button = Button.new()
+	cancel_btn.text = "Cancelar"
+	cancel_btn.pressed.connect(_on_pause_exit_cancel_pressed)
+	btn_row.add_child(cancel_btn)
+
+	var confirm_btn: Button = Button.new()
+	confirm_btn.text = "Salir"
+	confirm_btn.add_theme_color_override("font_color", Color(1.0, 0.5, 0.5))
+	confirm_btn.pressed.connect(_on_pause_exit_confirm_pressed)
+	btn_row.add_child(confirm_btn)
+
+
+func show_pause_menu() -> void:
+	if _pause_overlay != null:
+		if _pause_exit_confirm_panel != null:
+			_pause_exit_confirm_panel.visible = false
+		_pause_overlay.visible = true
+		_pause_overlay.move_to_front()
+
+
+func hide_pause_menu() -> void:
+	if _pause_exit_confirm_panel != null:
+		_pause_exit_confirm_panel.visible = false
+	if _pause_overlay != null:
+		_pause_overlay.visible = false
+
+
+func is_pause_menu_visible() -> bool:
+	return _pause_overlay != null and _pause_overlay.visible
+
+
+func show_pause_button() -> void:
+	if _pause_menu_btn != null:
+		_pause_menu_btn.visible = true
+
+
+func hide_pause_button() -> void:
+	if _pause_menu_btn != null:
+		_pause_menu_btn.visible = false
+
+
+func show_exit_to_main_confirmation() -> void:
+	if _pause_exit_confirm_panel != null:
+		_pause_exit_confirm_panel.visible = true
+		_pause_exit_confirm_panel.move_to_front()
+
+
+func hide_exit_to_main_confirmation() -> void:
+	if _pause_exit_confirm_panel != null:
+		_pause_exit_confirm_panel.visible = false
+
+
+func set_pause_continue_callback(cb: Callable) -> void:
+	_on_pause_continue = cb
+
+
+func set_pause_save_callback(cb: Callable) -> void:
+	_on_pause_save = cb
+
+
+func set_pause_settings_callback(cb: Callable) -> void:
+	_on_pause_settings = cb
+
+
+func set_pause_back_to_rooms_callback(cb: Callable) -> void:
+	_on_pause_back_to_rooms = cb
+
+
+func set_pause_exit_confirm_callback(cb: Callable) -> void:
+	_on_pause_exit_confirm = cb
+
+
+func _on_pause_menu_btn_pressed() -> void:
+	if is_chat_input_active():
+		return
+	show_pause_menu()
+
+
+func _on_pause_continue_pressed() -> void:
+	if _on_pause_continue.is_valid():
+		_on_pause_continue.call()
+	else:
+		hide_pause_menu()
+
+
+func _on_pause_save_pressed() -> void:
+	if _on_pause_save.is_valid():
+		_on_pause_save.call()
+
+
+func _on_pause_settings_pressed() -> void:
+	if _on_pause_settings.is_valid():
+		_on_pause_settings.call()
+
+
+func _on_pause_back_to_rooms_pressed() -> void:
+	if _on_pause_back_to_rooms.is_valid():
+		_on_pause_back_to_rooms.call()
+
+
+func _on_pause_exit_to_main_pressed() -> void:
+	show_exit_to_main_confirmation()
+
+
+func _on_pause_exit_confirm_pressed() -> void:
+	hide_exit_to_main_confirmation()
+	if _on_pause_exit_confirm.is_valid():
+		_on_pause_exit_confirm.call()
+
+
+func _on_pause_exit_cancel_pressed() -> void:
+	hide_exit_to_main_confirmation()
 
 
 func display_chat_message(chat_entry) :

@@ -156,6 +156,11 @@ func _ready():
 	game_ui.set_settings_tutorial_restart_callback(Callable(self, "_on_restart_tutorial_requested"))
 	game_ui.set_settings_reset_data_callback(Callable(self, "_on_reset_local_data_requested"))
 	game_ui.set_settings_closed_callback(Callable(self, "_on_settings_panel_closed"))
+	game_ui.set_pause_continue_callback(Callable(self, "_on_pause_continue_requested"))
+	game_ui.set_pause_save_callback(Callable(self, "_on_pause_save_requested"))
+	game_ui.set_pause_settings_callback(Callable(self, "_on_pause_settings_requested"))
+	game_ui.set_pause_back_to_rooms_callback(Callable(self, "_on_pause_back_to_rooms_requested"))
+	game_ui.set_pause_exit_confirm_callback(Callable(self, "_on_pause_exit_to_main_confirmed"))
 	camera_controller = CameraControllerScript.new(self, iso_grid)
 
 	furniture_manager = FurnitureManagerScript.new(
@@ -181,7 +186,7 @@ func _process(delta):
 	if not is_initialized:
 		return
 	if current_state == GameState.IN_ROOM:
-		if not game_ui.is_chat_input_active() and not game_ui.is_profile_open() and not _is_tutorial_visible() and not _is_shop_visible() and not _is_settings_visible():
+		if not game_ui.is_chat_input_active() and not game_ui.is_profile_open() and not _is_tutorial_visible() and not _is_shop_visible() and not _is_settings_visible() and not _is_pause_menu_open():
 			camera_controller.process(delta)
 		game_ui.update_chat_bubble(player_node.global_position, delta)
 		if npc_manager != null:
@@ -196,6 +201,13 @@ func _process(delta):
 
 func _input(event):
 	if not is_initialized:
+		return
+	if _is_pause_menu_open():
+		if event is InputEventKey:
+			var pause_key = event as InputEventKey
+			if pause_key.pressed and not pause_key.echo and pause_key.keycode == KEY_ESCAPE:
+				_close_pause_menu()
+				get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey:
 		var key_event = event as InputEventKey
@@ -241,6 +253,8 @@ func _input(event):
 			handle_key_press(key_event.keycode)
 	elif event is InputEventMouseButton:
 		if current_state == GameState.IN_ROOM:
+			if _is_pause_menu_open():
+				return
 			if _is_settings_visible():
 				return
 			if _is_shop_visible():
@@ -328,7 +342,7 @@ func handle_key_press(keycode):
 					hide_placement_preview()
 					game_ui.set_status_message("Sin seleccion")
 				else:
-					on_back_to_rooms()
+					_open_pause_menu()
 			elif current_state == GameState.ROOM_SELECT:
 				enter_state(GameState.MAIN_MENU)
 		KEY_I:
@@ -529,6 +543,63 @@ func _delete_user_file(path: String) -> void:
 	var err: Error = DirAccess.remove_absolute(abs_path)
 	if err != OK:
 		push_warning("Could not delete: " + path)
+
+
+func _is_pause_menu_open() -> bool:
+	if game_ui == null or not game_ui.has_method("is_pause_menu_visible"):
+		return false
+	return game_ui.is_pause_menu_visible()
+
+
+func _open_pause_menu() -> void:
+	if game_ui == null or current_state != GameState.IN_ROOM:
+		return
+	hide_placement_preview()
+	if game_ui.has_method("show_pause_menu"):
+		game_ui.show_pause_menu()
+
+
+func _close_pause_menu() -> void:
+	if game_ui != null and game_ui.has_method("hide_pause_menu"):
+		game_ui.hide_pause_menu()
+
+
+func _on_pause_continue_requested() -> void:
+	_close_pause_menu()
+
+
+func _on_pause_save_requested() -> void:
+	var saved: bool = _save_all_local_state(false)
+	if saved:
+		_clear_dirty()
+		autosave_manager.reset_timer()
+		_show_toast("Partida guardada", "success")
+	else:
+		_show_toast("No se pudo guardar", "error")
+	_close_pause_menu()
+
+
+func _on_pause_settings_requested() -> void:
+	_close_pause_menu()
+	_open_settings()
+
+
+func _on_pause_back_to_rooms_requested() -> void:
+	_perform_autosave(false)
+	_clear_editing_state()
+	_close_pause_menu()
+	enter_state(GameState.ROOM_SELECT)
+
+
+func _on_pause_exit_to_main_confirmed() -> void:
+	_save_all_local_state(false)
+	_clear_dirty()
+	_clear_editing_state()
+	_close_pause_menu()
+	if npc_manager != null:
+		npc_manager.deactivate()
+	room_mode = ROOM_MODE_EXPLORATION
+	enter_state(GameState.MAIN_MENU)
 
 
 func set_room_mode(mode: String) -> void:
@@ -1023,6 +1094,8 @@ func _can_show_any_preview() -> bool:
 	if _is_tutorial_visible():
 		return false
 	if _is_shop_visible():
+		return false
+	if _is_pause_menu_open():
 		return false
 	if game_ui.is_chat_input_active() or game_ui.is_profile_open():
 		return false

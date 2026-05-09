@@ -66,6 +66,18 @@ var _on_tutorial_open_requested: Callable
 var _on_shop_item_buy: Callable
 var _on_shop_closed: Callable
 var _on_mode_toggle: Callable
+var settings_panel: PanelContainer
+var _settings_autosave_toggle_btn: Button
+var _settings_interval_btns: Array[Button] = []
+var _settings_missions_btn: Button
+var _confirm_reset_panel: PanelContainer
+var _settings_btn_in_room: Button
+var _on_settings_autosave_enabled: Callable
+var _on_settings_autosave_interval: Callable
+var _on_settings_show_missions: Callable
+var _on_settings_tutorial_restart: Callable
+var _on_settings_reset_data: Callable
+var _on_settings_closed_cb: Callable
 var _tutorial_steps: Array[Dictionary] = [
 	{"title": "Bienvenido a Kabbo Hotel", "body": "Camina haciendo click sobre un tile libre."},
 	{"title": "Coloca muebles", "body": "Usa el catálogo de la derecha o las teclas 1, 2 y 3 para elegir muebles."},
@@ -143,6 +155,7 @@ func setup_ui(root: Node) :
 	_build_furniture_catalog()
 	_build_overlap_selector()
 	_build_shop_panel()
+	_build_settings_panel()
 	_build_toast_panel()
 	_build_tutorial_panel()
 
@@ -186,6 +199,11 @@ func _build_main_menu() :
 	profile_btn.text = "Perfil"
 	profile_btn.pressed.connect(show_profile)
 	vbox.add_child(profile_btn)
+
+	var cfg_btn: Button = Button.new()
+	cfg_btn.text = "Configuración"
+	cfg_btn.pressed.connect(_on_main_menu_settings_pressed)
+	vbox.add_child(cfg_btn)
 
 
 func _build_room_select() :
@@ -460,6 +478,12 @@ func _build_controls_panel() :
 	_mode_button.custom_minimum_size = Vector2(84.0, 0.0)
 	_mode_button.pressed.connect(_on_mode_button_pressed)
 	top_row.add_child(_mode_button)
+
+	_settings_btn_in_room = Button.new()
+	_settings_btn_in_room.text = "Config"
+	_settings_btn_in_room.custom_minimum_size = Vector2(60.0, 0.0)
+	_settings_btn_in_room.pressed.connect(_on_in_room_settings_pressed)
+	top_row.add_child(_settings_btn_in_room)
 
 	var controls_label: Label = Label.new()
 	controls_label.name = "ControlsLabel"
@@ -1178,6 +1202,283 @@ func _on_mode_button_pressed() -> void:
 		_on_mode_toggle.call()
 
 
+func _on_in_room_settings_pressed() -> void:
+	if is_chat_input_active():
+		return
+	if _on_settings_autosave_enabled.is_valid() or _on_settings_closed_cb.is_valid():
+		show_settings_panel({})
+
+
+func _on_main_menu_settings_pressed() -> void:
+	show_settings_panel({})
+
+
+func _build_settings_panel() -> void:
+	settings_panel = PanelContainer.new()
+	settings_panel.name = "SettingsPanel"
+	settings_panel.anchor_left = 0.5
+	settings_panel.anchor_top = 0.5
+	settings_panel.anchor_right = 0.5
+	settings_panel.anchor_bottom = 0.5
+	settings_panel.offset_left = -220.0
+	settings_panel.offset_top = -240.0
+	settings_panel.offset_right = 220.0
+	settings_panel.offset_bottom = 240.0
+	settings_panel.visible = false
+	settings_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.97)))
+	ui_layer.add_child(settings_panel)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	settings_panel.add_child(margin)
+
+	var layout: VBoxContainer = VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 8)
+	margin.add_child(layout)
+
+	var title: Label = Label.new()
+	title.text = "Configuración"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", Color(1.0, 0.95, 0.72))
+	layout.add_child(title)
+
+	layout.add_child(HSeparator.new())
+
+	var autosave_row: HBoxContainer = HBoxContainer.new()
+	autosave_row.add_theme_constant_override("separation", 8)
+	layout.add_child(autosave_row)
+	var autosave_lbl: Label = Label.new()
+	autosave_lbl.text = "Guardado automático"
+	autosave_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	autosave_lbl.add_theme_color_override("font_color", Color(0.88, 0.92, 1.0))
+	autosave_row.add_child(autosave_lbl)
+	_settings_autosave_toggle_btn = Button.new()
+	_settings_autosave_toggle_btn.text = "Activado"
+	_settings_autosave_toggle_btn.custom_minimum_size = Vector2(96.0, 0.0)
+	_settings_autosave_toggle_btn.pressed.connect(_on_settings_autosave_toggle_pressed)
+	autosave_row.add_child(_settings_autosave_toggle_btn)
+
+	var interval_row: HBoxContainer = HBoxContainer.new()
+	interval_row.add_theme_constant_override("separation", 4)
+	layout.add_child(interval_row)
+	var interval_lbl: Label = Label.new()
+	interval_lbl.text = "Intervalo:"
+	interval_lbl.add_theme_color_override("font_color", Color(0.72, 0.80, 0.92))
+	interval_lbl.add_theme_font_size_override("font_size", 12)
+	interval_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	interval_row.add_child(interval_lbl)
+	_settings_interval_btns.clear()
+	for secs: float in [30.0, 60.0, 120.0]:
+		var ibtn: Button = Button.new()
+		ibtn.text = str(int(secs)) + "s"
+		ibtn.custom_minimum_size = Vector2(48.0, 0.0)
+		ibtn.pressed.connect(_on_settings_interval_pressed.bind(secs))
+		interval_row.add_child(ibtn)
+		_settings_interval_btns.append(ibtn)
+
+	layout.add_child(HSeparator.new())
+
+	var missions_row: HBoxContainer = HBoxContainer.new()
+	missions_row.add_theme_constant_override("separation", 8)
+	layout.add_child(missions_row)
+	var missions_lbl: Label = Label.new()
+	missions_lbl.text = "Mostrar misiones"
+	missions_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	missions_lbl.add_theme_color_override("font_color", Color(0.88, 0.92, 1.0))
+	missions_row.add_child(missions_lbl)
+	_settings_missions_btn = Button.new()
+	_settings_missions_btn.text = "Sí"
+	_settings_missions_btn.custom_minimum_size = Vector2(96.0, 0.0)
+	_settings_missions_btn.pressed.connect(_on_settings_missions_toggle_pressed)
+	missions_row.add_child(_settings_missions_btn)
+
+	layout.add_child(HSeparator.new())
+
+	var tutorial_btn: Button = Button.new()
+	tutorial_btn.text = "Reiniciar tutorial"
+	tutorial_btn.pressed.connect(_on_settings_tutorial_restart_pressed)
+	layout.add_child(tutorial_btn)
+
+	layout.add_child(HSeparator.new())
+
+	var reset_btn: Button = Button.new()
+	reset_btn.text = "Resetear datos locales"
+	reset_btn.add_theme_color_override("font_color", Color(1.0, 0.5, 0.5))
+	reset_btn.pressed.connect(_on_settings_reset_pressed)
+	layout.add_child(reset_btn)
+
+	layout.add_child(HSeparator.new())
+
+	var close_btn: Button = Button.new()
+	close_btn.text = "Cerrar"
+	close_btn.pressed.connect(_on_settings_close_pressed)
+	layout.add_child(close_btn)
+
+	_build_confirm_reset_panel()
+
+
+func _build_confirm_reset_panel() -> void:
+	_confirm_reset_panel = PanelContainer.new()
+	_confirm_reset_panel.name = "ConfirmResetPanel"
+	_confirm_reset_panel.anchor_left = 0.5
+	_confirm_reset_panel.anchor_top = 0.5
+	_confirm_reset_panel.anchor_right = 0.5
+	_confirm_reset_panel.anchor_bottom = 0.5
+	_confirm_reset_panel.offset_left = -210.0
+	_confirm_reset_panel.offset_top = -80.0
+	_confirm_reset_panel.offset_right = 210.0
+	_confirm_reset_panel.offset_bottom = 80.0
+	_confirm_reset_panel.visible = false
+	_confirm_reset_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.20, 0.07, 0.07, 0.98)))
+	ui_layer.add_child(_confirm_reset_panel)
+
+	var margin: MarginContainer = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	_confirm_reset_panel.add_child(margin)
+
+	var layout: VBoxContainer = VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 10)
+	margin.add_child(layout)
+
+	var msg: Label = Label.new()
+	msg.text = "Esto borrará salas, perfil, créditos, tienda, stock, misiones y tutorial. ¿Continuar?"
+	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	msg.add_theme_font_size_override("font_size", 13)
+	msg.add_theme_color_override("font_color", Color(1.0, 0.82, 0.82))
+	layout.add_child(msg)
+
+	var btn_row: HBoxContainer = HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 12)
+	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	layout.add_child(btn_row)
+
+	var cancel_btn: Button = Button.new()
+	cancel_btn.text = "Cancelar"
+	cancel_btn.pressed.connect(func() -> void: _confirm_reset_panel.visible = false)
+	btn_row.add_child(cancel_btn)
+
+	var confirm_btn: Button = Button.new()
+	confirm_btn.text = "Sí, resetear"
+	confirm_btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
+	confirm_btn.pressed.connect(_on_settings_confirm_reset_pressed)
+	btn_row.add_child(confirm_btn)
+
+
+func show_settings_panel(settings_data: Dictionary) -> void:
+	update_settings_panel(settings_data)
+	if settings_panel != null:
+		settings_panel.visible = true
+		settings_panel.move_to_front()
+
+
+func hide_settings_panel() -> void:
+	if _confirm_reset_panel != null:
+		_confirm_reset_panel.visible = false
+	if settings_panel != null:
+		settings_panel.visible = false
+	if _on_settings_closed_cb.is_valid():
+		_on_settings_closed_cb.call()
+
+
+func is_settings_visible() -> bool:
+	return settings_panel != null and settings_panel.visible
+
+
+func update_settings_panel(settings_data: Dictionary) -> void:
+	if settings_data.is_empty():
+		return
+	var autosave_on: bool = bool(settings_data.get("autosave_enabled", true))
+	if _settings_autosave_toggle_btn != null:
+		_settings_autosave_toggle_btn.text = "Activado" if autosave_on else "Desactivado"
+	var interval: float = float(settings_data.get("autosave_interval", 60.0))
+	var active_style: StyleBoxFlat = StyleBoxFlat.new()
+	active_style.bg_color = Color(0.20, 0.38, 0.58, 0.92)
+	active_style.corner_radius_top_left = 4
+	active_style.corner_radius_top_right = 4
+	active_style.corner_radius_bottom_right = 4
+	active_style.corner_radius_bottom_left = 4
+	var intervals: Array[float] = [30.0, 60.0, 120.0]
+	for i: int in range(_settings_interval_btns.size()):
+		if i < intervals.size() and is_equal_approx(intervals[i], interval):
+			_settings_interval_btns[i].add_theme_stylebox_override("normal", active_style)
+		else:
+			_settings_interval_btns[i].remove_theme_stylebox_override("normal")
+	var show_m: bool = bool(settings_data.get("show_missions", true))
+	if _settings_missions_btn != null:
+		_settings_missions_btn.text = "Sí" if show_m else "No"
+
+
+func set_settings_autosave_enabled_callback(cb: Callable) -> void:
+	_on_settings_autosave_enabled = cb
+
+
+func set_settings_autosave_interval_callback(cb: Callable) -> void:
+	_on_settings_autosave_interval = cb
+
+
+func set_settings_show_missions_callback(cb: Callable) -> void:
+	_on_settings_show_missions = cb
+
+
+func set_settings_tutorial_restart_callback(cb: Callable) -> void:
+	_on_settings_tutorial_restart = cb
+
+
+func set_settings_reset_data_callback(cb: Callable) -> void:
+	_on_settings_reset_data = cb
+
+
+func set_settings_closed_callback(cb: Callable) -> void:
+	_on_settings_closed_cb = cb
+
+
+func _on_settings_autosave_toggle_pressed() -> void:
+	if _on_settings_autosave_enabled.is_valid():
+		var new_val: bool = _settings_autosave_toggle_btn != null and _settings_autosave_toggle_btn.text == "Desactivado"
+		_on_settings_autosave_enabled.call(new_val)
+
+
+func _on_settings_interval_pressed(seconds: float) -> void:
+	if _on_settings_autosave_interval.is_valid():
+		_on_settings_autosave_interval.call(seconds)
+
+
+func _on_settings_missions_toggle_pressed() -> void:
+	if _on_settings_show_missions.is_valid():
+		var new_val: bool = _settings_missions_btn != null and _settings_missions_btn.text == "No"
+		_on_settings_show_missions.call(new_val)
+
+
+func _on_settings_tutorial_restart_pressed() -> void:
+	if _on_settings_tutorial_restart.is_valid():
+		_on_settings_tutorial_restart.call()
+
+
+func _on_settings_reset_pressed() -> void:
+	if _confirm_reset_panel != null:
+		_confirm_reset_panel.visible = true
+		_confirm_reset_panel.move_to_front()
+
+
+func _on_settings_confirm_reset_pressed() -> void:
+	if _confirm_reset_panel != null:
+		_confirm_reset_panel.visible = false
+	if _on_settings_reset_data.is_valid():
+		_on_settings_reset_data.call()
+
+
+func _on_settings_close_pressed() -> void:
+	hide_settings_panel()
+
+
 func show_overlap_selector(items: Array) -> void:
 	if overlap_selector_panel == null or _overlap_items_vbox == null:
 		return
@@ -1245,8 +1546,11 @@ func show_main_menu() :
 		help_button.visible = false
 	if _mode_button != null:
 		_mode_button.visible = false
+	if _settings_btn_in_room != null:
+		_settings_btn_in_room.visible = false
 	hide_shop_button()
 	hide_shop_panel()
+	hide_settings_panel()
 	hide_missions_panel()
 	hide_chat_bubble()
 	hide_npc_bubble()
@@ -1270,6 +1574,8 @@ func show_room_select() :
 		help_button.visible = false
 	if _mode_button != null:
 		_mode_button.visible = false
+	if _settings_btn_in_room != null:
+		_settings_btn_in_room.visible = false
 	hide_missions_panel()
 	hide_chat_bubble()
 	hide_npc_bubble()
@@ -1289,6 +1595,8 @@ func show_in_room() :
 		help_button.visible = true
 	if _mode_button != null:
 		_mode_button.visible = true
+	if _settings_btn_in_room != null:
+		_settings_btn_in_room.visible = true
 	show_shop_button()
 	show_missions_panel()
 

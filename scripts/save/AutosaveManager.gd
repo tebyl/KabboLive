@@ -27,6 +27,12 @@ func reset_timer() -> void:
 	elapsed_seconds = 0.0
 
 
+func set_interval(seconds: float) -> void:
+	if is_equal_approx(seconds, 30.0) or is_equal_approx(seconds, 60.0) or is_equal_approx(seconds, 120.0):
+		interval_seconds = seconds
+		reset_timer()
+
+
 func set_enabled(value: bool) -> void:
 	enabled = value
 	if not enabled:

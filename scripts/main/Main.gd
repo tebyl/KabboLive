@@ -29,6 +29,7 @@ const CurrencyManagerScript: GDScript = preload("res://scripts/economy/CurrencyM
 const ShopManagerScript: GDScript = preload("res://scripts/shop/ShopManager.gd")
 const FurnitureStockManagerScript: GDScript = preload("res://scripts/inventory/FurnitureStockManager.gd")
 const AutosaveManagerScript: GDScript = preload("res://scripts/save/AutosaveManager.gd")
+const SettingsManagerScript: GDScript = preload("res://scripts/settings/SettingsManager.gd")
 
 const IsoGrid = IsoGridScript
 const PathfindingManager = PathfindingManagerScript
@@ -78,6 +79,7 @@ var currency_manager
 var shop_manager
 var furniture_stock_manager
 var autosave_manager
+var settings_manager
 var npc_root: Node2D
 
 func _ready():
@@ -114,7 +116,10 @@ func _ready():
 	shop_manager.load_state()
 	furniture_stock_manager = FurnitureStockManagerScript.new()
 	furniture_stock_manager.load_state()
-	autosave_manager = AutosaveManagerScript.new(60.0)
+	settings_manager = SettingsManagerScript.new()
+	settings_manager.load_state()
+	autosave_manager = AutosaveManagerScript.new(settings_manager.get_autosave_interval())
+	autosave_manager.set_enabled(settings_manager.get_autosave_enabled())
 	chat_manager = ChatManagerScript.new()
 	chat_manager.set_player_name(player_profile_manager.player_name)
 
@@ -145,6 +150,12 @@ func _ready():
 	game_ui.set_shop_item_buy_callback(Callable(self, "_on_shop_item_buy_requested"))
 	game_ui.set_shop_closed_callback(Callable(self, "_on_shop_closed"))
 	game_ui.set_mode_toggle_callback(Callable(self, "toggle_room_mode"))
+	game_ui.set_settings_autosave_enabled_callback(Callable(self, "_on_settings_autosave_enabled_changed"))
+	game_ui.set_settings_autosave_interval_callback(Callable(self, "_on_settings_autosave_interval_changed"))
+	game_ui.set_settings_show_missions_callback(Callable(self, "_on_settings_show_missions_changed"))
+	game_ui.set_settings_tutorial_restart_callback(Callable(self, "_on_restart_tutorial_requested"))
+	game_ui.set_settings_reset_data_callback(Callable(self, "_on_reset_local_data_requested"))
+	game_ui.set_settings_closed_callback(Callable(self, "_on_settings_panel_closed"))
 	camera_controller = CameraControllerScript.new(self, iso_grid)
 
 	furniture_manager = FurnitureManagerScript.new(
@@ -170,7 +181,7 @@ func _process(delta):
 	if not is_initialized:
 		return
 	if current_state == GameState.IN_ROOM:
-		if not game_ui.is_chat_input_active() and not game_ui.is_profile_open() and not _is_tutorial_visible() and not _is_shop_visible():
+		if not game_ui.is_chat_input_active() and not game_ui.is_profile_open() and not _is_tutorial_visible() and not _is_shop_visible() and not _is_settings_visible():
 			camera_controller.process(delta)
 		game_ui.update_chat_bubble(player_node.global_position, delta)
 		if npc_manager != null:
@@ -189,9 +200,13 @@ func _input(event):
 	if event is InputEventKey:
 		var key_event = event as InputEventKey
 		if key_event.pressed and not key_event.echo:
-			if current_state == GameState.IN_ROOM and not _is_tutorial_visible() and not _is_shop_visible() and not game_ui.is_profile_open() and not game_ui.is_chat_input_active():
+			if current_state == GameState.IN_ROOM and not _is_tutorial_visible() and not _is_shop_visible() and not _is_settings_visible() and not game_ui.is_profile_open() and not game_ui.is_chat_input_active():
 				if key_event.keycode == KEY_TAB:
 					toggle_room_mode()
+					get_viewport().set_input_as_handled()
+					return
+				if key_event.keycode == KEY_O:
+					_open_settings()
 					get_viewport().set_input_as_handled()
 					return
 				if key_event.keycode == KEY_B:
@@ -202,6 +217,11 @@ func _input(event):
 					_open_tutorial_manual()
 					get_viewport().set_input_as_handled()
 					return
+			if _is_settings_visible():
+				if key_event.keycode == KEY_ESCAPE:
+					_close_settings()
+				get_viewport().set_input_as_handled()
+				return
 			if _is_shop_visible():
 				if key_event.keycode == KEY_ESCAPE:
 					_close_shop()
@@ -221,6 +241,8 @@ func _input(event):
 			handle_key_press(key_event.keycode)
 	elif event is InputEventMouseButton:
 		if current_state == GameState.IN_ROOM:
+			if _is_settings_visible():
+				return
 			if _is_shop_visible():
 				return
 			if _is_tutorial_visible():
@@ -414,6 +436,101 @@ func handle_key_press(keycode):
 			if current_state == GameState.IN_ROOM:
 				switch_room("room_large")
 
+func _is_settings_visible() -> bool:
+	if game_ui == null or not game_ui.has_method("is_settings_visible"):
+		return false
+	return game_ui.is_settings_visible()
+
+
+func _open_settings() -> void:
+	if game_ui == null or settings_manager == null:
+		return
+	if game_ui.has_method("show_settings_panel"):
+		game_ui.show_settings_panel(settings_manager.get_settings_data())
+
+
+func _close_settings() -> void:
+	if game_ui != null and game_ui.has_method("hide_settings_panel"):
+		game_ui.hide_settings_panel()
+
+
+func _on_settings_panel_closed() -> void:
+	update_placement_preview()
+
+
+func _on_settings_autosave_enabled_changed(value: bool) -> void:
+	if settings_manager == null:
+		return
+	settings_manager.set_autosave_enabled(value)
+	settings_manager.save_state()
+	if autosave_manager != null:
+		autosave_manager.set_enabled(value)
+	_show_toast("Autosave " + ("activado" if value else "desactivado"), "info")
+	if game_ui != null and game_ui.has_method("update_settings_panel"):
+		game_ui.update_settings_panel(settings_manager.get_settings_data())
+
+
+func _on_settings_autosave_interval_changed(seconds: float) -> void:
+	if settings_manager == null:
+		return
+	settings_manager.set_autosave_interval(seconds)
+	settings_manager.save_state()
+	if autosave_manager != null:
+		autosave_manager.set_interval(seconds)
+	_show_toast("Intervalo autosave: " + str(int(settings_manager.get_autosave_interval())) + "s", "info")
+	if game_ui != null and game_ui.has_method("update_settings_panel"):
+		game_ui.update_settings_panel(settings_manager.get_settings_data())
+
+
+func _on_settings_show_missions_changed(value: bool) -> void:
+	if settings_manager == null:
+		return
+	settings_manager.set_show_missions(value)
+	settings_manager.save_state()
+	if game_ui != null:
+		if value and current_state == GameState.IN_ROOM:
+			game_ui.show_missions_panel()
+		else:
+			game_ui.hide_missions_panel()
+	if game_ui != null and game_ui.has_method("update_settings_panel"):
+		game_ui.update_settings_panel(settings_manager.get_settings_data())
+
+
+func _on_restart_tutorial_requested() -> void:
+	tutorial_completed = false
+	if tutorial_state_service != null:
+		tutorial_state_service.save_completed(false)
+	_show_toast("Tutorial reiniciado", "success")
+	if current_state == GameState.IN_ROOM:
+		_close_settings()
+		_open_tutorial_manual()
+
+
+func _on_reset_local_data_requested() -> void:
+	var files: Array[String] = [
+		"user://rooms_save.json",
+		"user://room_save.json",
+		"user://currency_state.json",
+		"user://shop_state.json",
+		"user://furniture_stock_state.json",
+		"user://missions_state.json",
+		"user://tutorial_state.json",
+		"user://player_profile.json",
+	]
+	for path: String in files:
+		_delete_user_file(path)
+	_show_toast("Datos reseteados · Reinicia el juego", "warning")
+
+
+func _delete_user_file(path: String) -> void:
+	if not FileAccess.file_exists(path):
+		return
+	var abs_path: String = ProjectSettings.globalize_path(path)
+	var err: Error = DirAccess.remove_absolute(abs_path)
+	if err != OK:
+		push_warning("Could not delete: " + path)
+
+
 func set_room_mode(mode: String) -> void:
 	if mode != ROOM_MODE_EXPLORATION and mode != ROOM_MODE_DECORATION:
 		return
@@ -571,7 +688,8 @@ func _update_missions_ui() -> void:
 		game_ui.update_missions(mission_manager.get_missions())
 	if currency_manager != null and game_ui.has_method("update_credits"):
 		game_ui.update_credits(currency_manager.get_credits())
-	if game_ui.has_method("show_missions_panel"):
+	var show_m: bool = settings_manager == null or settings_manager.get_show_missions()
+	if game_ui.has_method("show_missions_panel") and show_m:
 		game_ui.show_missions_panel()
 
 
@@ -899,6 +1017,8 @@ func _can_show_any_preview() -> bool:
 	if current_state != GameState.IN_ROOM:
 		return false
 	if room_mode != ROOM_MODE_DECORATION:
+		return false
+	if _is_settings_visible():
 		return false
 	if _is_tutorial_visible():
 		return false

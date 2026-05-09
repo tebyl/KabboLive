@@ -156,6 +156,7 @@ func _ready():
 	game_ui.set_settings_tutorial_restart_callback(Callable(self, "_on_restart_tutorial_requested"))
 	game_ui.set_settings_reset_data_callback(Callable(self, "_on_reset_local_data_requested"))
 	game_ui.set_settings_closed_callback(Callable(self, "_on_settings_panel_closed"))
+	game_ui.set_open_settings_callback(Callable(self, "_open_settings"))
 	game_ui.set_pause_continue_callback(Callable(self, "_on_pause_continue_requested"))
 	game_ui.set_pause_save_callback(Callable(self, "_on_pause_save_requested"))
 	game_ui.set_pause_settings_callback(Callable(self, "_on_pause_settings_requested"))

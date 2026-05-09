@@ -78,6 +78,7 @@ var _on_settings_show_missions: Callable
 var _on_settings_tutorial_restart: Callable
 var _on_settings_reset_data: Callable
 var _on_settings_closed_cb: Callable
+var _on_open_settings_cb: Callable
 var _pause_overlay: Control
 var _pause_menu_panel: PanelContainer
 var _pause_exit_confirm_panel: PanelContainer
@@ -1221,12 +1222,17 @@ func _on_mode_button_pressed() -> void:
 func _on_in_room_settings_pressed() -> void:
 	if is_chat_input_active():
 		return
-	if _on_settings_autosave_enabled.is_valid() or _on_settings_closed_cb.is_valid():
-		show_settings_panel({})
+	if _on_open_settings_cb.is_valid():
+		_on_open_settings_cb.call()
 
 
 func _on_main_menu_settings_pressed() -> void:
-	show_settings_panel({})
+	if _on_open_settings_cb.is_valid():
+		_on_open_settings_cb.call()
+
+
+func set_open_settings_callback(cb: Callable) -> void:
+	_on_open_settings_cb = cb
 
 
 func _build_settings_panel() -> void:

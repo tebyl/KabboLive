@@ -257,14 +257,3 @@ func _make_rect_part(size: Vector2, color: Color, pos: Vector2, z_idx: int) -> P
 	return poly
 
 
-func _make_circle_part(radius: float, point_count: int, color: Color, pos: Vector2, z_idx: int) -> Polygon2D:
-	var points: PackedVector2Array = PackedVector2Array()
-	for i: int in range(point_count):
-		var angle: float = TAU * float(i) / float(point_count)
-		points.append(Vector2(cos(angle), sin(angle)) * radius)
-	var poly: Polygon2D = Polygon2D.new()
-	poly.polygon = points
-	poly.color = color
-	poly.position = pos
-	poly.z_index = z_idx
-	return poly

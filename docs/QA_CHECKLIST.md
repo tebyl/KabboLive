@@ -221,6 +221,28 @@
 - [ ] El panel bloquea clicks al fondo mientras está abierto
 - [ ] Cambiar a sala oculta el panel correctamente
 
+### 26. Lobby decorado — primera entrada (MVP 35)
+- [ ] Al abrir el juego sin guardado previo, el Lobby tiene muebles precolocados:
+  - [ ] Alfombras en zona central (6 tiles)
+  - [ ] Sofá, dos sillas y una mesa en zona de descanso
+  - [ ] Plantas decorativas en laterales
+- [ ] El NPC Bot Guía aparece en el Lobby (no bloqueado por ningún mueble)
+- [ ] Al entrar al Lobby por primera vez, el NPC muestra burbuja de bienvenida tras ~1s
+- [ ] Mensaje exacto: "¡Bienvenido a Kabbo Hotel! Usa Tab para decorar o haz click para caminar."
+- [ ] El mensaje aparece también en el historial de chat
+- [ ] El avatar del jugador puede caminar por el Lobby (pathfinding correcto)
+- [ ] Las alfombras NO bloquean el paso del avatar ni del NPC
+- [ ] Los muebles (sofá, sillas, mesa, plantas) SÍ bloquean el paso
+
+### 27. Persistencia y primera sesión vs sesión con guardado (MVP 35)
+- [ ] Al guardar (S) y reiniciar el juego → los muebles del usuario se restauran automáticamente
+- [ ] Al reiniciar sin guardar → el Lobby vuelve al layout inicial decorado
+- [ ] Si existe `rooms_save.json`, NO aparece el mensaje de bienvenida del NPC
+- [ ] Si NO existe `rooms_save.json`, SÍ aparece el mensaje de bienvenida del NPC
+- [ ] El stock del inventario NO se consume por los muebles iniciales del Lobby
+- [ ] Guardar (S) después de la primera entrada guarda el estado actual correctamente
+- [ ] Eliminar muebles del layout inicial y guardar → no vuelven al reiniciar
+
 ---
 
 ## QA Build Windows

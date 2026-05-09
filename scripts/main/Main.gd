@@ -83,6 +83,7 @@ var furniture_stock_manager
 var autosave_manager
 var settings_manager
 var npc_root: Node2D
+var _is_first_session: bool = false
 
 func _ready():
 	if not resolve_required_nodes():
@@ -182,6 +183,12 @@ func _ready():
 	npc_root.name = "Npcs"
 	add_child(npc_root)
 	npc_manager = NpcManagerScript.new(npc_root, iso_grid, pathfinding_manager, player_controller)
+
+	_is_first_session = not FileAccess.file_exists("user://rooms_save.json")
+	if not _is_first_session:
+		var loaded: Dictionary = room_save_service.load_rooms(Callable(game_ui, "report_status"))
+		if loaded.get("status", &"missing") == &"ok":
+			room_manager.apply_saved_rooms(loaded.get("rooms", []))
 
 	is_initialized = true
 	game_ui.show_splash(Callable(self, "_on_splash_done"))
@@ -1187,6 +1194,8 @@ func switch_room(room_id):
 		if npc_manager != null:
 			if room_id == "lobby":
 				npc_manager.activate()
+				if _is_first_session:
+					_schedule_npc_welcome()
 			else:
 				npc_manager.deactivate()
 			npc_manager.reapply_pathfinding_solid()
@@ -1212,3 +1221,16 @@ func _close_about() -> void:
 
 func _on_about_closed() -> void:
 	pass
+
+
+func _schedule_npc_welcome() -> void:
+	get_tree().create_timer(1.2).timeout.connect(_show_npc_welcome)
+
+
+func _show_npc_welcome() -> void:
+	if npc_manager == null or not npc_manager.is_active() or game_ui == null:
+		return
+	var msg: String = "¡Bienvenido a Kabbo Hotel! Usa Tab para decorar o haz click para caminar."
+	chat_manager.add_raw_message(msg)
+	game_ui.update_chat_history(chat_manager.get_history())
+	game_ui.show_npc_bubble(msg, npc_manager.get_world_position())

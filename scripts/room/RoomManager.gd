@@ -121,10 +121,22 @@ func register_initial_rooms() :
 			10,
 			Vector2i(1, 1),
 			[
-				FurnitureDataScript.new(Vector2i(3, 3), &"chair", Vector2i(1, 1)),
-				FurnitureDataScript.new(Vector2i(3, 4), &"table", Vector2i(2, 1)),
-				FurnitureDataScript.new(Vector2i(6, 2), &"sofa", Vector2i(1, 2)),
-				FurnitureDataScript.new(Vector2i(7, 3), &"plant", Vector2i(1, 1))
+				# Alfombra central de bienvenida (floor layer, no bloquea)
+				FurnitureDataScript.new(Vector2i(3, 3), &"rug", Vector2i(1, 1)),
+				FurnitureDataScript.new(Vector2i(4, 3), &"rug", Vector2i(1, 1)),
+				FurnitureDataScript.new(Vector2i(5, 3), &"rug", Vector2i(1, 1)),
+				FurnitureDataScript.new(Vector2i(3, 4), &"rug", Vector2i(1, 1)),
+				FurnitureDataScript.new(Vector2i(4, 4), &"rug", Vector2i(1, 1)),
+				FurnitureDataScript.new(Vector2i(5, 4), &"rug", Vector2i(1, 1)),
+				# Zona de descanso: sofá + sillas + mesa
+				FurnitureDataScript.new(Vector2i(7, 2), &"sofa", Vector2i(1, 2)),
+				FurnitureDataScript.new(Vector2i(6, 2), &"chair", Vector2i(1, 1)),
+				FurnitureDataScript.new(Vector2i(6, 3), &"chair", Vector2i(1, 1)),
+				FurnitureDataScript.new(Vector2i(7, 4), &"table", Vector2i(2, 1)),
+				# Plantas decorativas (esquinas y laterales)
+				FurnitureDataScript.new(Vector2i(8, 1), &"plant", Vector2i(1, 1)),
+				FurnitureDataScript.new(Vector2i(1, 7), &"plant", Vector2i(1, 1)),
+				FurnitureDataScript.new(Vector2i(8, 7), &"plant", Vector2i(1, 1)),
 			]
 		)
 	)

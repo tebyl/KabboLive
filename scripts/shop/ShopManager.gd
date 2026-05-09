@@ -99,8 +99,6 @@ func buy_item(item_id: String, available_credits: int) -> Dictionary:
 	var item: Dictionary = get_item(item_id)
 	if item.is_empty():
 		return _buy_result(false, "not_found", 0, item_id, "")
-	if is_owned(item_id):
-		return _buy_result(false, "already_owned", int(item.get("price", 0)), item_id, str(item.get("display_name", "")))
 	var price: int = int(item.get("price", 0))
 	if available_credits < price:
 		return _buy_result(false, "not_enough_credits", price, item_id, str(item.get("display_name", "")))

@@ -1013,11 +1013,20 @@ func _rebuild_catalog_items() -> void:
 		if shortcut != 0:
 			shortcut_text = "[" + _shortcut_key_label(shortcut) + "] "
 		var sz: Vector2i = info.get("size", Vector2i(1, 1))
+		var is_limited: bool = info.has("stock")
+		var stock: int = int(info.get("stock", 0)) if is_limited else -1
+		var stock_suffix: String = ""
+		if is_limited:
+			stock_suffix = "  x" + str(stock)
+		else:
+			stock_suffix = "  ∞"
 		var btn: Button = Button.new()
-		btn.text = shortcut_text + info.get("display_name", type) + "  " + str(sz.x) + "×" + str(sz.y)
+		btn.text = shortcut_text + info.get("display_name", type) + "  " + str(sz.x) + "×" + str(sz.y) + stock_suffix
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.add_theme_font_size_override("font_size", 13)
+		if is_limited and stock == 0:
+			btn.add_theme_color_override("font_color", Color(0.55, 0.55, 0.60))
 		btn.pressed.connect(_on_catalog_item_pressed.bind(type))
 		_catalog_items_vbox.add_child(btn)
 		_catalog_item_buttons.append(btn)
@@ -1607,8 +1616,8 @@ func _build_shop_panel() -> void:
 	layout.add_child(close_btn)
 
 
-func show_shop_panel(items: Array[Dictionary], credits: int) -> void:
-	update_shop_items(items, credits)
+func show_shop_panel(items: Array[Dictionary], credits: int, stock_data: Dictionary = {}) -> void:
+	update_shop_items(items, credits, stock_data)
 	if shop_panel != null:
 		shop_panel.visible = true
 		shop_panel.move_to_front()
@@ -1624,7 +1633,7 @@ func hide_shop_panel() -> void:
 		_on_shop_closed.call()
 
 
-func update_shop_items(items: Array[Dictionary], credits: int) -> void:
+func update_shop_items(items: Array[Dictionary], credits: int, stock_data: Dictionary = {}) -> void:
 	if _shop_credits_label != null:
 		_shop_credits_label.text = "Créditos: " + str(credits)
 	if _shop_items_vbox == null:
@@ -1636,10 +1645,17 @@ func update_shop_items(items: Array[Dictionary], credits: int) -> void:
 		var item_id: String = str(item.get("id", ""))
 		var display_name: String = str(item.get("display_name", item_id))
 		var price: int = int(item.get("price", 0))
-		var owned: bool = bool(item.get("owned", false))
+		var item_type: String = str(item.get("type", item_id))
+		var stock: int = int(stock_data.get(item_type, 0))
+
+		var col: VBoxContainer = VBoxContainer.new()
+		col.add_theme_constant_override("separation", 2)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_shop_items_vbox.add_child(col)
+
 		var row: HBoxContainer = HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
-		_shop_items_vbox.add_child(row)
+		col.add_child(row)
 
 		var label: Label = Label.new()
 		label.text = display_name + " — " + str(price) + " créditos"
@@ -1649,10 +1665,15 @@ func update_shop_items(items: Array[Dictionary], credits: int) -> void:
 		row.add_child(label)
 
 		var buy_btn: Button = Button.new()
-		buy_btn.text = "Comprado" if owned else "Comprar"
-		buy_btn.disabled = owned
+		buy_btn.text = "Comprar"
 		buy_btn.pressed.connect(_on_shop_buy_pressed.bind(item_id))
 		row.add_child(buy_btn)
+
+		var stock_label: Label = Label.new()
+		stock_label.text = "En inventario: " + str(stock)
+		stock_label.add_theme_font_size_override("font_size", 11)
+		stock_label.add_theme_color_override("font_color", Color(0.65, 0.80, 0.65) if stock > 0 else Color(0.60, 0.60, 0.60))
+		col.add_child(stock_label)
 
 
 func is_shop_visible() -> bool:

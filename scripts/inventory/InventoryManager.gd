@@ -23,6 +23,12 @@ func _init() -> void:
 	_available_catalog = get_available_catalog({})
 
 
+func is_limited_furniture(furniture_type: String) -> bool:
+	if not FURNITURE_CATALOG.has(furniture_type):
+		return false
+	return bool(FURNITURE_CATALOG[furniture_type].get("is_shop_item", false))
+
+
 func get_catalog() -> Dictionary:
 	return _available_catalog
 
@@ -36,20 +42,18 @@ func get_base_catalog() -> Dictionary:
 	return result
 
 
-func get_available_catalog(owned_items: Dictionary) -> Dictionary:
+func get_available_catalog(stock_data: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	for type: String in FURNITURE_CATALOG:
-		var info: Dictionary = FURNITURE_CATALOG[type]
-		if bool(info.get("is_shop_item", false)) and not bool(owned_items.get(type, false)):
-			continue
-		result[type] = info.duplicate(true)
+		var info: Dictionary = FURNITURE_CATALOG[type].duplicate(true)
+		if bool(info.get("is_shop_item", false)):
+			info["stock"] = int(stock_data.get(type, 0))
+		result[type] = info
 	return result
 
 
-func set_available_catalog(owned_items: Dictionary) -> void:
-	_available_catalog = get_available_catalog(owned_items)
-	if _selected_type != "" and not _available_catalog.has(_selected_type):
-		_selected_type = ""
+func set_available_catalog(stock_data: Dictionary) -> void:
+	_available_catalog = get_available_catalog(stock_data)
 
 
 func select_type(furniture_type: String) -> void:

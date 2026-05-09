@@ -27,6 +27,7 @@ const TutorialStateServiceScript: GDScript = preload("res://scripts/tutorial/Tut
 const MissionManagerScript: GDScript = preload("res://scripts/missions/MissionManager.gd")
 const CurrencyManagerScript: GDScript = preload("res://scripts/economy/CurrencyManager.gd")
 const ShopManagerScript: GDScript = preload("res://scripts/shop/ShopManager.gd")
+const FurnitureStockManagerScript: GDScript = preload("res://scripts/inventory/FurnitureStockManager.gd")
 
 const IsoGrid = IsoGridScript
 const PathfindingManager = PathfindingManagerScript
@@ -70,6 +71,7 @@ var tutorial_completed: bool = false
 var mission_manager
 var currency_manager
 var shop_manager
+var furniture_stock_manager
 var npc_root: Node2D
 
 func _ready():
@@ -104,6 +106,8 @@ func _ready():
 	currency_manager.load_state()
 	shop_manager = ShopManagerScript.new()
 	shop_manager.load_state()
+	furniture_stock_manager = FurnitureStockManagerScript.new()
+	furniture_stock_manager.load_state()
 	chat_manager = ChatManagerScript.new()
 	chat_manager.set_player_name(player_profile_manager.player_name)
 
@@ -233,8 +237,13 @@ func _input(event):
 					var new_furniture: RefCounted = inventory_manager.create_selected_furniture_at(cell)
 					if new_furniture:
 						if furniture_manager.can_place_furniture(new_furniture, -1) and furniture_manager.place_furniture(new_furniture):
+							var placed_type: String = str(new_furniture.get("type"))
+							if furniture_stock_manager != null:
+								furniture_stock_manager.consume_stock(placed_type)
+								furniture_stock_manager.save_state()
+								_refresh_inventory_ui()
 							game_ui.set_status_message("Mueble colocado")
-							_show_toast(_get_furniture_placed_message(str(new_furniture.get("type"))), "success")
+							_show_toast(_get_furniture_placed_message(placed_type), "success")
 							_complete_mission("place_first_furniture")
 							update_placement_preview()
 						else:
@@ -412,7 +421,13 @@ func handle_key_press(keycode):
 		KEY_DELETE:
 			if current_state == GameState.IN_ROOM:
 				if furniture_manager.has_selected_placed_furniture():
+					var del_furn: Object = furniture_manager.get_selected_furniture()
+					var del_type: String = str(del_furn.get("type")) if del_furn != null else ""
 					if furniture_manager.delete_selected_furniture():
+						if del_type != "" and furniture_stock_manager != null:
+							furniture_stock_manager.return_stock(del_type)
+							furniture_stock_manager.save_state()
+							_refresh_inventory_ui()
 						game_ui.hide_furniture_inspector()
 						game_ui.set_status_message("Mueble eliminado")
 						_show_toast("Mueble eliminado", "success")
@@ -471,12 +486,16 @@ func _update_missions_ui() -> void:
 
 
 func _refresh_catalog_from_shop() -> void:
-	var owned_items: Dictionary = {}
-	if shop_manager != null and shop_manager.has_method("get_owned_items"):
-		owned_items = shop_manager.get_owned_items()
-	inventory_manager.set_available_catalog(owned_items)
+	_refresh_inventory_ui()
+
+
+func _refresh_inventory_ui() -> void:
+	var stock_data: Dictionary = furniture_stock_manager.get_all_stock() if furniture_stock_manager != null else {}
+	inventory_manager.set_available_catalog(stock_data)
 	if game_ui != null and game_ui.has_method("build_furniture_catalog"):
 		game_ui.build_furniture_catalog(inventory_manager.get_catalog())
+	if game_ui != null and game_ui.has_method("update_shop_items") and shop_manager != null and currency_manager != null:
+		game_ui.update_shop_items(shop_manager.get_shop_items(), currency_manager.get_credits(), stock_data)
 
 
 func _update_credits_ui() -> void:
@@ -498,7 +517,8 @@ func _open_shop() -> void:
 		return
 	hide_placement_preview()
 	if game_ui.has_method("show_shop_panel"):
-		game_ui.show_shop_panel(shop_manager.get_shop_items(), currency_manager.get_credits())
+		var stock_data: Dictionary = furniture_stock_manager.get_all_stock() if furniture_stock_manager != null else {}
+		game_ui.show_shop_panel(shop_manager.get_shop_items(), currency_manager.get_credits(), stock_data)
 
 
 func _close_shop() -> void:
@@ -520,27 +540,26 @@ func _on_shop_item_buy_requested(item_id: String) -> void:
 	var reason: String = str(result.get("reason", "not_found"))
 	if not bool(result.get("success", false)):
 		match reason:
-			"already_owned":
-				_show_toast("Ya tienes este mueble", "info")
 			"not_enough_credits":
 				_show_toast("Créditos insuficientes", "warning")
 			_:
 				_show_toast("No se pudo comprar", "error")
-		if game_ui != null and game_ui.has_method("update_shop_items"):
-			game_ui.update_shop_items(shop_manager.get_shop_items(), currency_manager.get_credits())
+		_refresh_inventory_ui()
 		return
 	var price: int = int(result.get("price", 0))
 	if not currency_manager.spend_credits(price):
 		_show_toast("Créditos insuficientes", "warning")
 		return
 	shop_manager.mark_owned(item_id)
+	if furniture_stock_manager != null:
+		furniture_stock_manager.add_stock(item_id, 1)
+		furniture_stock_manager.save_state()
 	currency_manager.save_state()
 	shop_manager.save_state()
 	_update_credits_ui()
-	_refresh_catalog_from_shop()
-	if game_ui != null and game_ui.has_method("update_shop_items"):
-		game_ui.update_shop_items(shop_manager.get_shop_items(), currency_manager.get_credits())
-	_show_toast("Compraste: " + str(result.get("display_name", item_id)), "success")
+	_refresh_inventory_ui()
+	var display_name: String = str(result.get("display_name", item_id))
+	_show_toast("Compraste: " + display_name + " · +1 unidad", "success")
 
 
 func _is_shop_visible() -> bool:
@@ -605,6 +624,9 @@ func _is_tutorial_visible() -> bool:
 
 
 func on_catalog_selected(furniture_type: String) -> void:
+	if furniture_stock_manager != null and not furniture_stock_manager.can_consume(furniture_type):
+		_show_toast("No tienes unidades disponibles", "warning")
+		return
 	inventory_manager.select_type(furniture_type)
 	game_ui.set_status_message("Modo colocar: " + _get_furniture_display_name(furniture_type))
 	game_ui.set_catalog_selected_furniture(furniture_type)
@@ -640,7 +662,13 @@ func _on_inspector_rotate() -> void:
 
 func _on_inspector_delete() -> void:
 	if furniture_manager.has_selected_placed_furniture():
+		var del_furn: Object = furniture_manager.get_selected_furniture()
+		var del_type: String = str(del_furn.get("type")) if del_furn != null else ""
 		if furniture_manager.delete_selected_furniture():
+			if del_type != "" and furniture_stock_manager != null:
+				furniture_stock_manager.return_stock(del_type)
+				furniture_stock_manager.save_state()
+				_refresh_inventory_ui()
 			game_ui.hide_furniture_inspector()
 			game_ui.set_status_message("Mueble eliminado")
 			_show_toast("Mueble eliminado", "success")

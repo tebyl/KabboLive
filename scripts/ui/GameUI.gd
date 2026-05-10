@@ -27,6 +27,17 @@ var profile_panel: PanelContainer
 var profile_name_edit: LineEdit
 var profile_color_rect: ColorRect
 var current_profile_color: Color = Color.BLUE
+var _profile_shirt_color: Color = Color(0.14, 0.32, 0.72)
+var _profile_pants_color: Color = Color(0.14, 0.16, 0.30)
+var _profile_hair_color: Color = Color(0.18, 0.10, 0.06)
+var _profile_skin_tone: Color = Color(0.84, 0.62, 0.44)
+var _profile_hair_style: String = "short"
+var _profile_shirt_btns: Array[Button] = []
+var _profile_pants_btns: Array[Button] = []
+var _profile_hair_color_btns: Array[Button] = []
+var _profile_skin_btns: Array[Button] = []
+var _profile_style_btns: Array[Button] = []
+var _profile_preview_root: Control
 var chat_history_panel: PanelContainer
 var chat_history_label: Label
 var chat_input_panel: PanelContainer
@@ -316,116 +327,366 @@ func show_room_selector(rooms: Array) :
 	show_room_select()
 
 
-func _build_profile_panel() :
+func _build_profile_panel() -> void:
+	_profile_shirt_btns.clear()
+	_profile_pants_btns.clear()
+	_profile_hair_color_btns.clear()
+	_profile_skin_btns.clear()
+	_profile_style_btns.clear()
+
 	profile_panel = PanelContainer.new()
 	profile_panel.name = "ProfilePanel"
 	profile_panel.anchor_left = 0.5
 	profile_panel.anchor_top = 0.5
 	profile_panel.anchor_right = 0.5
 	profile_panel.anchor_bottom = 0.5
-	profile_panel.offset_left = -200.0
-	profile_panel.offset_top = -180.0
-	profile_panel.offset_right = 200.0
-	profile_panel.offset_bottom = 180.0
+	profile_panel.offset_left = -242.0
+	profile_panel.offset_top = -218.0
+	profile_panel.offset_right = 242.0
+	profile_panel.offset_bottom = 218.0
 	profile_panel.visible = false
-	profile_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.12, 0.15, 0.22, 0.95)))
+	profile_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.12, 0.15, 0.22, 0.96)))
 	ui_layer.add_child(profile_panel)
 
 	var margin: MarginContainer = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_top", 20)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_bottom", 20)
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_bottom", 14)
 	profile_panel.add_child(margin)
 
-	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 15)
-	margin.add_child(vbox)
+	var outer: HBoxContainer = HBoxContainer.new()
+	outer.add_theme_constant_override("separation", 14)
+	margin.add_child(outer)
+
+	# ── LEFT: form ──
+	var form: VBoxContainer = VBoxContainer.new()
+	form.add_theme_constant_override("separation", 7)
+	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outer.add_child(form)
 
 	var title: Label = Label.new()
-	title.text = "Perfil de Usuario"
+	title.text = "Perfil de jugador"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
+	form.add_child(title)
 
 	var name_label: Label = Label.new()
 	name_label.text = "Nombre:"
-	vbox.add_child(name_label)
+	name_label.add_theme_font_size_override("font_size", 12)
+	form.add_child(name_label)
 
 	profile_name_edit = LineEdit.new()
 	profile_name_edit.max_length = 16
-	vbox.add_child(profile_name_edit)
+	form.add_child(profile_name_edit)
 
-	var color_label: Label = Label.new()
-	color_label.text = "Color del avatar:"
-	vbox.add_child(color_label)
+	_build_profile_color_row(form, "Camiseta:", [
+		["Azul", Color(0.14, 0.32, 0.72)], ["Verde", Color(0.20, 0.55, 0.25)],
+		["Rojo", Color(0.68, 0.14, 0.14)], ["Amarillo", Color(0.80, 0.65, 0.12)]
+	], _profile_shirt_btns, func(i: int): _on_profile_shirt_selected(i))
 
-	var color_hbox: HBoxContainer = HBoxContainer.new()
-	color_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	color_hbox.add_theme_constant_override("separation", 10)
-	vbox.add_child(color_hbox)
+	_build_profile_color_row(form, "Pantalón:", [
+		["Osc", Color(0.14, 0.16, 0.30)], ["Negro", Color(0.10, 0.10, 0.12)],
+		["Café", Color(0.36, 0.22, 0.10)]
+	], _profile_pants_btns, func(i: int): _on_profile_pants_selected(i))
 
-	_add_color_button(color_hbox, Color(0.14, 0.32, 0.72), "Azul")
-	_add_color_button(color_hbox, Color(0.25, 0.55, 0.25), "Verde")
-	_add_color_button(color_hbox, Color(0.72, 0.14, 0.14), "Rojo")
+	_build_profile_color_row(form, "Pelo:", [
+		["Café", Color(0.18, 0.10, 0.06)], ["Negro", Color(0.08, 0.06, 0.06)],
+		["Rubio", Color(0.72, 0.54, 0.16)]
+	], _profile_hair_color_btns, func(i: int): _on_profile_hair_color_selected(i))
 
-	profile_color_rect = ColorRect.new()
-	profile_color_rect.custom_minimum_size = Vector2(40, 40)
-	vbox.add_child(profile_color_rect)
+	_build_profile_color_row(form, "Tono de piel:", [
+		["Claro", Color(0.96, 0.82, 0.68)], ["Medio", Color(0.84, 0.62, 0.44)],
+		["Oscuro", Color(0.60, 0.38, 0.22)]
+	], _profile_skin_btns, func(i: int): _on_profile_skin_selected(i))
 
-	var footer_hbox: HBoxContainer = HBoxContainer.new()
-	footer_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	footer_hbox.add_theme_constant_override("separation", 20)
-	vbox.add_child(footer_hbox)
+	_build_profile_style_row(form, "Peinado:", ["Corto", "Largo", "Sin pelo"],
+		_profile_style_btns, func(i: int): _on_profile_style_selected(i))
+
+	var footer: HBoxContainer = HBoxContainer.new()
+	footer.alignment = BoxContainer.ALIGNMENT_CENTER
+	footer.add_theme_constant_override("separation", 12)
+	form.add_child(footer)
 
 	var save_btn: Button = Button.new()
 	save_btn.text = "Guardar"
 	save_btn.pressed.connect(_on_save_clicked)
-	footer_hbox.add_child(save_btn)
+	footer.add_child(save_btn)
 
 	var back_btn: Button = Button.new()
 	back_btn.text = "Volver"
 	back_btn.pressed.connect(_on_profile_back_clicked)
-	footer_hbox.add_child(back_btn)
+	footer.add_child(back_btn)
+
+	# ── RIGHT: preview ──
+	var pv_vbox: VBoxContainer = VBoxContainer.new()
+	pv_vbox.add_theme_constant_override("separation", 6)
+	pv_vbox.custom_minimum_size = Vector2(118, 0)
+	outer.add_child(pv_vbox)
+
+	var pv_title: Label = Label.new()
+	pv_title.text = "Vista previa"
+	pv_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pv_title.add_theme_font_size_override("font_size", 12)
+	pv_vbox.add_child(pv_title)
+
+	_profile_preview_root = Control.new()
+	_profile_preview_root.name = "ProfilePreviewRoot"
+	_profile_preview_root.custom_minimum_size = Vector2(110, 160)
+	_profile_preview_root.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_profile_preview_root.clip_contents = true
+	_profile_preview_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var pv_bg: ColorRect = ColorRect.new()
+	pv_bg.color = Color(0.16, 0.20, 0.28, 0.90)
+	pv_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	pv_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_profile_preview_root.add_child(pv_bg)
+	var pv_avatar: Control = Control.new()
+	pv_avatar.name = "AvatarPreview"
+	pv_avatar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	pv_avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_profile_preview_root.add_child(pv_avatar)
+	pv_vbox.add_child(_profile_preview_root)
 
 
-func _add_color_button(parent: Control, color: Color, _text) :
-	var btn: Button = Button.new()
-	btn.custom_minimum_size = Vector2(60, 30)
-	btn.text = _text
-	btn.pressed.connect(func(): set_profile_preview_color(color))
-	parent.add_child(btn)
+func _build_profile_color_row(parent: VBoxContainer, lbl: String, options: Array, btns: Array[Button], cb: Callable) -> void:
+	var row: VBoxContainer = VBoxContainer.new()
+	row.add_theme_constant_override("separation", 3)
+	parent.add_child(row)
+	var label: Label = Label.new()
+	label.text = lbl
+	label.add_theme_font_size_override("font_size", 11)
+	row.add_child(label)
+	var hbox: HBoxContainer = HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 4)
+	row.add_child(hbox)
+	for i: int in options.size():
+		var opt: Array = options[i] as Array
+		var color: Color = opt[1] as Color
+		var btn: Button = Button.new()
+		btn.custom_minimum_size = Vector2(46, 24)
+		btn.text = str(opt[0])
+		btn.add_theme_font_size_override("font_size", 10)
+		var st: StyleBoxFlat = StyleBoxFlat.new()
+		st.bg_color = color
+		st.corner_radius_top_left = 3; st.corner_radius_top_right = 3
+		st.corner_radius_bottom_left = 3; st.corner_radius_bottom_right = 3
+		btn.add_theme_stylebox_override("normal", st)
+		var sth: StyleBoxFlat = st.duplicate() as StyleBoxFlat
+		sth.bg_color = color.lightened(0.18)
+		btn.add_theme_stylebox_override("hover", sth)
+		var stp: StyleBoxFlat = st.duplicate() as StyleBoxFlat
+		stp.bg_color = color.darkened(0.12)
+		btn.add_theme_stylebox_override("pressed", stp)
+		var lum: float = color.r * 0.299 + color.g * 0.587 + color.b * 0.114
+		var tc: Color = Color.WHITE if lum < 0.5 else Color(0.08, 0.08, 0.08)
+		btn.add_theme_color_override("font_color", tc)
+		btn.add_theme_color_override("font_hover_color", tc)
+		btn.add_theme_color_override("font_pressed_color", tc)
+		_connect_profile_btn(btn, cb, i)
+		hbox.add_child(btn)
+		btns.append(btn)
 
 
-func set_profile_preview_color(color: Color) :
-	current_profile_color = color
-	if profile_color_rect != null:
-		profile_color_rect.color = color
+func _build_profile_style_row(parent: VBoxContainer, lbl: String, opts: Array[String], btns: Array[Button], cb: Callable) -> void:
+	var row: VBoxContainer = VBoxContainer.new()
+	row.add_theme_constant_override("separation", 3)
+	parent.add_child(row)
+	var label: Label = Label.new()
+	label.text = lbl
+	label.add_theme_font_size_override("font_size", 11)
+	row.add_child(label)
+	var hbox: HBoxContainer = HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 4)
+	row.add_child(hbox)
+	for i: int in opts.size():
+		var btn: Button = Button.new()
+		btn.custom_minimum_size = Vector2(56, 24)
+		btn.text = opts[i]
+		btn.add_theme_font_size_override("font_size", 10)
+		_connect_profile_btn(btn, cb, i)
+		hbox.add_child(btn)
+		btns.append(btn)
 
 
-func _on_save_clicked() :
-	_on_save_profile.call(profile_name_edit.text, current_profile_color)
+func _connect_profile_btn(btn: Button, cb: Callable, idx: int) -> void:
+	btn.pressed.connect(func(): cb.call(idx))
 
 
-func _on_profile_back_clicked() :
+func _on_profile_shirt_selected(idx: int) -> void:
+	var colors: Array = [Color(0.14, 0.32, 0.72), Color(0.20, 0.55, 0.25), Color(0.68, 0.14, 0.14), Color(0.80, 0.65, 0.12)]
+	_profile_shirt_color = colors[idx]
+	_set_btns_selected(_profile_shirt_btns, idx)
+	_rebuild_avatar_preview()
+
+
+func _on_profile_pants_selected(idx: int) -> void:
+	var colors: Array = [Color(0.14, 0.16, 0.30), Color(0.10, 0.10, 0.12), Color(0.36, 0.22, 0.10)]
+	_profile_pants_color = colors[idx]
+	_set_btns_selected(_profile_pants_btns, idx)
+	_rebuild_avatar_preview()
+
+
+func _on_profile_hair_color_selected(idx: int) -> void:
+	var colors: Array = [Color(0.18, 0.10, 0.06), Color(0.08, 0.06, 0.06), Color(0.72, 0.54, 0.16)]
+	_profile_hair_color = colors[idx]
+	_set_btns_selected(_profile_hair_color_btns, idx)
+	_rebuild_avatar_preview()
+
+
+func _on_profile_skin_selected(idx: int) -> void:
+	var colors: Array = [Color(0.96, 0.82, 0.68), Color(0.84, 0.62, 0.44), Color(0.60, 0.38, 0.22)]
+	_profile_skin_tone = colors[idx]
+	_set_btns_selected(_profile_skin_btns, idx)
+	_rebuild_avatar_preview()
+
+
+func _on_profile_style_selected(idx: int) -> void:
+	var styles: Array[String] = ["short", "long", "bald"]
+	_profile_hair_style = styles[idx]
+	_set_btns_selected(_profile_style_btns, idx)
+	_rebuild_avatar_preview()
+
+
+func _set_btns_selected(btns: Array[Button], active: int) -> void:
+	for i: int in btns.size():
+		btns[i].modulate = Color.WHITE if i == active else Color(0.52, 0.52, 0.52, 0.80)
+
+
+func _sync_profile_button_states() -> void:
+	var sc_opts: Array = [Color(0.14, 0.32, 0.72), Color(0.20, 0.55, 0.25), Color(0.68, 0.14, 0.14), Color(0.80, 0.65, 0.12)]
+	var pc_opts: Array = [Color(0.14, 0.16, 0.30), Color(0.10, 0.10, 0.12), Color(0.36, 0.22, 0.10)]
+	var hc_opts: Array = [Color(0.18, 0.10, 0.06), Color(0.08, 0.06, 0.06), Color(0.72, 0.54, 0.16)]
+	var st_opts: Array = [Color(0.96, 0.82, 0.68), Color(0.84, 0.62, 0.44), Color(0.60, 0.38, 0.22)]
+	var hs_opts: Array[String] = ["short", "long", "bald"]
+	_set_btns_selected(_profile_shirt_btns, _find_nearest_color_idx(_profile_shirt_color, sc_opts))
+	_set_btns_selected(_profile_pants_btns, _find_nearest_color_idx(_profile_pants_color, pc_opts))
+	_set_btns_selected(_profile_hair_color_btns, _find_nearest_color_idx(_profile_hair_color, hc_opts))
+	_set_btns_selected(_profile_skin_btns, _find_nearest_color_idx(_profile_skin_tone, st_opts))
+	var si: int = hs_opts.find(_profile_hair_style)
+	_set_btns_selected(_profile_style_btns, maxi(si, 0))
+
+
+func _find_nearest_color_idx(target: Color, opts: Array) -> int:
+	var best: int = 0
+	var best_d: float = 1e9
+	for i: int in opts.size():
+		var o: Color = opts[i] as Color
+		var d: float = (target.r - o.r) * (target.r - o.r) + (target.g - o.g) * (target.g - o.g) + (target.b - o.b) * (target.b - o.b)
+		if d < best_d:
+			best_d = d
+			best = i
+	return best
+
+
+func _rebuild_avatar_preview() -> void:
+	if _profile_preview_root == null:
+		return
+	var prev: Node = _profile_preview_root.find_child("AvatarPreview", false, false)
+	if prev == null:
+		return
+	for child: Node in prev.get_children():
+		prev.remove_child(child)
+		child.queue_free()
+	_draw_preview_avatar(prev as Control, _profile_shirt_color, _profile_pants_color, _profile_hair_color, _profile_skin_tone, _profile_hair_style)
+
+
+func _draw_preview_avatar(root: Control, sc: Color, pc: Color, hc: Color, st: Color, hs: String) -> void:
+	var cx: int = 55
+	var gy: int = 140
+	# Shadow
+	_add_preview_rect(root, cx - 22, gy - 8, 44, 7, Color(0.04, 0.04, 0.06, 0.35))
+	# Boots
+	_add_preview_rect(root, cx - 18, gy - 15, 11, 7, Color(0.16, 0.09, 0.05))
+	_add_preview_rect(root, cx + 8, gy - 15, 11, 7, Color(0.16, 0.09, 0.05))
+	# Legs
+	_add_preview_rect(root, cx - 16, gy - 31, 11, 17, pc)
+	_add_preview_rect(root, cx + 6, gy - 31, 11, 17, pc)
+	# Arms
+	_add_preview_rect(root, cx - 24, gy - 52, 9, 17, sc.darkened(0.20))
+	_add_preview_rect(root, cx + 16, gy - 52, 9, 17, sc.darkened(0.20))
+	# Body
+	_add_preview_rect(root, cx - 14, gy - 55, 28, 23, sc)
+	# Shirt highlight
+	_add_preview_rect(root, cx - 8, gy - 49, 16, 4, sc.lightened(0.35))
+	# Collar
+	_add_preview_rect(root, cx - 5, gy - 53, 10, 4, Color(0.88, 0.86, 0.82))
+	# Head
+	_add_preview_rect(root, cx - 14, gy - 81, 28, 26, st)
+	# Skin highlight
+	_add_preview_rect(root, cx - 9, gy - 81, 18, 4, Color(min(st.r + 0.10, 1.0), min(st.g + 0.12, 1.0), min(st.b + 0.12, 1.0), 0.50))
+	# Cheeks
+	_add_preview_rect(root, cx - 12, gy - 67, 5, 3, Color(0.90, 0.50, 0.42, 0.55))
+	_add_preview_rect(root, cx + 8, gy - 67, 5, 3, Color(0.90, 0.50, 0.42, 0.55))
+	# Eyes
+	_add_preview_rect(root, cx - 9, gy - 73, 5, 5, Color(0.08, 0.06, 0.08))
+	_add_preview_rect(root, cx + 5, gy - 73, 5, 5, Color(0.08, 0.06, 0.08))
+	# Eye shine
+	_add_preview_rect(root, cx - 8, gy - 74, 2, 2, Color.WHITE)
+	_add_preview_rect(root, cx + 6, gy - 74, 2, 2, Color.WHITE)
+	# Mouth
+	_add_preview_rect(root, cx - 4, gy - 63, 8, 3, Color(0.58, 0.26, 0.18))
+	# Hair
+	match hs:
+		"short":
+			_add_preview_rect(root, cx - 15, gy - 90, 30, 10, hc)
+			_add_preview_rect(root, cx - 15, gy - 82, 7, 9, hc)
+			_add_preview_rect(root, cx + 7, gy - 83, 7, 6, hc)
+		"long":
+			_add_preview_rect(root, cx - 15, gy - 90, 30, 10, hc)
+			_add_preview_rect(root, cx - 15, gy - 83, 7, 20, hc)
+			_add_preview_rect(root, cx + 9, gy - 83, 7, 20, hc)
+			_add_preview_rect(root, cx + 7, gy - 83, 7, 6, hc)
+		"bald":
+			pass
+
+
+func _add_preview_rect(parent: Control, x: int, y: int, w: int, h: int, color: Color) -> void:
+	var r: ColorRect = ColorRect.new()
+	r.position = Vector2(x, y)
+	r.size = Vector2(w, h)
+	r.color = color
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(r)
+
+
+func _on_save_clicked() -> void:
+	var data: Dictionary = {
+		"player_name": profile_name_edit.text,
+		"shirt_color": _profile_shirt_color,
+		"pants_color": _profile_pants_color,
+		"hair_color": _profile_hair_color,
+		"skin_tone": _profile_skin_tone,
+		"hair_style": _profile_hair_style
+	}
+	_on_save_profile.call(data)
+
+
+func _on_profile_back_clicked() -> void:
 	profile_panel.visible = false
 	show_missions_panel()
 
 
-func show_profile() :
+func show_profile() -> void:
 	hide_shop_panel()
 	hide_missions_panel()
 	profile_panel.visible = true
 	profile_panel.move_to_front()
 
 
-func is_profile_open() :
+func is_profile_open() -> bool:
 	return profile_panel != null and profile_panel.visible
 
 
-func update_profile_ui(p_name, p_color: Color) :
+func update_profile_ui(profile_data: Dictionary) -> void:
 	if profile_name_edit != null:
-		profile_name_edit.text = p_name
-	set_profile_preview_color(p_color)
+		profile_name_edit.text = str(profile_data.get("player_name", "Invitado"))
+	_profile_shirt_color = profile_data.get("shirt_color", Color(0.14, 0.32, 0.72))
+	_profile_pants_color = profile_data.get("pants_color", Color(0.14, 0.16, 0.30))
+	_profile_hair_color = profile_data.get("hair_color", Color(0.18, 0.10, 0.06))
+	_profile_skin_tone = profile_data.get("skin_tone", Color(0.84, 0.62, 0.44))
+	_profile_hair_style = str(profile_data.get("hair_style", "short"))
+	_sync_profile_button_states()
+	_rebuild_avatar_preview()
 
 
 func _build_controls_panel() :

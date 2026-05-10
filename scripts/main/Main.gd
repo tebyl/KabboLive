@@ -105,7 +105,7 @@ func _ready():
 	player_profile_manager = PlayerProfileManagerScript.new()
 	player_controller = PlayerControllerScript.new(player_node, iso_grid, room_manager.get_current_player_start_cell())
 	player_controller.setup_avatar_visual()
-	player_controller.update_avatar_color(player_profile_manager.avatar_color)
+	player_controller.apply_profile(player_profile_manager.get_profile_data())
 	furniture_visual_factory = FurnitureVisualFactoryScript.new(blocks_node, iso_grid)
 	inventory_manager = InventoryManagerScript.new()
 	room_save_service = RoomSaveServiceScript.new()
@@ -136,7 +136,7 @@ func _ready():
 		Callable(self, "on_catalog_selected")
 	)
 
-	game_ui.update_profile_ui(player_profile_manager.player_name, player_profile_manager.avatar_color)
+	game_ui.update_profile_ui(player_profile_manager.get_profile_data())
 	_refresh_catalog_from_shop()
 	game_ui.setup_furniture_inspector_callbacks(
 		Callable(self, "_on_inspector_move"),
@@ -328,10 +328,11 @@ func on_back_to_rooms():
 		_perform_autosave(false)
 	enter_state(GameState.ROOM_SELECT)
 
-func on_save_profile(new_name, new_color):
-	if player_profile_manager.update_profile(new_name, new_color):
+func on_save_profile(profile_data: Dictionary) -> void:
+	if player_profile_manager.update_profile(profile_data):
 		chat_manager.set_player_name(player_profile_manager.player_name)
-		player_controller.update_avatar_color(player_profile_manager.avatar_color)
+		player_controller.apply_profile(player_profile_manager.get_profile_data())
+		game_ui.update_profile_ui(player_profile_manager.get_profile_data())
 		_mark_dirty()
 		_show_toast("Perfil guardado", "success")
 	else:

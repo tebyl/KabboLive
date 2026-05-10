@@ -20,6 +20,16 @@ var avatar_left_leg: Polygon2D
 var avatar_right_leg: Polygon2D
 var avatar_left_arm: Polygon2D
 var avatar_right_arm: Polygon2D
+var avatar_shirt_hi: Polygon2D
+var avatar_skin_hi: Polygon2D
+var avatar_cheek_l: Polygon2D
+var avatar_cheek_r: Polygon2D
+var avatar_hair_root: Node2D
+var _current_shirt_color: Color
+var _current_pants_color: Color
+var _current_hair_color: Color
+var _current_skin_tone: Color
+var _current_hair_style: String = "short"
 var avatar_facing_sign = 1.0
 var active_move_tween: Tween
 var active_visual_tween: Tween
@@ -54,13 +64,16 @@ func teleport_to_cell(target_cell) :
 	set_avatar_idle_pose()
 
 
-func update_avatar_color(new_color: Color) :
+func update_avatar_color(new_color: Color) -> void:
+	_current_shirt_color = new_color
 	if avatar_body != null:
 		avatar_body.color = new_color
 	if avatar_left_arm != null:
 		avatar_left_arm.color = new_color.darkened(0.20)
 	if avatar_right_arm != null:
 		avatar_right_arm.color = new_color.darkened(0.20)
+	if avatar_shirt_hi != null:
+		avatar_shirt_hi.color = new_color.lightened(0.35)
 
 
 func is_currently_moving() :
@@ -129,7 +142,13 @@ func finish_player_step() :
 	move_next_step()
 
 
-func setup_avatar_visual() :
+func setup_avatar_visual() -> void:
+	_current_shirt_color = VT.AVATAR_SHIRT
+	_current_pants_color = VT.AVATAR_PANTS
+	_current_hair_color = VT.AVATAR_HAIR
+	_current_skin_tone = VT.AVATAR_SKIN
+	_current_hair_style = "short"
+
 	clear_children(player_node)
 
 	avatar_root = Node2D.new()
@@ -144,15 +163,12 @@ func setup_avatar_visual() :
 	player_node.add_child(avatar_shadow)
 
 	# ── Outline underlays (z=0, rendered behind everything at z≥1) ──
-	# Torso + shoulder span outline
 	avatar_root.add_child(create_avatar_part(
 		get_rect_polygon(Vector2(38, 24)), VT.OUTLINE_DARK, Vector2(0, -28), 0
 	))
-	# Head outline
 	avatar_root.add_child(create_avatar_part(
 		get_rect_polygon(Vector2(30, 28)), VT.OUTLINE_DARK, Vector2(0, -56), 0
 	))
-	# Legs outline
 	avatar_root.add_child(create_avatar_part(
 		get_rect_polygon(Vector2(22, 22)), VT.OUTLINE_DARK, Vector2(0, -13), 0
 	))
@@ -167,76 +183,74 @@ func setup_avatar_visual() :
 
 	# Legs (pants)
 	avatar_left_leg = create_avatar_part(
-		get_rect_polygon(Vector2(8, 14)), VT.AVATAR_PANTS, Vector2(-5, -12), 2
+		get_rect_polygon(Vector2(8, 14)), _current_pants_color, Vector2(-5, -12), 2
 	)
 	avatar_root.add_child(avatar_left_leg)
 	avatar_right_leg = create_avatar_part(
-		get_rect_polygon(Vector2(8, 14)), VT.AVATAR_PANTS, Vector2(5, -12), 2
+		get_rect_polygon(Vector2(8, 14)), _current_pants_color, Vector2(5, -12), 2
 	)
 	avatar_root.add_child(avatar_right_leg)
 
 	# Arms (drawn before body; body overlaps at shoulder seam)
 	avatar_left_arm = create_avatar_part(
-		get_rect_polygon(Vector2(7, 15)), VT.AVATAR_SHIRT.darkened(0.20), Vector2(-14, -28), 2
+		get_rect_polygon(Vector2(7, 15)), _current_shirt_color.darkened(0.20), Vector2(-14, -28), 2
 	)
 	avatar_root.add_child(avatar_left_arm)
 	avatar_right_arm = create_avatar_part(
-		get_rect_polygon(Vector2(7, 15)), VT.AVATAR_SHIRT.darkened(0.20), Vector2(14, -28), 2
+		get_rect_polygon(Vector2(7, 15)), _current_shirt_color.darkened(0.20), Vector2(14, -28), 2
 	)
 	avatar_root.add_child(avatar_right_arm)
 
 	# Body / shirt
 	avatar_body = create_avatar_part(
-		get_rect_polygon(Vector2(20, 18)), VT.AVATAR_SHIRT, Vector2(0, -28), 3
+		get_rect_polygon(Vector2(20, 18)), _current_shirt_color, Vector2(0, -28), 3
 	)
 	avatar_root.add_child(avatar_body)
 
 	# Shirt highlight stripe
-	avatar_root.add_child(create_avatar_part(
-		get_rect_polygon(Vector2(14, 4)), VT.AVATAR_SHIRT_HI, Vector2(0, -33), 4
-	))
+	avatar_shirt_hi = create_avatar_part(
+		get_rect_polygon(Vector2(14, 4)), _current_shirt_color.lightened(0.35), Vector2(0, -33), 4
+	)
+	avatar_root.add_child(avatar_shirt_hi)
 
 	# Collar
 	avatar_root.add_child(create_avatar_part(
 		get_rect_polygon(Vector2(10, 4)), VT.AVATAR_COLLAR, Vector2(0, -38), 4
 	))
 
-	# Head (square pixel-art chibi)
+	# Head
 	avatar_head = create_avatar_part(
-		get_rect_polygon(Vector2(26, 22)), VT.AVATAR_SKIN, Vector2(0, -56), 5
+		get_rect_polygon(Vector2(26, 22)), _current_skin_tone, Vector2(0, -56), 5
 	)
 	avatar_root.add_child(avatar_head)
 
 	# Head top-edge highlight
-	avatar_root.add_child(create_avatar_part(
-		get_rect_polygon(Vector2(20, 4)), Color(VT.AVATAR_SKIN_HI.r, VT.AVATAR_SKIN_HI.g, VT.AVATAR_SKIN_HI.b, 0.50), Vector2(0, -65), 6
-	))
+	var shi: Color = Color(
+		min(_current_skin_tone.r + 0.10, 1.0),
+		min(_current_skin_tone.g + 0.12, 1.0),
+		min(_current_skin_tone.b + 0.12, 1.0), 0.50)
+	avatar_skin_hi = create_avatar_part(
+		get_rect_polygon(Vector2(20, 4)), shi, Vector2(0, -65), 6
+	)
+	avatar_root.add_child(avatar_skin_hi)
 
 	# Cheek blush
-	avatar_root.add_child(create_avatar_part(
-		get_rect_polygon(Vector2(5, 3)), Color(VT.AVATAR_CHEEK.r, VT.AVATAR_CHEEK.g, VT.AVATAR_CHEEK.b, 0.55), Vector2(-10, -52), 6
-	))
-	avatar_root.add_child(create_avatar_part(
-		get_rect_polygon(Vector2(5, 3)), Color(VT.AVATAR_CHEEK.r, VT.AVATAR_CHEEK.g, VT.AVATAR_CHEEK.b, 0.55), Vector2(10, -52), 6
-	))
+	var cheek: Color = Color(VT.AVATAR_CHEEK.r, VT.AVATAR_CHEEK.g, VT.AVATAR_CHEEK.b, 0.55)
+	avatar_cheek_l = create_avatar_part(get_rect_polygon(Vector2(5, 3)), cheek, Vector2(-10, -52), 6)
+	avatar_root.add_child(avatar_cheek_l)
+	avatar_cheek_r = create_avatar_part(get_rect_polygon(Vector2(5, 3)), cheek, Vector2(10, -52), 6)
+	avatar_root.add_child(avatar_cheek_r)
 
 	# Mouth
 	avatar_root.add_child(create_avatar_part(
 		get_rect_polygon(Vector2(8, 3)), VT.AVATAR_MOUTH, Vector2(0, -49), 6
 	))
 
-	# Hair — thick top block
-	avatar_root.add_child(create_avatar_part(
-		get_rect_polygon(Vector2(28, 10)), VT.AVATAR_HAIR, Vector2(0, -67), 6
-	))
-	# Hair — left side
-	avatar_root.add_child(create_avatar_part(
-		get_rect_polygon(Vector2(6, 12)), VT.AVATAR_HAIR, Vector2(-12, -61), 6
-	))
-	# Hair — front bang
-	avatar_root.add_child(create_avatar_part(
-		get_rect_polygon(Vector2(8, 6)), VT.AVATAR_HAIR, Vector2(7, -62), 6
-	))
+	# Hair — managed in avatar_hair_root for dynamic rebuilding
+	avatar_hair_root = Node2D.new()
+	avatar_hair_root.name = "HairRoot"
+	avatar_root.add_child(avatar_hair_root)
+	_rebuild_hair(_current_hair_color, _current_hair_style)
 
 	# Eyes
 	avatar_root.add_child(create_avatar_part(
@@ -253,6 +267,55 @@ func setup_avatar_visual() :
 	avatar_root.add_child(create_avatar_part(
 		get_rect_polygon(Vector2(2, 2)), VT.AVATAR_SHINE, Vector2(7, -57), 8
 	))
+
+
+func _rebuild_hair(hc: Color, hs: String) -> void:
+	if avatar_hair_root == null:
+		return
+	clear_children(avatar_hair_root)
+	match hs:
+		"short":
+			avatar_hair_root.add_child(create_avatar_part(get_rect_polygon(Vector2(28, 10)), hc, Vector2(0, -67), 6))
+			avatar_hair_root.add_child(create_avatar_part(get_rect_polygon(Vector2(6, 12)), hc, Vector2(-12, -61), 6))
+			avatar_hair_root.add_child(create_avatar_part(get_rect_polygon(Vector2(8, 6)), hc, Vector2(7, -62), 6))
+		"long":
+			avatar_hair_root.add_child(create_avatar_part(get_rect_polygon(Vector2(28, 10)), hc, Vector2(0, -67), 6))
+			avatar_hair_root.add_child(create_avatar_part(get_rect_polygon(Vector2(6, 22)), hc, Vector2(-14, -65), 6))
+			avatar_hair_root.add_child(create_avatar_part(get_rect_polygon(Vector2(6, 22)), hc, Vector2(14, -65), 6))
+			avatar_hair_root.add_child(create_avatar_part(get_rect_polygon(Vector2(8, 6)), hc, Vector2(7, -62), 6))
+		"bald":
+			pass
+
+
+func apply_profile(profile_data: Dictionary) -> void:
+	var sc: Color = profile_data.get("shirt_color", VT.AVATAR_SHIRT)
+	var pc: Color = profile_data.get("pants_color", VT.AVATAR_PANTS)
+	var hc: Color = profile_data.get("hair_color", VT.AVATAR_HAIR)
+	var st: Color = profile_data.get("skin_tone", VT.AVATAR_SKIN)
+	var hs: String = str(profile_data.get("hair_style", "short"))
+	_current_shirt_color = sc
+	_current_pants_color = pc
+	_current_hair_color = hc
+	_current_skin_tone = st
+	_current_hair_style = hs
+	if avatar_body != null:
+		avatar_body.color = sc
+	if avatar_left_arm != null:
+		avatar_left_arm.color = sc.darkened(0.20)
+	if avatar_right_arm != null:
+		avatar_right_arm.color = sc.darkened(0.20)
+	if avatar_shirt_hi != null:
+		avatar_shirt_hi.color = sc.lightened(0.35)
+	if avatar_left_leg != null:
+		avatar_left_leg.color = pc
+	if avatar_right_leg != null:
+		avatar_right_leg.color = pc
+	if avatar_head != null:
+		avatar_head.color = st
+	if avatar_skin_hi != null:
+		avatar_skin_hi.color = Color(
+			min(st.r + 0.10, 1.0), min(st.g + 0.12, 1.0), min(st.b + 0.12, 1.0), 0.50)
+	_rebuild_hair(hc, hs)
 
 
 func create_avatar_part(polygon: PackedVector2Array, color: Color, position, z_index) -> Polygon2D:

@@ -328,3 +328,53 @@ Checklist para validar el `.exe` exportado (`build/windows/KabboLike.exe`):
 - [ ] bed, lamp, bookshelf, desk, big_plant sí bloquean paso
 - [ ] Lobby inicial decorado incluye: bookshelf, lamp, big_plant, desk
 - [ ] Catálogo tiene scroll cuando la lista de items es larga
+
+---
+
+## QA Avatar y Personalización (MVP 38)
+
+### 31. Visual del avatar mejorado
+- [ ] Avatar tiene sombra, piernas, zapatos, cuerpo/camiseta, cabeza, pelo, ojos
+- [ ] Highlight de camiseta visible (franja más clara)
+- [ ] Collar blanco visible en cuello
+- [ ] Mejillas y boca presentes
+- [ ] Brillo en ojos visible
+
+### 32. Animación conservada
+- [ ] Idle pose sin artefactos visuales
+- [ ] Caminata: bob vertical + lean lateral + alternancia de piernas
+- [ ] Facing (espejo) al caminar en distintas direcciones
+- [ ] Teleport al cambiar sala: posición y visual correctos
+- [ ] z_index correcto (avatar sobre suelo, bajo ciertos muebles si aplica)
+
+### 33. Personalización — Perfil expandido
+- [ ] Panel Perfil muestra: Nombre, Camiseta (4 colores), Pantalón (3), Pelo (3), Tono piel (3), Peinado (3)
+- [ ] Botones de color muestran el color como fondo del botón
+- [ ] El botón seleccionado está al 100% opacidad; los no seleccionados están atenuados
+- [ ] Botones de peinado: Corto / Largo / Sin pelo
+- [ ] Vista previa del avatar actualiza al presionar cualquier botón
+- [ ] Vista previa muestra pelo corto, largo o sin pelo correctamente
+
+### 34. Guardado y carga del perfil
+- [ ] Guardar persiste: shirt_color, pants_color, hair_color, skin_tone, hair_style
+- [ ] Reiniciar el juego restaura todos los campos del perfil
+- [ ] Perfil antiguo (solo avatar_color) carga sin crash: avatar_color → shirt_color
+- [ ] Perfil corrupto → defaults sin crash
+- [ ] Sin perfil guardado → defaults visuales aplicados
+
+### 35. Integración con avatar en sala
+- [ ] Al guardar perfil, el avatar en sala actualiza inmediatamente
+- [ ] Camiseta cambia de color correctamente (azul, verde, rojo, amarillo)
+- [ ] Pantalón cambia de color correctamente
+- [ ] Pelo cambia de color y estilo (corto/largo/sin)
+- [ ] Tono de piel cambia en cabeza
+- [ ] Cambiar sala: avatar mantiene colores de perfil
+- [ ] Al abrir otra sala y volver: colores persistidos
+
+### 36. Compatibilidad con sistemas existentes
+- [ ] Chat sigue usando player_name del perfil
+- [ ] NPC conserva su estilo visual propio (no afectado)
+- [ ] Misiones, créditos, tienda sin cambios
+- [ ] Movimiento y pathfinding sin regresión
+- [ ] Perfil abierto bloquea gameplay (no mover, no decorar, no chat)
+- [ ] Escape cierra perfil si está abierto

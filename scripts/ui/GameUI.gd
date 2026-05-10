@@ -3253,7 +3253,7 @@ func _make_person_row(person: Dictionary) -> Control:
 	var btn: Button = Button.new()
 	btn.flat = true
 	btn.focus_mode = Control.FOCUS_NONE
-	btn.custom_minimum_size = Vector2(0.0, 38.0)
+	btn.custom_minimum_size = Vector2(0.0, 44.0)  # Increased height from 38px to 44px for better readability
 	btn.add_theme_stylebox_override("normal", _make_panel_style(Color(0, 0, 0, 0)))
 	btn.add_theme_stylebox_override("hover", _make_panel_style(Color(0.10, 0.14, 0.22, 0.35)))
 	btn.add_theme_stylebox_override("pressed", _make_panel_style(Color(0.14, 0.18, 0.26, 0.45)))
@@ -3261,12 +3261,12 @@ func _make_person_row(person: Dictionary) -> Control:
 	var h: HBoxContainer = HBoxContainer.new()
 	h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.mouse_filter = Control.MOUSE_FILTER_STOP
-	h.add_theme_constant_override("separation", 7)
+	h.add_theme_constant_override("separation", 6)  # Reduced from 7px to 6px to gain horizontal space
 	btn.add_child(h)
 
-	# Avatar with initial
+	# Avatar with initial - reduced from 30x30 to 28x28 to gain horizontal space
 	var avatar: ColorRect = ColorRect.new()
-	avatar.custom_minimum_size = Vector2(30.0, 30.0)
+	avatar.custom_minimum_size = Vector2(28.0, 28.0)
 	avatar.color = person.get("color", HUD_ACCENT)
 	h.add_child(avatar)
 
@@ -3278,22 +3278,23 @@ func _make_person_row(person: Dictionary) -> Control:
 	initial.add_theme_font_size_override("font_size", 12)
 	avatar.add_child(initial)
 
-	# Info section
+	# Info section - expanded with SIZE_EXPAND_FILL to take available space
 	var info: VBoxContainer = VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.add_theme_constant_override("separation", 1)
+	info.add_theme_constant_override("separation", 2)  # Increased from 1px to 2px for better readability
 	h.add_child(info)
 
-	# Name
+	# Name - increased truncation limit from 20 to 26 chars
 	var name_lbl: Label = Label.new()
-	name_lbl.text = _truncate_social_text(str(person.get("name", "Invitado")), 20)
+	name_lbl.text = _truncate_social_text(str(person.get("name", "Invitado")), 26)
 	name_lbl.add_theme_color_override("font_color", HUD_TEXT_MAIN)
 	name_lbl.add_theme_font_size_override("font_size", 11)
-	name_lbl.clip_text = true
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL  # Expand to fill available space
 	info.add_child(name_lbl)
 
-	# Role with status dot
+	# Role only - simplified (removed status combination to save space)
 	var role_row: HBoxContainer = HBoxContainer.new()
+	role_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	role_row.add_theme_constant_override("separation", 4)
 	info.add_child(role_row)
 
@@ -3314,17 +3315,13 @@ func _make_person_row(person: Dictionary) -> Control:
 	status_dot.color = status_color
 	role_row.add_child(status_dot)
 
-	# Role text (shortened)
+	# Role text only - show just the role for clarity and space efficiency
 	var role_text: String = str(person.get("role", "Visitante"))
-	var status_text: String = str(person.get("status", "online"))
-	var combined: String = role_text
-	if status_text != "online" and status_text != "":
-		combined = role_text + " · " + status_text
 	var role_lbl: Label = Label.new()
-	role_lbl.text = _truncate_social_text(combined, 28)
+	role_lbl.text = _truncate_social_text(role_text, 24)  # Reduced from 28 to 24 for role-only text
 	role_lbl.add_theme_color_override("font_color", HUD_TEXT_SECONDARY)
 	role_lbl.add_theme_font_size_override("font_size", 10)
-	role_lbl.clip_text = true
+	role_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL  # Expand to fill available space
 	role_row.add_child(role_lbl)
 
 	btn.pressed.connect(_on_person_clicked.bind(str(person.get("id", "")), str(person.get("name", ""))))

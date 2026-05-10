@@ -172,54 +172,49 @@ func draw_chair_details(furniture, lz: int = 0) -> void:
 
 func draw_table_details(furniture, lz: int = 0) -> void:
 	var h: float = get_furniture_height(furniture.type)
-	var cells: Array = furniture.get_occupied_cells()
-	for cell in cells:
-		if not iso_grid.is_valid_cell(cell):
-			continue
-		var c: Vector2 = iso_grid.grid_to_iso(cell)
-		var z: int = iso_grid.get_draw_z_index(cell) + lz
+	var cell: Vector2i = furniture.cell
+	if not iso_grid.is_valid_cell(cell):
+		return
+	var c: Vector2 = iso_grid.grid_to_iso(cell)
+	var z: int = iso_grid.get_draw_z_index(cell) + lz
 
-		# Tablecloth surface
-		_add_small_diamond(c, -h - 1.0, 0.90, VT.TABLE_TOP, z + 3)
-		# Tablecloth center runner
-		_add_small_diamond(c, -h - 2.5, 0.42, VT.TABLE_RUNNER, z + 4)
-		# Table apron (front skirt under surface)
-		add_rect_polygon(c + Vector2(0, -h * 0.5 + 2.0), Vector2(30, 5), VT.TABLE_APRON, z + 2)
-		# Legs
-		add_rect_polygon(c + Vector2(-16, -h * 0.5 + 5.0), Vector2(4, h - 2), VT.TABLE_DARK, z + 1)
-		add_rect_polygon(c + Vector2(16, -h * 0.5 + 5.0), Vector2(4, h - 2), VT.WOOD_MID, z + 1)
+	# Tablecloth surface - single cohesive visual
+	_add_small_diamond(c, -h - 1.0, 0.90, VT.TABLE_TOP, z + 3)
+	# Tablecloth center runner
+	_add_small_diamond(c, -h - 2.5, 0.42, VT.TABLE_RUNNER, z + 4)
+	# Table apron (front skirt under surface)
+	add_rect_polygon(c + Vector2(0, -h * 0.5 + 2.0), Vector2(30, 5), VT.TABLE_APRON, z + 2)
+	# Legs
+	add_rect_polygon(c + Vector2(-16, -h * 0.5 + 5.0), Vector2(4, h - 2), VT.TABLE_DARK, z + 1)
+	add_rect_polygon(c + Vector2(16, -h * 0.5 + 5.0), Vector2(4, h - 2), VT.WOOD_MID, z + 1)
 
 
 func draw_sofa_details(furniture, lz: int = 0) -> void:
 	var h: float = get_furniture_height(furniture.type)
-	var cells: Array = furniture.get_occupied_cells()
-	var total: int = cells.size()
-	for i: int in range(total):
-		var cell = cells[i]
-		if not iso_grid.is_valid_cell(cell):
-			continue
-		var c: Vector2 = iso_grid.grid_to_iso(cell)
-		var z: int = iso_grid.get_draw_z_index(cell) + lz
+	var cell: Vector2i = furniture.cell
+	if not iso_grid.is_valid_cell(cell):
+		return
+	var c: Vector2 = iso_grid.grid_to_iso(cell)
+	var z: int = iso_grid.get_draw_z_index(cell) + lz
 
-		# Seat cushion base
-		_add_small_diamond(c, -h - 1.0, 0.74, VT.SOFA_CUSHION, z + 3)
-		# Cushion puff highlight
-		_add_small_diamond(c, -h - 5.0, 0.40, VT.SOFA_LIGHT, z + 4)
-		# Cushion seam crease
-		add_rect_polygon(c + Vector2(0, -h - 2.0), Vector2(26, 2), Color(VT.SOFA_SEAM.r, VT.SOFA_SEAM.g, VT.SOFA_SEAM.b, 0.70), z + 5)
-		# Backrest body
-		add_rect_polygon(c + Vector2(0, -h - 19.0), Vector2(42, 18), VT.SOFA_DARK, z + 2)
-		# Backrest top lip
-		add_rect_polygon(c + Vector2(0, -h - 29.0), Vector2(44, 7), VT.SOFA_BODY, z + 2)
-		# Backrest highlight stripe
-		add_rect_polygon(c + Vector2(0, -h - 24.0), Vector2(36, 3), Color(VT.SOFA_LIGHT.r, VT.SOFA_LIGHT.g, VT.SOFA_LIGHT.b, 0.70), z + 3)
-		# Armrests
-		if i == 0:
-			add_rect_polygon(c + Vector2(-22, -h - 12.0), Vector2(8, 24), VT.SOFA_ARM, z + 4)
-			add_rect_polygon(c + Vector2(-22, -h - 24.0), Vector2(10, 6), VT.SOFA_ARM_TOP, z + 5)
-		if i == total - 1:
-			add_rect_polygon(c + Vector2(22, -h - 12.0), Vector2(8, 24), VT.SOFA_ARM, z + 4)
-			add_rect_polygon(c + Vector2(22, -h - 24.0), Vector2(10, 6), VT.SOFA_ARM_TOP, z + 5)
+	# Seat cushion base (single cohesive sofa visual)
+	_add_small_diamond(c, -h - 1.0, 0.74, VT.SOFA_CUSHION, z + 3)
+	# Cushion puff highlight
+	_add_small_diamond(c, -h - 5.0, 0.40, VT.SOFA_LIGHT, z + 4)
+	# Cushion seam crease
+	add_rect_polygon(c + Vector2(0, -h - 2.0), Vector2(26, 2), Color(VT.SOFA_SEAM.r, VT.SOFA_SEAM.g, VT.SOFA_SEAM.b, 0.70), z + 5)
+	# Backrest body
+	add_rect_polygon(c + Vector2(0, -h - 19.0), Vector2(42, 18), VT.SOFA_DARK, z + 2)
+	# Backrest top lip
+	add_rect_polygon(c + Vector2(0, -h - 29.0), Vector2(44, 7), VT.SOFA_BODY, z + 2)
+	# Backrest highlight stripe
+	add_rect_polygon(c + Vector2(0, -h - 24.0), Vector2(36, 3), Color(VT.SOFA_LIGHT.r, VT.SOFA_LIGHT.g, VT.SOFA_LIGHT.b, 0.70), z + 3)
+	# Left armrest
+	add_rect_polygon(c + Vector2(-22, -h - 12.0), Vector2(8, 24), VT.SOFA_ARM, z + 4)
+	add_rect_polygon(c + Vector2(-22, -h - 24.0), Vector2(10, 6), VT.SOFA_ARM_TOP, z + 5)
+	# Right armrest
+	add_rect_polygon(c + Vector2(22, -h - 12.0), Vector2(8, 24), VT.SOFA_ARM, z + 4)
+	add_rect_polygon(c + Vector2(22, -h - 24.0), Vector2(10, 6), VT.SOFA_ARM_TOP, z + 5)
 
 
 func draw_plant_details(furniture, lz: int = 0) -> void:
@@ -444,54 +439,48 @@ func draw_lamp_details(furniture, lz: int = 0) -> void:
 
 func draw_bookshelf_details(furniture, lz: int = 0) -> void:
 	var h: float = get_furniture_height(furniture.type)
-	var cells: Array = furniture.get_occupied_cells()
-	for ci: int in range(cells.size()):
-		var cell: Vector2i = cells[ci]
-		if not iso_grid.is_valid_cell(cell):
-			continue
-		var c: Vector2 = iso_grid.grid_to_iso(cell)
-		var z: int = iso_grid.get_draw_z_index(cell) + lz
-		# Shelf body (wood back panel)
-		add_rect_polygon(c + Vector2(0, -h * 0.5 - 4), Vector2(34, h), VT.SHELF_WOOD, z + 2)
-		# Shelf dividers (horizontal planks)
-		var shelf_y_offsets: Array[float] = [-h * 0.25, -h * 0.60]
-		for sy: float in shelf_y_offsets:
-			add_rect_polygon(c + Vector2(0, sy), Vector2(36, 3), VT.SHELF_WOOD_DK, z + 3)
-		# Books on lower shelf
-		var book_colors: Array = [VT.SHELF_BOOK_A, VT.SHELF_BOOK_B, VT.SHELF_BOOK_C, VT.SHELF_BOOK_D]
-		var bx: float = -12.0
-		for bi: int in range(4):
-			add_rect_polygon(c + Vector2(bx, -h * 0.38), Vector2(5, 12), book_colors[bi], z + 4)
-			bx += 7.0
-		# Books on upper shelf (fewer)
-		var book_colors2: Array = [VT.SHELF_BOOK_C, VT.SHELF_BOOK_A, VT.SHELF_BOOK_D]
-		var bx2: float = -8.0
-		for bi2: int in range(3):
-			add_rect_polygon(c + Vector2(bx2, -h * 0.74), Vector2(5, 10), book_colors2[bi2], z + 4)
-			bx2 += 7.0
+	var cell: Vector2i = furniture.cell
+	if not iso_grid.is_valid_cell(cell):
+		return
+	var c: Vector2 = iso_grid.grid_to_iso(cell)
+	var z: int = iso_grid.get_draw_z_index(cell) + lz
+	# Shelf body (wood back panel) - single visual unit
+	add_rect_polygon(c + Vector2(0, -h * 0.5 - 4), Vector2(34, h), VT.SHELF_WOOD, z + 2)
+	# Shelf dividers (horizontal planks)
+	var shelf_y_offsets: Array[float] = [-h * 0.25, -h * 0.60]
+	for sy: float in shelf_y_offsets:
+		add_rect_polygon(c + Vector2(0, sy), Vector2(36, 3), VT.SHELF_WOOD_DK, z + 3)
+	# Books on lower shelf
+	var book_colors: Array = [VT.SHELF_BOOK_A, VT.SHELF_BOOK_B, VT.SHELF_BOOK_C, VT.SHELF_BOOK_D]
+	var bx: float = -12.0
+	for bi: int in range(4):
+		add_rect_polygon(c + Vector2(bx, -h * 0.38), Vector2(5, 12), book_colors[bi], z + 4)
+		bx += 7.0
+	# Books on upper shelf (fewer)
+	var book_colors2: Array = [VT.SHELF_BOOK_C, VT.SHELF_BOOK_A, VT.SHELF_BOOK_D]
+	var bx2: float = -8.0
+	for bi2: int in range(3):
+		add_rect_polygon(c + Vector2(bx2, -h * 0.74), Vector2(5, 10), book_colors2[bi2], z + 4)
+		bx2 += 7.0
 
 
 func draw_desk_details(furniture, lz: int = 0) -> void:
 	var h: float = get_furniture_height(furniture.type)
-	var cells: Array = furniture.get_occupied_cells()
-	for cell in cells:
-		if not iso_grid.is_valid_cell(cell):
-			continue
-		var c: Vector2 = iso_grid.grid_to_iso(cell)
-		var z: int = iso_grid.get_draw_z_index(cell) + lz
-		# Desktop surface
-		_add_small_diamond(c, -h - 1.0, 0.86, VT.DESK_TOP, z + 3)
-		# Surface edge trim
-		add_rect_polygon(c + Vector2(0, -h * 0.5 + 3), Vector2(32, 4), VT.DESK_EDGE, z + 2)
-		# Legs
-		add_rect_polygon(c + Vector2(-14, -h * 0.5 + 6), Vector2(4, h - 2), VT.DESK_LEG, z + 1)
-		add_rect_polygon(c + Vector2(14, -h * 0.5 + 6), Vector2(4, h - 2), VT.DESK_LEG, z + 1)
-	# Small object on desk surface (book/monitor stub) — drawn at first cell
-	if cells.size() > 0:
-		var c0: Vector2 = iso_grid.grid_to_iso(cells[0])
-		var z0: int = iso_grid.get_draw_z_index(cells[0]) + lz
-		add_rect_polygon(c0 + Vector2(4, -h - 8), Vector2(10, 10), VT.SHELF_BOOK_B, z0 + 5)
-		add_rect_polygon(c0 + Vector2(4, -h - 13), Vector2(10, 3), Color(0.90, 0.90, 0.90), z0 + 6)
+	var cell: Vector2i = furniture.cell
+	if not iso_grid.is_valid_cell(cell):
+		return
+	var c: Vector2 = iso_grid.grid_to_iso(cell)
+	var z: int = iso_grid.get_draw_z_index(cell) + lz
+	# Desktop surface - single cohesive visual
+	_add_small_diamond(c, -h - 1.0, 0.86, VT.DESK_TOP, z + 3)
+	# Surface edge trim
+	add_rect_polygon(c + Vector2(0, -h * 0.5 + 3), Vector2(32, 4), VT.DESK_EDGE, z + 2)
+	# Legs
+	add_rect_polygon(c + Vector2(-14, -h * 0.5 + 6), Vector2(4, h - 2), VT.DESK_LEG, z + 1)
+	add_rect_polygon(c + Vector2(14, -h * 0.5 + 6), Vector2(4, h - 2), VT.DESK_LEG, z + 1)
+	# Small object on desk surface (book/monitor stub)
+	add_rect_polygon(c + Vector2(4, -h - 8), Vector2(10, 10), VT.SHELF_BOOK_B, z + 5)
+	add_rect_polygon(c + Vector2(4, -h - 13), Vector2(10, 3), Color(0.90, 0.90, 0.90), z + 6)
 
 
 func draw_poster_details(furniture, lz: int = 0) -> void:

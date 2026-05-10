@@ -25,6 +25,7 @@ const RoomDataScript = preload("res://scripts/room/RoomData.gd")
 const PlacementPreviewScript: GDScript = preload("res://scripts/placement/PlacementPreview.gd")
 const TutorialStateServiceScript: GDScript = preload("res://scripts/tutorial/TutorialStateService.gd")
 const MissionManagerScript: GDScript = preload("res://scripts/missions/MissionManager.gd")
+const DailyObjectiveManagerScript: GDScript = preload("res://scripts/missions/DailyObjectiveManager.gd")
 const CurrencyManagerScript: GDScript = preload("res://scripts/economy/CurrencyManager.gd")
 const ShopManagerScript: GDScript = preload("res://scripts/shop/ShopManager.gd")
 const FurnitureStockManagerScript: GDScript = preload("res://scripts/inventory/FurnitureStockManager.gd")
@@ -78,6 +79,7 @@ var placement_preview
 var tutorial_state_service
 var tutorial_completed: bool = false
 var mission_manager
+var daily_objective_manager
 var currency_manager
 var shop_manager
 var furniture_stock_manager
@@ -115,6 +117,8 @@ func _ready():
 	tutorial_completed = tutorial_state_service.load_completed()
 	mission_manager = MissionManagerScript.new()
 	mission_manager.load_state()
+	daily_objective_manager = DailyObjectiveManagerScript.new()
+	daily_objective_manager.load_state()
 	currency_manager = CurrencyManagerScript.new()
 	currency_manager.load_state()
 	shop_manager = ShopManagerScript.new()
@@ -175,10 +179,14 @@ func _ready():
 	game_ui.set_pause_exit_confirm_callback(Callable(self, "_on_pause_exit_to_main_confirmed"))
 	game_ui.set_about_closed_callback(Callable(self, "_on_about_closed"))
 	game_ui.set_ui_sound_callback(Callable(self, "_play_sound"))
+	if game_ui.has_method("set_social_person_clicked_callback"):
+		game_ui.set_social_person_clicked_callback(Callable(self, "_on_social_person_clicked"))
 	game_ui.set_top_change_room_callback(Callable(self, "_on_premium_change_room_requested"))
 	game_ui.set_top_open_shop_callback(Callable(self, "_on_premium_open_shop_requested"))
 	game_ui.set_top_open_pause_callback(Callable(self, "_on_premium_open_pause_requested"))
 	game_ui.set_top_open_help_callback(Callable(self, "_on_premium_open_help_requested"))
+	if game_ui.has_method("set_minimap_room_callback"):
+		game_ui.set_minimap_room_callback(Callable(self, "_on_minimap_room_requested"))
 	game_ui.set_side_map_callbacks(
 		Callable(self, "_on_premium_map_lobby_requested"),
 		Callable(self, "_on_premium_map_small_requested"),
@@ -198,6 +206,7 @@ func _ready():
 		Callable(self, "_on_premium_commands_requested")
 	)
 	camera_controller = CameraControllerScript.new(self, iso_grid)
+	_refresh_daily_objective_hud()
 
 	furniture_manager = FurnitureManagerScript.new(
 		iso_grid,
@@ -569,6 +578,7 @@ func _on_settings_show_missions_changed(value: bool) -> void:
 			game_ui.hide_missions_panel()
 	if game_ui != null and game_ui.has_method("update_settings_panel"):
 		game_ui.update_settings_panel(settings_manager.get_settings_data())
+	_refresh_daily_objective_hud()
 
 
 func _on_settings_sfx_enabled_changed(value: bool) -> void:
@@ -613,6 +623,7 @@ func _on_reset_local_data_requested() -> void:
 		"user://shop_state.json",
 		"user://furniture_stock_state.json",
 		"user://missions_state.json",
+		"user://daily_objectives_state.json",
 		"user://tutorial_state.json",
 		"user://player_profile.json",
 	]
@@ -654,15 +665,7 @@ func _on_pause_continue_requested() -> void:
 
 
 func _on_pause_save_requested() -> void:
-	var saved: bool = _save_all_local_state(false)
-	if saved:
-		_clear_dirty()
-		autosave_manager.reset_timer()
-		_show_toast("Partida guardada", "success")
-		_play_sound("ui_click")
-	else:
-		_show_toast("No se pudo guardar", "error")
-		_play_sound("error")
+	save_current_room_state("Partida guardada")
 	_close_pause_menu()
 
 
@@ -790,6 +793,7 @@ func _handle_decoration_left_click(cell: Vector2i) -> void:
 				_show_toast(_get_furniture_placed_message(placed_type), "success")
 				_play_sound("place")
 				_complete_mission("place_first_furniture")
+				_add_daily_objective_progress("decorate_room", 1)
 				update_placement_preview()
 			else:
 				update_placement_preview()
@@ -846,6 +850,18 @@ func _play_sound(sound_id: String) -> void:
 		audio_manager.play(sound_id)
 
 
+func _get_room_display_name(room_id: String) -> String:
+	match room_id:
+		"lobby":
+			return "Lobby"
+		"room_small":
+			return "Café"
+		"room_large":
+			return "Pool"
+		_:
+			return "Sala"
+
+
 func _refresh_premium_hud() -> void:
 	_refresh_premium_room_info()
 	_refresh_premium_credits()
@@ -853,6 +869,7 @@ func _refresh_premium_hud() -> void:
 	_refresh_premium_objective()
 	_refresh_premium_people()
 	_refresh_premium_mode()
+	_refresh_premium_minimap()
 
 
 func _refresh_premium_room_info() -> void:
@@ -862,11 +879,10 @@ func _refresh_premium_room_info() -> void:
 	if current_room == null:
 		return
 	var room_id: String = str(current_room.id)
-	var people_count: int = 4 if room_id == "lobby" else 2
+	var display_name: String = _get_room_display_name(room_id)
+	var people_count: int = 4 if room_id == "lobby" or room_id == "room_large" else 2
 	if game_ui.has_method("update_premium_room_info"):
-		game_ui.update_premium_room_info(str(current_room.display_name), people_count, 4.8)
-	if game_ui.has_method("update_premium_map"):
-		game_ui.update_premium_map(room_id)
+		game_ui.update_premium_room_info(display_name, people_count, 4.8)
 
 
 func _refresh_premium_credits() -> void:
@@ -884,10 +900,14 @@ func _refresh_premium_player_info() -> void:
 
 
 func _refresh_premium_objective() -> void:
-	if game_ui == null or mission_manager == null:
+	if game_ui == null or daily_objective_manager == null:
 		return
-	if game_ui.has_method("update_premium_objective"):
-		game_ui.update_premium_objective(mission_manager.get_missions())
+	if game_ui.has_method("update_premium_daily_objective"):
+		game_ui.update_premium_daily_objective(
+			daily_objective_manager.get_active_objective(),
+			daily_objective_manager.get_completed_count(),
+			daily_objective_manager.get_total_count()
+		)
 
 
 func _refresh_premium_people() -> void:
@@ -897,7 +917,19 @@ func _refresh_premium_people() -> void:
 	if current_room == null:
 		return
 	if game_ui.has_method("update_premium_people_list"):
-		game_ui.update_premium_people_list(str(current_room.id), player_profile_manager.player_name)
+		game_ui.update_premium_people_list(str(current_room.id), player_profile_manager.player_name, player_profile_manager.get_profile_data())
+
+
+func _refresh_premium_minimap() -> void:
+	if game_ui == null or room_manager == null:
+		return
+	var current_room = room_manager.get_current_room()
+	if current_room == null:
+		return
+	var room_id: String = str(current_room.id)
+	var display_name: String = _get_room_display_name(room_id)
+	if game_ui.has_method("update_premium_minimap"):
+		game_ui.update_premium_minimap(room_id, display_name)
 
 
 func _refresh_premium_mode() -> void:
@@ -905,6 +937,97 @@ func _refresh_premium_mode() -> void:
 		return
 	if game_ui.has_method("set_premium_room_mode"):
 		game_ui.set_premium_room_mode(room_mode)
+
+
+func _refresh_daily_objective_hud() -> void:
+	if game_ui == null or daily_objective_manager == null:
+		return
+	if not game_ui.has_method("update_premium_daily_objective"):
+		return
+	game_ui.update_premium_daily_objective(
+		daily_objective_manager.get_active_objective(),
+		daily_objective_manager.get_completed_count(),
+		daily_objective_manager.get_total_count()
+	)
+
+
+func _add_daily_objective_progress(objective_id: String, amount: int = 1) -> void:
+	if daily_objective_manager == null:
+		return
+	var result: Dictionary = daily_objective_manager.add_progress(objective_id, amount)
+	if result.is_empty():
+		return
+	var just_completed: bool = bool(result.get("just_completed", false))
+	var reward: int = 0
+	if just_completed:
+		reward = int(result.get("reward_credits", 0))
+		if reward > 0 and currency_manager != null:
+			currency_manager.add_credits(reward)
+			currency_manager.save_state()
+			_refresh_premium_credits()
+			if audio_manager != null and audio_manager.has_method("play"):
+				audio_manager.play("mission_complete")
+			else:
+				_play_sound("mission_complete")
+			_show_toast("Objetivo completado: " + String(result.get("title", "")) + " · +" + str(reward) + " créditos", "success")
+		if daily_objective_manager.has_method("claim_reward"):
+			daily_objective_manager.claim_reward(objective_id)
+		daily_objective_manager.save_state()
+		_refresh_daily_objective_hud()
+		return
+	daily_objective_manager.save_state()
+	_refresh_daily_objective_hud()
+
+
+func _visit_daily_objective_room(room_id: String) -> void:
+	if daily_objective_manager == null:
+		return
+	var result: Dictionary = daily_objective_manager.visit_room(room_id)
+	if result.is_empty():
+		return
+	var just_completed: bool = bool(result.get("just_completed", false))
+	if just_completed:
+		var reward: int = int(result.get("reward_credits", 0))
+		if reward > 0 and currency_manager != null:
+			currency_manager.add_credits(reward)
+			currency_manager.save_state()
+			_refresh_premium_credits()
+		if audio_manager != null and audio_manager.has_method("play"):
+			audio_manager.play("mission_complete")
+		else:
+			_play_sound("mission_complete")
+		_show_toast("Objetivo completado: " + String(result.get("title", "")) + " · +" + str(reward) + " créditos", "success")
+		daily_objective_manager.claim_reward("explore_rooms")
+	daily_objective_manager.save_state()
+	_refresh_daily_objective_hud()
+
+
+func _on_social_person_clicked(person_id: String, person_name: String) -> void:
+	if person_id == "self":
+		if game_ui != null and game_ui.has_method("show_profile"):
+			game_ui.show_profile()
+		return
+	if person_id == "bot_guide":
+		_show_toast("Bot Guía: escribe 'ayuda' en el chat")
+		return
+	_show_toast("Perfil de %s próximamente".format(person_name))
+
+
+func _switch_room_from_ui(room_id: String) -> void:
+	if room_manager == null:
+		return
+	var current_room = room_manager.get_current_room()
+	if current_room != null and str(current_room.id) == room_id:
+		_refresh_premium_hud()
+		return
+	_show_toast("Entrando a " + _get_room_display_name(room_id), "info")
+	switch_room(room_id)
+
+
+func _on_minimap_room_requested(room_id: String) -> void:
+	if current_state != GameState.IN_ROOM:
+		return
+	_switch_room_from_ui(room_id)
 
 
 func _on_premium_change_room_requested() -> void:
@@ -925,17 +1048,17 @@ func _on_premium_open_help_requested() -> void:
 
 func _on_premium_map_lobby_requested() -> void:
 	if current_state == GameState.IN_ROOM:
-		switch_room("lobby")
+		_switch_room_from_ui("lobby")
 
 
 func _on_premium_map_small_requested() -> void:
 	if current_state == GameState.IN_ROOM:
-		switch_room("room_small")
+		_switch_room_from_ui("room_small")
 
 
 func _on_premium_map_large_requested() -> void:
 	if current_state == GameState.IN_ROOM:
-		switch_room("room_large")
+		_switch_room_from_ui("room_large")
 
 
 func _on_premium_map_more_requested() -> void:
@@ -1039,6 +1162,7 @@ func _open_shop() -> void:
 	if game_ui.has_method("show_shop_panel"):
 		var stock_data: Dictionary = furniture_stock_manager.get_all_stock() if furniture_stock_manager != null else {}
 		game_ui.show_shop_panel(shop_manager.get_shop_items(), currency_manager.get_credits(), stock_data)
+		_add_daily_objective_progress("use_shop", 1)
 
 
 func _close_shop() -> void:
@@ -1238,6 +1362,7 @@ func on_chat_submitted(message: String) -> void:
 		return
 	_play_sound("chat_send")
 	_complete_mission("send_first_chat")
+	_add_daily_objective_progress("send_chat", 1)
 	game_ui.update_chat_history(chat_manager.get_history())
 	game_ui.show_chat_bubble(result.get("message", ""), player_node.global_position)
 	if npc_manager != null and npc_manager.is_active():
@@ -1383,6 +1508,8 @@ func _save_all_local_state(_silent: bool = false) -> bool:
 		furniture_stock_manager.save_state()
 	if mission_manager != null:
 		mission_manager.save_state()
+	if daily_objective_manager != null:
+		daily_objective_manager.save_state()
 	return rooms_ok
 
 
@@ -1397,13 +1524,14 @@ func _perform_autosave(show_feedback: bool = false) -> bool:
 	return saved
 
 
-func save_current_room_state() -> void:
+func save_current_room_state(message: String = "Sala guardada") -> void:
 	hide_placement_preview()
 	var saved: bool = _save_all_local_state(true)
 	if saved:
 		_clear_dirty()
 		autosave_manager.reset_timer()
-		_show_toast("Sala guardada", "success")
+		_add_daily_objective_progress("save_progress", 1)
+		_show_toast(message, "success")
 		_play_sound("ui_click")
 		_complete_mission("save_room")
 	else:
@@ -1427,7 +1555,8 @@ func switch_room(room_id):
 		furniture_manager.replace_furniture_items(new_room.furniture_items, Callable(game_ui, "report_status"))
 		player_controller.teleport_to_cell(new_room.player_start_cell)
 		camera_controller.center_on_room()
-		game_ui.set_room_name(new_room.display_name)
+		game_ui.set_room_name(_get_room_display_name(room_id))
+		_visit_daily_objective_room(room_id)
 		if npc_manager != null:
 			if room_id == "lobby":
 				npc_manager.activate()

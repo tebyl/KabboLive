@@ -3,9 +3,11 @@ extends RefCounted
 
 const CAMERA_MOVE_SPEED = 420.0
 const CAMERA_ZOOM_STEP = 0.1
+const CAMERA_INITIAL_ZOOM = 0.90
 const CAMERA_MIN_ZOOM = 0.6
 const CAMERA_MAX_ZOOM = 1.8
-const CAMERA_BOUNDS_MARGIN = 240.0
+const CAMERA_BOUNDS_MARGIN = 140.0
+const CAMERA_VERTICAL_OFFSET = -40.0
 
 var root: Node2D
 var iso_grid
@@ -33,8 +35,8 @@ func setup_camera() :
 		root.add_child(room_camera)
 
 	camera_bounds = iso_grid.get_room_bounds(CAMERA_BOUNDS_MARGIN)
-	room_camera.position = camera_bounds.get_center()
-	room_camera.zoom = Vector2.ONE
+	room_camera.position = camera_bounds.get_center() + Vector2(0.0, CAMERA_VERTICAL_OFFSET)
+	room_camera.zoom = Vector2(CAMERA_INITIAL_ZOOM, CAMERA_INITIAL_ZOOM)
 	room_camera.enabled = true
 	room_camera.make_current()
 	clamp_camera_position()

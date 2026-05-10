@@ -172,12 +172,28 @@ var _premium_credits_label: Label
 var premium_objective_panel: PanelContainer
 var _premium_objective_title_label: Label
 var _premium_objective_desc_label: Label
+var _premium_objective_progress_label: Label
 var _premium_objective_status_label: Label
 var _premium_objective_reward_label: Label
+var _premium_objective_summary_label: Label
 var _premium_objective_progress_fill: ColorRect
 var premium_side_panel: PanelContainer
+var _premium_minimap_room_label: Label
+var _premium_minimap_status_label: Label
+var _premium_minimap_board: Control
+var _premium_minimap_lobby_node: Button
+var _premium_minimap_cafe_node: Button
+var _premium_minimap_pool_node: Button
+var _premium_map_lobby_btn: Button
+var _premium_map_cafe_btn: Button
+var _premium_map_pool_btn: Button
+var _premium_map_more_btn: Button
 var _premium_people_vbox: VBoxContainer
 var _premium_map_badge_label: Label
+var _premium_side_people_count_label: Label
+
+var _social_person_clicked_cb = Callable()
+var _on_minimap_room_requested: Callable = Callable()
 var premium_bottom_bar: PanelContainer
 var _premium_player_name_label: Label
 var _premium_player_color: ColorRect
@@ -1355,7 +1371,7 @@ func _build_furniture_catalog() -> void:
 	catalog_panel.anchor_top = 0.0
 	catalog_panel.anchor_right = 1.0
 	catalog_panel.anchor_bottom = 1.0
-	catalog_panel.offset_left = -198.0
+	catalog_panel.offset_left = -176.0
 	catalog_panel.offset_top = 78.0
 	catalog_panel.offset_right = -14.0
 	catalog_panel.offset_bottom = -112.0
@@ -1664,7 +1680,6 @@ func update_context_hint(mode: String, submode: String = "") -> void:
 
 
 func update_missions_compact(missions: Array[Dictionary]) -> void:
-	update_premium_objective(missions)
 	if _missions_list_vbox == null:
 		return
 	for child: Node in _missions_list_vbox.get_children():
@@ -2771,6 +2786,8 @@ func build_premium_objective_panel() -> void:
 	_premium_objective_desc_label = _make_label("Completa una acción.", 11, HUD_TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_LEFT)
 	_premium_objective_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	layout.add_child(_premium_objective_desc_label)
+	_premium_objective_progress_label = _make_label("0/1", 11, HUD_TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_LEFT)
+	layout.add_child(_premium_objective_progress_label)
 
 	var progress_bg: ColorRect = ColorRect.new()
 	progress_bg.custom_minimum_size = Vector2(0.0, 6.0)
@@ -2796,6 +2813,8 @@ func build_premium_objective_panel() -> void:
 	foot.add_child(_premium_objective_status_label)
 	_premium_objective_reward_label = _make_label("+0 créditos", 11, HUD_ACCENT, HORIZONTAL_ALIGNMENT_RIGHT)
 	foot.add_child(_premium_objective_reward_label)
+	_premium_objective_summary_label = _make_label("0/0 objetivos completados", 10, HUD_TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_LEFT)
+	layout.add_child(_premium_objective_summary_label)
 
 
 func build_premium_side_panel() -> void:
@@ -2821,35 +2840,51 @@ func build_premium_side_panel() -> void:
 
 	layout.add_child(_make_label("MAPA", 10, HUD_ACCENT, HORIZONTAL_ALIGNMENT_LEFT))
 	var map_box: Control = Control.new()
-	map_box.custom_minimum_size = Vector2(128.0, 70.0)
+	map_box.custom_minimum_size = Vector2(132.0, 78.0)
 	layout.add_child(map_box)
-	_draw_premium_minimap(map_box)
-	_premium_map_badge_label = _make_label("en línea", 10, HUD_SUCCESS, HORIZONTAL_ALIGNMENT_LEFT)
-	layout.add_child(_premium_map_badge_label)
+	_build_premium_minimap(map_box)
+	_premium_minimap_status_label = _make_label("en línea", 10, HUD_SUCCESS, HORIZONTAL_ALIGNMENT_LEFT)
+	_premium_map_badge_label = _premium_minimap_status_label
+	layout.add_child(_premium_minimap_status_label)
+	_premium_minimap_room_label = _make_label("Lobby", 10, HUD_TEXT_MAIN, HORIZONTAL_ALIGNMENT_LEFT)
+	layout.add_child(_premium_minimap_room_label)
 
 	var map_tabs: GridContainer = GridContainer.new()
 	map_tabs.columns = 2
 	map_tabs.add_theme_constant_override("h_separation", 5)
 	map_tabs.add_theme_constant_override("v_separation", 5)
 	layout.add_child(map_tabs)
-	var lobby_btn: Button = _make_premium_button("Lobby", Vector2(58.0, 24.0))
-	lobby_btn.pressed.connect(_on_side_lobby_pressed)
-	map_tabs.add_child(lobby_btn)
-	var cafe_btn: Button = _make_premium_button("Café", Vector2(58.0, 24.0))
-	cafe_btn.pressed.connect(_on_side_small_pressed)
-	map_tabs.add_child(cafe_btn)
-	var pool_btn: Button = _make_premium_button("Pool", Vector2(58.0, 24.0))
-	pool_btn.pressed.connect(_on_side_large_pressed)
-	map_tabs.add_child(pool_btn)
-	var more_btn: Button = _make_premium_button("+", Vector2(58.0, 24.0))
-	more_btn.pressed.connect(_on_side_more_pressed)
-	map_tabs.add_child(more_btn)
+	_premium_map_lobby_btn = _make_premium_button("Lobby", Vector2(58.0, 24.0))
+	_premium_map_lobby_btn.pressed.connect(_on_minimap_lobby_pressed)
+	map_tabs.add_child(_premium_map_lobby_btn)
+	_premium_map_cafe_btn = _make_premium_button("Café", Vector2(58.0, 24.0))
+	_premium_map_cafe_btn.pressed.connect(_on_minimap_small_pressed)
+	map_tabs.add_child(_premium_map_cafe_btn)
+	_premium_map_pool_btn = _make_premium_button("Pool", Vector2(58.0, 24.0))
+	_premium_map_pool_btn.pressed.connect(_on_minimap_large_pressed)
+	map_tabs.add_child(_premium_map_pool_btn)
+	_premium_map_more_btn = _make_premium_button("+", Vector2(58.0, 24.0))
+	_premium_map_more_btn.pressed.connect(_on_minimap_more_pressed)
+	map_tabs.add_child(_premium_map_more_btn)
 
 	layout.add_child(HSeparator.new())
-	layout.add_child(_make_label("EN LA SALA", 10, HUD_ACCENT, HORIZONTAL_ALIGNMENT_LEFT))
+	var header_h: HBoxContainer = HBoxContainer.new()
+	header_h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_h.add_theme_constant_override("separation", 8)
+	layout.add_child(header_h)
+	header_h.add_child(_make_label("EN LA SALA", 10, HUD_ACCENT, HORIZONTAL_ALIGNMENT_LEFT))
+	_premium_side_people_count_label = _make_label("0 en sala", 10, HUD_TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_RIGHT)
+	_premium_side_people_count_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_h.add_child(_premium_side_people_count_label)
+
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 120)
+	layout.add_child(scroll)
+
 	_premium_people_vbox = VBoxContainer.new()
-	_premium_people_vbox.add_theme_constant_override("separation", 4)
-	layout.add_child(_premium_people_vbox)
+	_premium_people_vbox.add_theme_constant_override("separation", 6)
+	_premium_people_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_premium_people_vbox)
 
 
 func build_premium_bottom_bar() -> void:
@@ -3028,6 +3063,37 @@ func update_premium_credits(amount: int) -> void:
 		_premium_credits_label.text = "Créditos " + str(amount)
 
 
+func update_premium_daily_objective(active_objective: Dictionary, completed_count: int, total_count: int) -> void:
+	if _premium_objective_title_label == null:
+		return
+	var title: String = str(active_objective.get("title", ""))
+	var description: String = str(active_objective.get("description", ""))
+	var reward: int = int(active_objective.get("reward_credits", 0))
+	var current_progress: int = int(active_objective.get("current_progress", 0))
+	var target_progress: int = max(1, int(active_objective.get("target_progress", 1)))
+	var completed: bool = bool(active_objective.get("completed", false))
+	var all_completed: bool = total_count > 0 and completed_count >= total_count
+
+	if all_completed or str(active_objective.get("id", "")) == "daily_complete":
+		_premium_objective_title_label.text = "Objetivos diarios completos"
+		_premium_objective_desc_label.text = "Vuelve pronto para más tareas."
+		_premium_objective_progress_label.text = str(total_count) + "/" + str(total_count)
+		_premium_objective_status_label.text = "Completado"
+		_premium_objective_reward_label.text = "Completado"
+		_premium_objective_summary_label.text = str(completed_count) + "/" + str(total_count) + " objetivos completados"
+		_set_objective_progress(total_count, total_count)
+		return
+
+	_premium_objective_title_label.text = _trim_ui_text(title, 28)
+	_premium_objective_desc_label.text = _trim_ui_text(description, 44)
+	if _premium_objective_progress_label != null:
+		_premium_objective_progress_label.text = str(current_progress) + "/" + str(target_progress)
+	_premium_objective_status_label.text = "Completado" if completed else "En progreso"
+	_premium_objective_reward_label.text = _format_objective_reward(reward)
+	_premium_objective_summary_label.text = str(completed_count) + "/" + str(total_count) + " objetivos completados"
+	_set_objective_progress(current_progress, target_progress)
+
+
 func update_premium_objective(missions: Array[Dictionary]) -> void:
 	if _premium_objective_title_label == null:
 		return
@@ -3043,34 +3109,202 @@ func update_premium_objective(missions: Array[Dictionary]) -> void:
 		_premium_objective_desc_label.text = "Buen trabajo por hoy."
 		_premium_objective_status_label.text = "Completada"
 		_premium_objective_reward_label.text = "+0 créditos"
-		_set_objective_progress(1.0)
+		_set_objective_progress_fraction(1.0)
 		return
 	var completed: bool = bool(selected.get("completed", false))
 	_premium_objective_title_label.text = _trim_ui_text(str(selected.get("title", "Objetivo")), 28)
 	_premium_objective_desc_label.text = _trim_ui_text(str(selected.get("description", "Completa una acción.")), 44)
 	_premium_objective_status_label.text = "Completada" if completed else "Pendiente"
 	_premium_objective_reward_label.text = "+" + str(int(selected.get("reward_credits", 0))) + " créditos"
-	_set_objective_progress(1.0 if completed else 0.08)
+	_set_objective_progress_fraction(1.0 if completed else 0.08)
 
 
-func update_premium_people_list(room_id: String, player_name: String) -> void:
+func set_social_person_clicked_callback(cb: Callable) -> void:
+	_social_person_clicked_cb = cb
+
+
+func update_premium_people_list(room_id: String, player_name: String, profile_data: Dictionary = {}) -> void:
 	if _premium_people_vbox == null:
 		return
+	var people: Array[Dictionary] = _get_people_for_room(room_id, player_name, profile_data)
+	if _premium_people_label != null:
+		_premium_people_label.text = str(people.size()) + " en sala"
+	if _premium_side_people_count_label != null:
+		_premium_side_people_count_label.text = str(people.size()) + " en sala"
 	for child: Node in _premium_people_vbox.get_children():
 		_premium_people_vbox.remove_child(child)
 		child.queue_free()
-	_add_premium_person(player_name, "Tú", Color(0.58, 1.0, 0.76))
-	if room_id == "lobby":
-		_add_premium_person("Bot Guía", "Guía", Color(0.58, 0.86, 1.0))
-		_add_premium_person("Mira", "visitante", Color(1.0, 0.68, 0.78))
-		_add_premium_person("Pixel", "visitante", Color(1.0, 0.82, 0.50))
-	else:
-		_add_premium_person("Mira", "visitante", Color(1.0, 0.68, 0.78))
+	for person: Dictionary in people:
+		_premium_people_vbox.add_child(_make_person_row(person))
 
 
-func update_premium_map(room_id: String) -> void:
+func _get_people_for_room(room_id: String, player_name: String, profile_data: Dictionary) -> Array[Dictionary]:
+	var people: Array[Dictionary] = []
+	var player_color: Color = profile_data.get("shirt_color", HUD_ACCENT)
+	people.append({
+		"id": "self",
+		"name": str(player_name),
+		"role": "Tú",
+		"status": "online",
+		"color": player_color,
+		"badge": ""
+	})
+
+	var bot: Dictionary = {
+		"id": "bot_guide",
+		"name": "Bot Guía",
+		"role": "Guía",
+		"status": "disponible",
+		"color": Color(0.14, 0.56, 0.94),
+		"badge": "GUÍA"
+	}
+	var mira: Dictionary = {
+		"id": "mira",
+		"name": "Mira",
+		"role": "Decoradora",
+		"status": "mirando",
+		"color": Color(1.0, 0.45, 0.55),
+		"badge": ""
+	}
+	var pixel: Dictionary = {
+		"id": "pixel",
+		"name": "Pixel",
+		"role": "Visitante",
+		"status": "explorando",
+		"color": Color(0.64, 0.38, 0.92),
+		"badge": ""
+	}
+	var ren: Dictionary = {
+		"id": "ren_42",
+		"name": "Ren_42",
+		"role": "recién llegado",
+		"status": "online",
+		"color": Color(0.18, 0.80, 0.36),
+		"badge": ""
+	}
+
+	match room_id:
+		"lobby":
+			people.append(bot)
+			people.append(mira)
+			people.append(pixel)
+		"room_small":
+			people.append(pixel)
+		"room_large":
+			people.append(mira)
+			people.append(pixel)
+			people.append(ren)
+		_:
+			people.append(pixel)
+
+	return people
+
+
+func _make_person_row(person: Dictionary) -> Control:
+	var btn: Button = Button.new()
+	btn.flat = true
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.custom_minimum_size = Vector2(0.0, 46.0)
+	btn.add_theme_stylebox_override("normal", _make_panel_style(Color(0, 0, 0, 0)))
+	btn.add_theme_stylebox_override("hover", _make_panel_style(Color(0.10, 0.14, 0.22, 0.35)))
+	btn.add_theme_stylebox_override("pressed", _make_panel_style(Color(0.14, 0.18, 0.26, 0.45)))
+
+	var h: HBoxContainer = HBoxContainer.new()
+	h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.mouse_filter = Control.MOUSE_FILTER_STOP
+	h.add_theme_constant_override("separation", 8)
+	btn.add_child(h)
+
+	var avatar: ColorRect = ColorRect.new()
+	avatar.custom_minimum_size = Vector2(36.0, 36.0)
+	avatar.color = person.get("color", HUD_ACCENT)
+	h.add_child(avatar)
+
+	var initial: Label = Label.new()
+	initial.text = str(person.get("name", "?")).substr(0, 1).to_upper()
+	initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	initial.add_theme_color_override("font_color", Color(1, 1, 1))
+	initial.add_theme_font_size_override("font_size", 14)
+	avatar.add_child(initial)
+
+	var info: VBoxContainer = VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(info)
+
+	var name_lbl: Label = Label.new()
+	name_lbl.text = str(person.get("name", "Invitado"))
+	name_lbl.add_theme_color_override("font_color", HUD_TEXT_MAIN)
+	name_lbl.add_theme_font_size_override("font_size", 13)
+	info.add_child(name_lbl)
+
+	var role_row: HBoxContainer = HBoxContainer.new()
+	role_row.add_theme_constant_override("separation", 6)
+	info.add_child(role_row)
+
+	var status_dot: ColorRect = ColorRect.new()
+	status_dot.custom_minimum_size = Vector2(8, 8)
+	var status_color: Color = Color(0.18, 0.80, 0.36)
+	match str(person.get("status", "online")):
+		"online":
+			status_color = Color(0.18, 0.80, 0.36)
+		"escribiendo":
+			status_color = Color(1.0, 0.78, 0.14)
+		"mirando":
+			status_color = Color(0.22, 0.60, 1.0)
+		"explorando":
+			status_color = Color(0.64, 0.38, 0.92)
+		_:
+			status_color = Color(0.60, 0.60, 0.60)
+	status_dot.color = status_color
+	role_row.add_child(status_dot)
+
+	var status_lbl: Label = Label.new()
+	status_lbl.text = str(person.get("role", "")) + " · " + str(person.get("status", ""))
+	status_lbl.add_theme_color_override("font_color", HUD_TEXT_SECONDARY)
+	status_lbl.add_theme_font_size_override("font_size", 11)
+	role_row.add_child(status_lbl)
+
+	btn.pressed.connect(_on_person_clicked.bind(str(person.get("id", "")), str(person.get("name", ""))))
+	return btn
+
+
+func _on_person_clicked(person_id: String, person_name: String) -> void:
+	if _social_person_clicked_cb != null and _social_person_clicked_cb.is_valid():
+		_social_person_clicked_cb.call(person_id, person_name)
+		return
+	match person_id:
+		"self":
+			show_profile()
+		"bot_guide":
+			show_toast("Bot Guía: escribe 'ayuda' en el chat", "info")
+		_:
+			show_toast("Perfil de %s próximamente".format(person_name), "info")
+
+
+func update_premium_minimap(room_id: String, room_name: String = "") -> void:
+	var active_room_name: String = room_name if room_name != "" else _get_minimap_room_name(room_id)
+	var online_text: String = "en línea" if room_id == "lobby" else "local"
 	if _premium_map_badge_label != null:
-		_premium_map_badge_label.text = ("Lobby" if room_id == "lobby" else "sala local") + " · en línea"
+		_premium_map_badge_label.text = online_text
+	if _premium_minimap_status_label != null:
+		_premium_minimap_status_label.text = online_text
+	if _premium_minimap_room_label != null:
+		_premium_minimap_room_label.text = active_room_name
+	_style_minimap_room_button(_premium_map_lobby_btn, room_id == "lobby")
+	_style_minimap_room_button(_premium_map_cafe_btn, room_id == "room_small")
+	_style_minimap_room_button(_premium_map_pool_btn, room_id == "room_large")
+	_style_minimap_room_button(_premium_map_more_btn, false)
+	if _premium_minimap_lobby_node != null:
+		_style_minimap_room_button(_premium_minimap_lobby_node, room_id == "lobby")
+	if _premium_minimap_cafe_node != null:
+		_style_minimap_room_button(_premium_minimap_cafe_node, room_id == "room_small")
+	if _premium_minimap_pool_node != null:
+		_style_minimap_room_button(_premium_minimap_pool_node, room_id == "room_large")
+
+
+func update_premium_map(room_id: String, room_name: String = "") -> void:
+	update_premium_minimap(room_id, room_name)
 
 
 func update_premium_bottom_hint(text: String) -> void:
@@ -3139,6 +3373,10 @@ func set_side_map_callbacks(lobby_cb: Callable, small_cb: Callable, large_cb: Ca
 	_on_side_map_more = more_cb
 
 
+func set_minimap_room_callback(callback: Callable) -> void:
+	_on_minimap_room_requested = callback
+
+
 func set_bottom_callbacks(explore_cb: Callable, decorate_cb: Callable, shop_cb: Callable, inventory_cb: Callable, profile_cb: Callable, emotes_cb: Callable, dance_cb: Callable, music_cb: Callable, photo_cb: Callable, commands_cb: Callable) -> void:
 	_on_bottom_explore = explore_cb
 	_on_bottom_decorate = decorate_cb
@@ -3152,10 +3390,149 @@ func set_bottom_callbacks(explore_cb: Callable, decorate_cb: Callable, shop_cb: 
 	_on_bottom_commands = commands_cb
 
 
-func _set_objective_progress(value: float) -> void:
+func _set_objective_progress_fraction(value: float) -> void:
 	if _premium_objective_progress_fill == null:
 		return
 	_premium_objective_progress_fill.anchor_right = clampf(value, 0.0, 1.0)
+
+
+func _set_objective_progress(current: int, target: int) -> void:
+	if _premium_objective_progress_fill == null:
+		return
+	if target <= 0:
+		_premium_objective_progress_fill.anchor_right = 1.0
+		return
+	_premium_objective_progress_fill.anchor_right = clampf(float(current) / float(target), 0.0, 1.0)
+
+
+func _format_objective_reward(amount: int) -> String:
+	if amount <= 0:
+		return "Completado"
+	return "+" + str(amount) + " créditos"
+
+
+func _build_premium_minimap(parent: Control) -> void:
+	var diamond: Polygon2D = Polygon2D.new()
+	diamond.position = Vector2(66.0, 34.0)
+	diamond.polygon = PackedVector2Array([
+		Vector2(0.0, -24.0),
+		Vector2(42.0, 0.0),
+		Vector2(0.0, 24.0),
+		Vector2(-42.0, 0.0)
+	])
+	diamond.color = Color(0.10, 0.14, 0.23, 0.94)
+	parent.add_child(diamond)
+
+	var outline: Line2D = Line2D.new()
+	outline.position = diamond.position
+	outline.points = PackedVector2Array([
+		Vector2(0.0, -24.0),
+		Vector2(42.0, 0.0),
+		Vector2(0.0, 24.0),
+		Vector2(-42.0, 0.0),
+		Vector2(0.0, -24.0)
+	])
+	outline.width = 1.4
+	outline.default_color = HUD_BORDER
+	parent.add_child(outline)
+
+	var lobby_line: Line2D = Line2D.new()
+	lobby_line.points = PackedVector2Array([Vector2(24.0, 34.0), Vector2(66.0, 18.0), Vector2(108.0, 34.0)])
+	lobby_line.width = 1.0
+	lobby_line.default_color = Color(0.45, 0.55, 0.72, 0.55)
+	parent.add_child(lobby_line)
+
+	_premium_minimap_lobby_node = _make_premium_button("L", Vector2(24.0, 24.0))
+	_premium_minimap_lobby_node.position = Vector2(18.0, 22.0)
+	_premium_minimap_lobby_node.tooltip_text = "Lobby"
+	_premium_minimap_lobby_node.pressed.connect(_on_minimap_lobby_pressed)
+	parent.add_child(_premium_minimap_lobby_node)
+
+	_premium_minimap_cafe_node = _make_premium_button("C", Vector2(24.0, 24.0))
+	_premium_minimap_cafe_node.position = Vector2(54.0, 38.0)
+	_premium_minimap_cafe_node.tooltip_text = "Café"
+	_premium_minimap_cafe_node.pressed.connect(_on_minimap_small_pressed)
+	parent.add_child(_premium_minimap_cafe_node)
+
+	_premium_minimap_pool_node = _make_premium_button("P", Vector2(24.0, 24.0))
+	_premium_minimap_pool_node.position = Vector2(90.0, 22.0)
+	_premium_minimap_pool_node.tooltip_text = "Pool"
+	_premium_minimap_pool_node.pressed.connect(_on_minimap_large_pressed)
+	parent.add_child(_premium_minimap_pool_node)
+
+	_style_minimap_room_button(_premium_minimap_lobby_node, false)
+	_style_minimap_room_button(_premium_minimap_cafe_node, false)
+	_style_minimap_room_button(_premium_minimap_pool_node, false)
+
+
+func _style_minimap_room_button(button: Button, active: bool) -> void:
+	if button == null:
+		return
+	var base_color: Color = Color(0.10, 0.13, 0.24, 0.82)
+	var hover_color: Color = Color(0.16, 0.21, 0.36, 0.94)
+	var pressed_color: Color = HUD_ACCENT if active else Color(0.20, 0.26, 0.42, 0.96)
+	if active:
+		base_color = HUD_ACCENT
+		hover_color = Color(1.0, 0.76, 0.36, 1.0)
+		pressed_color = Color(1.0, 0.82, 0.52, 1.0)
+	button.add_theme_stylebox_override("normal", _make_premium_button_style(base_color))
+	button.add_theme_stylebox_override("hover", _make_premium_button_style(hover_color))
+	button.add_theme_stylebox_override("pressed", _make_premium_button_style(pressed_color))
+	button.add_theme_color_override("font_color", Color(0.10, 0.07, 0.05) if active else HUD_TEXT_MAIN)
+
+
+func _get_minimap_room_name(room_id: String) -> String:
+	match room_id:
+		"lobby":
+			return "Lobby"
+		"room_small":
+			return "Café"
+		"room_large":
+			return "Pool"
+		_:
+			return "Sala"
+
+
+func _request_minimap_room(room_id: String) -> void:
+	if _on_minimap_room_requested.is_valid():
+		_on_minimap_room_requested.call(room_id)
+		return
+	match room_id:
+		"lobby":
+			if _on_side_map_lobby.is_valid():
+				_on_side_map_lobby.call()
+		"room_small":
+			if _on_side_map_small.is_valid():
+				_on_side_map_small.call()
+		"room_large":
+			if _on_side_map_large.is_valid():
+				_on_side_map_large.call()
+		_:
+			if _on_side_map_more.is_valid():
+				_on_side_map_more.call()
+
+
+func _on_minimap_lobby_pressed() -> void:
+	_play_ui_sound("ui_click")
+	_request_minimap_room("lobby")
+
+
+func _on_minimap_small_pressed() -> void:
+	_play_ui_sound("ui_click")
+	_request_minimap_room("room_small")
+
+
+func _on_minimap_large_pressed() -> void:
+	_play_ui_sound("ui_click")
+	_request_minimap_room("room_large")
+
+
+func _on_minimap_more_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_side_map_more.is_valid():
+		_on_side_map_more.call()
+	else:
+		show_toast("Más salas próximamente", "info")
 
 
 func _add_premium_person(name: String, role: String, dot_color: Color) -> void:
@@ -3494,11 +3871,11 @@ func _make_panel_style(bg_color: Color) -> StyleBoxFlat:
 	style.corner_radius_top_right = 10
 	style.corner_radius_bottom_right = 10
 	style.corner_radius_bottom_left = 10
-	style.border_color = Color(1.0, 1.0, 1.0, 0.14)
-	style.border_width_left = 1
-	style.border_width_top = 1
-	style.border_width_right = 1
-	style.border_width_bottom = 1
+	style.border_color = Color(1.0, 1.0, 1.0, 0.10)
+	style.border_width_left = 0
+	style.border_width_top = 0
+	style.border_width_right = 0
+	style.border_width_bottom = 0
 	return style
 
 

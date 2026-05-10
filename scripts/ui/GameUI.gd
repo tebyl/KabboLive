@@ -83,15 +83,20 @@ var settings_panel: PanelContainer
 var _settings_autosave_toggle_btn: Button
 var _settings_interval_btns: Array[Button] = []
 var _settings_missions_btn: Button
+var _settings_sfx_toggle_btn: Button
+var _settings_sfx_volume_btns: Array[Button] = []
 var _confirm_reset_panel: PanelContainer
 var _settings_btn_in_room: Button
 var _on_settings_autosave_enabled: Callable
 var _on_settings_autosave_interval: Callable
 var _on_settings_show_missions: Callable
+var _on_settings_sfx_enabled: Callable
+var _on_settings_sfx_volume: Callable
 var _on_settings_tutorial_restart: Callable
 var _on_settings_reset_data: Callable
 var _on_settings_closed_cb: Callable
 var _on_open_settings_cb: Callable
+var _on_ui_sound: Callable
 var _pause_overlay: Control
 var _pause_menu_panel: PanelContainer
 var _pause_exit_confirm_panel: PanelContainer
@@ -229,7 +234,7 @@ func _build_main_menu() :
 
 	var enter_btn: Button = Button.new()
 	enter_btn.text = "Entrar al hotel"
-	enter_btn.pressed.connect(_on_enter_hotel)
+	enter_btn.pressed.connect(_on_enter_hotel_pressed)
 	vbox.add_child(enter_btn)
 
 	var profile_btn: Button = Button.new()
@@ -294,8 +299,20 @@ func _build_room_select() :
 func _add_room_button(parent: VBoxContainer, room_id, label_text) :
 	var btn: Button = Button.new()
 	btn.text = label_text
-	btn.pressed.connect(_on_room_selected.bind(room_id))
+	btn.pressed.connect(_on_room_button_pressed.bind(room_id))
 	parent.add_child(btn)
+
+
+func _on_enter_hotel_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_enter_hotel.is_valid():
+		_on_enter_hotel.call()
+
+
+func _on_room_button_pressed(room_id: String) -> void:
+	_play_ui_sound("ui_click")
+	if _on_room_selected.is_valid():
+		_on_room_selected.call(room_id)
 
 
 func show_room_selector(rooms: Array) :
@@ -662,11 +679,13 @@ func _on_save_clicked() -> void:
 
 
 func _on_profile_back_clicked() -> void:
+	_play_ui_sound("panel_close")
 	profile_panel.visible = false
 	show_missions_panel()
 
 
 func show_profile() -> void:
+	_play_ui_sound("panel_open")
 	hide_shop_panel()
 	hide_missions_panel()
 	profile_panel.visible = true
@@ -1170,6 +1189,7 @@ func _inspector_display_name(furniture_type: String) -> String:
 func _on_inspector_move_pressed() -> void:
 	if is_chat_input_active():
 		return
+	_play_ui_sound("ui_click")
 	if _on_inspector_move.is_valid():
 		_on_inspector_move.call()
 
@@ -1189,6 +1209,7 @@ func _on_inspector_delete_pressed() -> void:
 
 
 func _on_inspector_close_pressed() -> void:
+	_play_ui_sound("panel_close")
 	if _on_inspector_close.is_valid():
 		_on_inspector_close.call()
 
@@ -1355,6 +1376,7 @@ func _apply_catalog_item_highlight() -> void:
 func _on_catalog_item_pressed(type: String) -> void:
 	if is_chat_input_active():
 		return
+	_play_ui_sound("ui_click")
 	if _on_catalog_selected.is_valid():
 		_on_catalog_selected.call(type)
 
@@ -1534,6 +1556,7 @@ func update_missions_compact(missions: Array[Dictionary]) -> void:
 func _on_mode_button_pressed() -> void:
 	if is_chat_input_active():
 		return
+	_play_ui_sound("ui_click")
 	if _on_mode_toggle.is_valid():
 		_on_mode_toggle.call()
 
@@ -1562,9 +1585,9 @@ func _build_settings_panel() -> void:
 	settings_panel.anchor_right = 0.5
 	settings_panel.anchor_bottom = 0.5
 	settings_panel.offset_left = -220.0
-	settings_panel.offset_top = -240.0
+	settings_panel.offset_top = -280.0
 	settings_panel.offset_right = 220.0
-	settings_panel.offset_bottom = 240.0
+	settings_panel.offset_bottom = 280.0
 	settings_panel.visible = false
 	settings_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.97)))
 	ui_layer.add_child(settings_panel)
@@ -1620,6 +1643,40 @@ func _build_settings_panel() -> void:
 		ibtn.pressed.connect(_on_settings_interval_pressed.bind(secs))
 		interval_row.add_child(ibtn)
 		_settings_interval_btns.append(ibtn)
+
+	layout.add_child(HSeparator.new())
+
+	var sfx_row: HBoxContainer = HBoxContainer.new()
+	sfx_row.add_theme_constant_override("separation", 8)
+	layout.add_child(sfx_row)
+	var sfx_lbl: Label = Label.new()
+	sfx_lbl.text = "Sonidos"
+	sfx_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sfx_lbl.add_theme_color_override("font_color", Color(0.88, 0.92, 1.0))
+	sfx_row.add_child(sfx_lbl)
+	_settings_sfx_toggle_btn = Button.new()
+	_settings_sfx_toggle_btn.text = "Activado"
+	_settings_sfx_toggle_btn.custom_minimum_size = Vector2(96.0, 0.0)
+	_settings_sfx_toggle_btn.pressed.connect(_on_settings_sfx_toggle_pressed)
+	sfx_row.add_child(_settings_sfx_toggle_btn)
+
+	var sfx_volume_row: HBoxContainer = HBoxContainer.new()
+	sfx_volume_row.add_theme_constant_override("separation", 4)
+	layout.add_child(sfx_volume_row)
+	var sfx_volume_lbl: Label = Label.new()
+	sfx_volume_lbl.text = "Volumen SFX:"
+	sfx_volume_lbl.add_theme_color_override("font_color", Color(0.72, 0.80, 0.92))
+	sfx_volume_lbl.add_theme_font_size_override("font_size", 12)
+	sfx_volume_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sfx_volume_row.add_child(sfx_volume_lbl)
+	_settings_sfx_volume_btns.clear()
+	for vol: float in [0.25, 0.5, 0.75, 1.0]:
+		var vbtn: Button = Button.new()
+		vbtn.text = str(int(vol * 100.0)) + "%"
+		vbtn.custom_minimum_size = Vector2(48.0, 0.0)
+		vbtn.pressed.connect(_on_settings_sfx_volume_pressed.bind(vol))
+		sfx_volume_row.add_child(vbtn)
+		_settings_sfx_volume_btns.append(vbtn)
 
 	layout.add_child(HSeparator.new())
 
@@ -1716,6 +1773,7 @@ func _build_confirm_reset_panel() -> void:
 func show_settings_panel(settings_data: Dictionary) -> void:
 	update_settings_panel(settings_data)
 	if settings_panel != null:
+		_play_ui_sound("panel_open")
 		settings_panel.visible = true
 		settings_panel.move_to_front()
 
@@ -1724,6 +1782,8 @@ func hide_settings_panel() -> void:
 	if _confirm_reset_panel != null:
 		_confirm_reset_panel.visible = false
 	if settings_panel != null:
+		if settings_panel.visible:
+			_play_ui_sound("panel_close")
 		settings_panel.visible = false
 	if _on_settings_closed_cb.is_valid():
 		_on_settings_closed_cb.call()
@@ -1757,6 +1817,22 @@ func update_settings_panel(settings_data: Dictionary) -> void:
 		_settings_missions_btn.text = "Sí" if show_m else "No"
 
 
+	_sync_sfx_settings_controls(settings_data, active_style)
+
+
+func _sync_sfx_settings_controls(settings_data: Dictionary, active_style: StyleBoxFlat) -> void:
+	var sfx_on: bool = bool(settings_data.get("sfx_enabled", true))
+	if _settings_sfx_toggle_btn != null:
+		_settings_sfx_toggle_btn.text = "Activado" if sfx_on else "Desactivado"
+	var sfx_volume: float = float(settings_data.get("sfx_volume", 0.7))
+	var volumes: Array[float] = [0.25, 0.5, 0.75, 1.0]
+	for i: int in range(_settings_sfx_volume_btns.size()):
+		if i < volumes.size() and is_equal_approx(volumes[i], sfx_volume):
+			_settings_sfx_volume_btns[i].add_theme_stylebox_override("normal", active_style)
+		else:
+			_settings_sfx_volume_btns[i].remove_theme_stylebox_override("normal")
+
+
 func set_settings_autosave_enabled_callback(cb: Callable) -> void:
 	_on_settings_autosave_enabled = cb
 
@@ -1767,6 +1843,14 @@ func set_settings_autosave_interval_callback(cb: Callable) -> void:
 
 func set_settings_show_missions_callback(cb: Callable) -> void:
 	_on_settings_show_missions = cb
+
+
+func set_settings_sfx_enabled_callback(cb: Callable) -> void:
+	_on_settings_sfx_enabled = cb
+
+
+func set_settings_sfx_volume_callback(cb: Callable) -> void:
+	_on_settings_sfx_volume = cb
 
 
 func set_settings_tutorial_restart_callback(cb: Callable) -> void:
@@ -1781,35 +1865,63 @@ func set_settings_closed_callback(cb: Callable) -> void:
 	_on_settings_closed_cb = cb
 
 
+func set_ui_sound_callback(cb: Callable) -> void:
+	_on_ui_sound = cb
+
+
+func _play_ui_sound(sound_id: String) -> void:
+	if _on_ui_sound.is_valid():
+		_on_ui_sound.call(sound_id)
+
+
 func _on_settings_autosave_toggle_pressed() -> void:
+	_play_ui_sound("ui_click")
 	if _on_settings_autosave_enabled.is_valid():
 		var new_val: bool = _settings_autosave_toggle_btn != null and _settings_autosave_toggle_btn.text == "Desactivado"
 		_on_settings_autosave_enabled.call(new_val)
 
 
 func _on_settings_interval_pressed(seconds: float) -> void:
+	_play_ui_sound("ui_click")
 	if _on_settings_autosave_interval.is_valid():
 		_on_settings_autosave_interval.call(seconds)
 
 
 func _on_settings_missions_toggle_pressed() -> void:
+	_play_ui_sound("ui_click")
 	if _on_settings_show_missions.is_valid():
 		var new_val: bool = _settings_missions_btn != null and _settings_missions_btn.text == "No"
 		_on_settings_show_missions.call(new_val)
 
 
+func _on_settings_sfx_toggle_pressed() -> void:
+	if _on_settings_sfx_enabled.is_valid():
+		var new_val: bool = _settings_sfx_toggle_btn != null and _settings_sfx_toggle_btn.text == "Desactivado"
+		_on_settings_sfx_enabled.call(new_val)
+	_play_ui_sound("ui_click")
+
+
+func _on_settings_sfx_volume_pressed(value: float) -> void:
+	if _on_settings_sfx_volume.is_valid():
+		_on_settings_sfx_volume.call(value)
+	_play_ui_sound("ui_click")
+
+
 func _on_settings_tutorial_restart_pressed() -> void:
+	_play_ui_sound("ui_click")
 	if _on_settings_tutorial_restart.is_valid():
 		_on_settings_tutorial_restart.call()
 
 
 func _on_settings_reset_pressed() -> void:
+	_play_ui_sound("ui_click")
 	if _confirm_reset_panel != null:
 		_confirm_reset_panel.visible = true
 		_confirm_reset_panel.move_to_front()
 
 
 func _on_settings_confirm_reset_pressed() -> void:
+	_play_ui_sound("ui_click")
 	if _confirm_reset_panel != null:
 		_confirm_reset_panel.visible = false
 	if _on_settings_reset_data.is_valid():
@@ -2186,6 +2298,7 @@ func show_tutorial(is_manual: bool = false) -> void:
 	if tutorial_overlay == null:
 		return
 	tutorial_is_manual = is_manual
+	_play_ui_sound("panel_open")
 	hide_shop_button()
 	hide_shop_panel()
 	hide_missions_panel()
@@ -2196,6 +2309,8 @@ func show_tutorial(is_manual: bool = false) -> void:
 
 func hide_tutorial() -> void:
 	if tutorial_overlay != null:
+		if tutorial_overlay.visible:
+			_play_ui_sound("panel_close")
 		tutorial_overlay.visible = false
 	if controls_panel != null and controls_panel.visible:
 		show_shop_button()
@@ -2232,10 +2347,12 @@ func _close_tutorial(completed: bool) -> void:
 
 
 func _on_tutorial_prev_pressed() -> void:
+	_play_ui_sound("ui_click")
 	set_tutorial_step(tutorial_step_index - 1)
 
 
 func _on_tutorial_next_pressed() -> void:
+	_play_ui_sound("ui_click")
 	set_tutorial_step(tutorial_step_index + 1)
 
 
@@ -2248,6 +2365,7 @@ func _on_tutorial_finish_pressed() -> void:
 
 
 func _on_help_pressed() -> void:
+	_play_ui_sound("ui_click")
 	if _on_tutorial_open_requested.is_valid():
 		_on_tutorial_open_requested.call()
 
@@ -2304,6 +2422,7 @@ func _build_shop_panel() -> void:
 func show_shop_panel(items: Array[Dictionary], credits: int, stock_data: Dictionary = {}) -> void:
 	update_shop_items(items, credits, stock_data)
 	if shop_panel != null:
+		_play_ui_sound("panel_open")
 		shop_panel.visible = true
 		shop_panel.move_to_front()
 	hide_missions_panel()
@@ -2311,6 +2430,8 @@ func show_shop_panel(items: Array[Dictionary], credits: int, stock_data: Diction
 
 func hide_shop_panel() -> void:
 	if shop_panel != null:
+		if shop_panel.visible:
+			_play_ui_sound("panel_close")
 		shop_panel.visible = false
 	if controls_panel != null and controls_panel.visible:
 		show_missions_panel()
@@ -2376,6 +2497,7 @@ func hide_shop_button() -> void:
 
 
 func _on_shop_button_pressed() -> void:
+	_play_ui_sound("ui_click")
 	if is_shop_visible():
 		hide_shop_panel()
 	elif _on_shop_item_buy.is_valid():
@@ -2383,6 +2505,7 @@ func _on_shop_button_pressed() -> void:
 
 
 func _on_shop_buy_pressed(item_id: String) -> void:
+	_play_ui_sound("ui_click")
 	if _on_shop_item_buy.is_valid():
 		_on_shop_item_buy.call(item_id)
 
@@ -2658,6 +2781,7 @@ func _build_pause_exit_confirm() -> void:
 
 func show_pause_menu() -> void:
 	if _pause_overlay != null:
+		_play_ui_sound("panel_open")
 		if _pause_exit_confirm_panel != null:
 			_pause_exit_confirm_panel.visible = false
 		_pause_overlay.visible = true
@@ -2665,6 +2789,8 @@ func show_pause_menu() -> void:
 
 
 func hide_pause_menu() -> void:
+	if _pause_overlay != null and _pause_overlay.visible:
+		_play_ui_sound("panel_close")
 	if _pause_exit_confirm_panel != null:
 		_pause_exit_confirm_panel.visible = false
 	if _pause_overlay != null:
@@ -2719,10 +2845,12 @@ func set_pause_exit_confirm_callback(cb: Callable) -> void:
 func _on_pause_menu_btn_pressed() -> void:
 	if is_chat_input_active():
 		return
+	_play_ui_sound("ui_click")
 	show_pause_menu()
 
 
 func _on_pause_continue_pressed() -> void:
+	_play_ui_sound("ui_click")
 	if _on_pause_continue.is_valid():
 		_on_pause_continue.call()
 	else:
@@ -2730,31 +2858,37 @@ func _on_pause_continue_pressed() -> void:
 
 
 func _on_pause_save_pressed() -> void:
+	_play_ui_sound("ui_click")
 	if _on_pause_save.is_valid():
 		_on_pause_save.call()
 
 
 func _on_pause_settings_pressed() -> void:
+	_play_ui_sound("ui_click")
 	if _on_pause_settings.is_valid():
 		_on_pause_settings.call()
 
 
 func _on_pause_back_to_rooms_pressed() -> void:
+	_play_ui_sound("ui_click")
 	if _on_pause_back_to_rooms.is_valid():
 		_on_pause_back_to_rooms.call()
 
 
 func _on_pause_exit_to_main_pressed() -> void:
+	_play_ui_sound("ui_click")
 	show_exit_to_main_confirmation()
 
 
 func _on_pause_exit_confirm_pressed() -> void:
+	_play_ui_sound("ui_click")
 	hide_exit_to_main_confirmation()
 	if _on_pause_exit_confirm.is_valid():
 		_on_pause_exit_confirm.call()
 
 
 func _on_pause_exit_cancel_pressed() -> void:
+	_play_ui_sound("ui_click")
 	hide_exit_to_main_confirmation()
 
 
@@ -2868,6 +3002,7 @@ func _build_about_panel() -> void:
 func show_about_panel() -> void:
 	for child: Node in ui_layer.get_children():
 		if child.has_meta("_is_about_overlay"):
+			_play_ui_sound("panel_open")
 			child.visible = true
 			child.move_to_front()
 			return
@@ -2876,6 +3011,8 @@ func show_about_panel() -> void:
 func hide_about_panel() -> void:
 	for child: Node in ui_layer.get_children():
 		if child.has_meta("_is_about_overlay"):
+			if child.visible:
+				_play_ui_sound("panel_close")
 			child.visible = false
 	if _on_about_closed_cb.is_valid():
 		_on_about_closed_cb.call()

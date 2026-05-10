@@ -30,6 +30,7 @@ const ShopManagerScript: GDScript = preload("res://scripts/shop/ShopManager.gd")
 const FurnitureStockManagerScript: GDScript = preload("res://scripts/inventory/FurnitureStockManager.gd")
 const AutosaveManagerScript: GDScript = preload("res://scripts/save/AutosaveManager.gd")
 const SettingsManagerScript: GDScript = preload("res://scripts/settings/SettingsManager.gd")
+const AudioManagerScript: GDScript = preload("res://scripts/audio/AudioManager.gd")
 
 const IsoGrid = IsoGridScript
 const PathfindingManager = PathfindingManagerScript
@@ -82,6 +83,7 @@ var shop_manager
 var furniture_stock_manager
 var autosave_manager
 var settings_manager
+var audio_manager: Node
 var npc_root: Node2D
 var _is_first_session: bool = false
 
@@ -121,6 +123,10 @@ func _ready():
 	furniture_stock_manager.load_state()
 	settings_manager = SettingsManagerScript.new()
 	settings_manager.load_state()
+	audio_manager = AudioManagerScript.new()
+	add_child(audio_manager)
+	if audio_manager.has_method("setup"):
+		audio_manager.setup(settings_manager)
 	autosave_manager = AutosaveManagerScript.new(settings_manager.get_autosave_interval())
 	autosave_manager.set_enabled(settings_manager.get_autosave_enabled())
 	chat_manager = ChatManagerScript.new()
@@ -156,6 +162,8 @@ func _ready():
 	game_ui.set_settings_autosave_enabled_callback(Callable(self, "_on_settings_autosave_enabled_changed"))
 	game_ui.set_settings_autosave_interval_callback(Callable(self, "_on_settings_autosave_interval_changed"))
 	game_ui.set_settings_show_missions_callback(Callable(self, "_on_settings_show_missions_changed"))
+	game_ui.set_settings_sfx_enabled_callback(Callable(self, "_on_settings_sfx_enabled_changed"))
+	game_ui.set_settings_sfx_volume_callback(Callable(self, "_on_settings_sfx_volume_changed"))
 	game_ui.set_settings_tutorial_restart_callback(Callable(self, "_on_restart_tutorial_requested"))
 	game_ui.set_settings_reset_data_callback(Callable(self, "_on_reset_local_data_requested"))
 	game_ui.set_settings_closed_callback(Callable(self, "_on_settings_panel_closed"))
@@ -166,6 +174,7 @@ func _ready():
 	game_ui.set_pause_back_to_rooms_callback(Callable(self, "_on_pause_back_to_rooms_requested"))
 	game_ui.set_pause_exit_confirm_callback(Callable(self, "_on_pause_exit_to_main_confirmed"))
 	game_ui.set_about_closed_callback(Callable(self, "_on_about_closed"))
+	game_ui.set_ui_sound_callback(Callable(self, "_play_sound"))
 	camera_controller = CameraControllerScript.new(self, iso_grid)
 
 	furniture_manager = FurnitureManagerScript.new(
@@ -335,8 +344,10 @@ func on_save_profile(profile_data: Dictionary) -> void:
 		game_ui.update_profile_ui(player_profile_manager.get_profile_data())
 		_mark_dirty()
 		_show_toast("Perfil guardado", "success")
+		_play_sound("ui_click")
 	else:
 		_show_toast("Nombre inválido", "error")
+		_play_sound("error")
 
 func handle_key_press(keycode):
 	match keycode:
@@ -394,10 +405,13 @@ func handle_key_press(keycode):
 				if load_status == &"ok":
 					_clear_dirty()
 					_show_toast("Sala cargada", "success")
+					_play_sound("ui_click")
 				elif load_status == &"missing":
 					_show_toast("No hay sala guardada", "warning")
+					_play_sound("error")
 				else:
 					_show_toast("No se pudo cargar", "error")
+					_play_sound("error")
 		KEY_1:
 			if current_state == GameState.IN_ROOM and is_decoration_mode():
 				inventory_manager.select_type("chair")
@@ -441,10 +455,12 @@ func handle_key_press(keycode):
 						_mark_dirty()
 						game_ui.set_status_message("Mueble rotado")
 						_show_toast("Mueble rotado", "success")
+						_play_sound("rotate")
 					else:
 						game_ui.set_furniture_inspector_message("No se puede rotar aquí")
 						game_ui.set_status_message("No se puede rotar aquí")
 						_show_toast("No se puede rotar aquí", "error")
+						_play_sound("error")
 		KEY_DELETE:
 			if current_state == GameState.IN_ROOM and is_decoration_mode():
 				if furniture_manager.has_selected_placed_furniture():
@@ -459,6 +475,7 @@ func handle_key_press(keycode):
 						game_ui.hide_furniture_inspector()
 						game_ui.set_status_message("Mueble eliminado")
 						_show_toast("Mueble eliminado", "success")
+						_play_sound("delete")
 		KEY_F1:
 			if current_state == GameState.IN_ROOM:
 				switch_room("lobby")
@@ -529,6 +546,30 @@ func _on_settings_show_missions_changed(value: bool) -> void:
 		game_ui.update_settings_panel(settings_manager.get_settings_data())
 
 
+func _on_settings_sfx_enabled_changed(value: bool) -> void:
+	if settings_manager == null:
+		return
+	settings_manager.set_sfx_enabled(value)
+	settings_manager.save_state()
+	if audio_manager != null and audio_manager.has_method("set_enabled"):
+		audio_manager.set_enabled(value)
+	_show_toast("Sonidos " + ("activados" if value else "desactivados"), "info")
+	if game_ui != null and game_ui.has_method("update_settings_panel"):
+		game_ui.update_settings_panel(settings_manager.get_settings_data())
+
+
+func _on_settings_sfx_volume_changed(value: float) -> void:
+	if settings_manager == null:
+		return
+	settings_manager.set_sfx_volume(value)
+	settings_manager.save_state()
+	if audio_manager != null and audio_manager.has_method("set_volume"):
+		audio_manager.set_volume(settings_manager.get_sfx_volume())
+	_show_toast("Volumen SFX: " + str(int(settings_manager.get_sfx_volume() * 100.0)) + "%", "info")
+	if game_ui != null and game_ui.has_method("update_settings_panel"):
+		game_ui.update_settings_panel(settings_manager.get_settings_data())
+
+
 func _on_restart_tutorial_requested() -> void:
 	tutorial_completed = false
 	if tutorial_state_service != null:
@@ -593,8 +634,10 @@ func _on_pause_save_requested() -> void:
 		_clear_dirty()
 		autosave_manager.reset_timer()
 		_show_toast("Partida guardada", "success")
+		_play_sound("ui_click")
 	else:
 		_show_toast("No se pudo guardar", "error")
+		_play_sound("error")
 	_close_pause_menu()
 
 
@@ -701,9 +744,11 @@ func _handle_decoration_left_click(cell: Vector2i) -> void:
 			_mark_dirty()
 			game_ui.set_status_message("Mueble movido")
 			_show_toast("Mueble movido", "success")
+			_play_sound("move")
 		else:
 			update_placement_preview()
 			_show_toast("No se puede mover aquí", "error")
+			_play_sound("error")
 			game_ui.set_status_message("No se puede mover ahí")
 	elif inventory_manager.has_selected_furniture():
 		var new_furniture: RefCounted = inventory_manager.create_selected_furniture_at(cell)
@@ -717,11 +762,13 @@ func _handle_decoration_left_click(cell: Vector2i) -> void:
 				_mark_dirty()
 				game_ui.set_status_message("Mueble colocado")
 				_show_toast(_get_furniture_placed_message(placed_type), "success")
+				_play_sound("place")
 				_complete_mission("place_first_furniture")
 				update_placement_preview()
 			else:
 				update_placement_preview()
 				_show_toast("No se puede colocar aquí", "error")
+				_play_sound("error")
 				game_ui.set_status_message("No se puede colocar ahí")
 	else:
 		var items_at_cell: Array = furniture_manager.get_furniture_items_at_cell(cell)
@@ -766,6 +813,11 @@ func _get_furniture_placed_message(furniture_type: String) -> String:
 func _show_toast(message: String, kind: String = "info") -> void:
 	if game_ui != null and game_ui.has_method("show_toast"):
 		game_ui.show_toast(message, kind)
+
+
+func _play_sound(sound_id: String) -> void:
+	if audio_manager != null and audio_manager.has_method("play"):
+		audio_manager.play(sound_id)
 
 
 func _update_missions_ui() -> void:
@@ -839,11 +891,13 @@ func _on_shop_item_buy_requested(item_id: String) -> void:
 				_show_toast("Créditos insuficientes", "warning")
 			_:
 				_show_toast("No se pudo comprar", "error")
+		_play_sound("error")
 		_refresh_inventory_ui()
 		return
 	var price: int = int(result.get("price", 0))
 	if not currency_manager.spend_credits(price):
 		_show_toast("Créditos insuficientes", "warning")
+		_play_sound("error")
 		return
 	shop_manager.mark_owned(item_id)
 	if furniture_stock_manager != null:
@@ -856,6 +910,7 @@ func _on_shop_item_buy_requested(item_id: String) -> void:
 	_refresh_inventory_ui()
 	var display_name: String = str(result.get("display_name", item_id))
 	_show_toast("Compraste: " + display_name + " · +1 unidad", "success")
+	_play_sound("credits")
 
 
 func _is_shop_visible() -> bool:
@@ -885,6 +940,7 @@ func _complete_mission(mission_id: String) -> void:
 	if reward > 0:
 		message += " · +" + str(reward) + " créditos"
 	_show_toast(message, "success")
+	_play_sound("mission_complete")
 
 
 func _maybe_show_tutorial() -> void:
@@ -925,6 +981,7 @@ func on_catalog_selected(furniture_type: String) -> void:
 		return
 	if furniture_stock_manager != null and not furniture_stock_manager.can_consume(furniture_type):
 		_show_toast("No tienes unidades disponibles", "warning")
+		_play_sound("error")
 		return
 	inventory_manager.select_type(furniture_type)
 	game_ui.set_catalog_selected_furniture(furniture_type)
@@ -953,10 +1010,12 @@ func _on_inspector_rotate() -> void:
 			_mark_dirty()
 			game_ui.set_status_message("Mueble rotado")
 			_show_toast("Mueble rotado", "success")
+			_play_sound("rotate")
 		else:
 			game_ui.set_furniture_inspector_message("No se puede rotar aquí")
 			game_ui.set_status_message("No se puede rotar aquí")
 			_show_toast("No se puede rotar aquí", "error")
+			_play_sound("error")
 
 
 func _on_inspector_delete() -> void:
@@ -972,6 +1031,7 @@ func _on_inspector_delete() -> void:
 			game_ui.hide_furniture_inspector()
 			game_ui.set_status_message("Mueble eliminado")
 			_show_toast("Mueble eliminado", "success")
+			_play_sound("delete")
 
 
 func _on_inspector_close() -> void:
@@ -1001,6 +1061,7 @@ func on_chat_submitted(message: String) -> void:
 	var result: Dictionary = chat_manager.submit_message(trimmed)
 	if not result.get("sent", false):
 		return
+	_play_sound("chat_send")
 	_complete_mission("send_first_chat")
 	game_ui.update_chat_history(chat_manager.get_history())
 	game_ui.show_chat_bubble(result.get("message", ""), player_node.global_position)
@@ -1168,9 +1229,11 @@ func save_current_room_state() -> void:
 		_clear_dirty()
 		autosave_manager.reset_timer()
 		_show_toast("Sala guardada", "success")
+		_play_sound("ui_click")
 		_complete_mission("save_room")
 	else:
 		_show_toast("No se pudo guardar", "error")
+		_play_sound("error")
 
 func switch_room(room_id):
 	_clear_editing_state()

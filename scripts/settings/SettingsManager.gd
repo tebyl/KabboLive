@@ -4,16 +4,22 @@ const SAVE_PATH: String = "user://settings_state.json"
 const DEFAULT_AUTOSAVE_ENABLED: bool = true
 const DEFAULT_AUTOSAVE_INTERVAL: float = 60.0
 const DEFAULT_SHOW_MISSIONS: bool = true
+const DEFAULT_SFX_ENABLED: bool = true
+const DEFAULT_SFX_VOLUME: float = 0.7
 
 var autosave_enabled: bool = DEFAULT_AUTOSAVE_ENABLED
 var autosave_interval: float = DEFAULT_AUTOSAVE_INTERVAL
 var show_missions: bool = DEFAULT_SHOW_MISSIONS
+var sfx_enabled: bool = DEFAULT_SFX_ENABLED
+var sfx_volume: float = DEFAULT_SFX_VOLUME
 
 
 func _reset_defaults() -> void:
 	autosave_enabled = DEFAULT_AUTOSAVE_ENABLED
 	autosave_interval = DEFAULT_AUTOSAVE_INTERVAL
 	show_missions = DEFAULT_SHOW_MISSIONS
+	sfx_enabled = DEFAULT_SFX_ENABLED
+	sfx_volume = DEFAULT_SFX_VOLUME
 
 
 func load_state() -> void:
@@ -31,6 +37,8 @@ func load_state() -> void:
 	autosave_enabled = bool(data.get("autosave_enabled", DEFAULT_AUTOSAVE_ENABLED))
 	autosave_interval = _sanitize_interval(float(data.get("autosave_interval", DEFAULT_AUTOSAVE_INTERVAL)))
 	show_missions = bool(data.get("show_missions", DEFAULT_SHOW_MISSIONS))
+	sfx_enabled = bool(data.get("sfx_enabled", DEFAULT_SFX_ENABLED))
+	sfx_volume = _sanitize_sfx_volume(float(data.get("sfx_volume", DEFAULT_SFX_VOLUME)))
 
 
 func save_state() -> void:
@@ -47,6 +55,22 @@ func _sanitize_interval(value: float) -> float:
 	if is_equal_approx(value, 120.0):
 		return 120.0
 	return 60.0
+
+
+func _sanitize_sfx_volume(value: float) -> float:
+	if is_nan(value) or is_inf(value):
+		return DEFAULT_SFX_VOLUME
+	if is_equal_approx(value, 0.25):
+		return 0.25
+	if is_equal_approx(value, 0.5):
+		return 0.5
+	if is_equal_approx(value, 0.75):
+		return 0.75
+	if is_equal_approx(value, 1.0):
+		return 1.0
+	if value >= 0.0 and value <= 1.0:
+		return value
+	return DEFAULT_SFX_VOLUME
 
 
 func get_autosave_enabled() -> bool:
@@ -73,9 +97,27 @@ func set_show_missions(value: bool) -> void:
 	show_missions = value
 
 
+func get_sfx_enabled() -> bool:
+	return sfx_enabled
+
+
+func set_sfx_enabled(value: bool) -> void:
+	sfx_enabled = value
+
+
+func get_sfx_volume() -> float:
+	return sfx_volume
+
+
+func set_sfx_volume(value: float) -> void:
+	sfx_volume = _sanitize_sfx_volume(value)
+
+
 func get_settings_data() -> Dictionary:
 	return {
 		"autosave_enabled": autosave_enabled,
 		"autosave_interval": autosave_interval,
 		"show_missions": show_missions,
+		"sfx_enabled": sfx_enabled,
+		"sfx_volume": sfx_volume,
 	}

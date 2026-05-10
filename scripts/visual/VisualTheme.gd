@@ -50,13 +50,69 @@ const PLANT_LEAF_LT  := Color(0.34, 0.78, 0.40)
 const PLANT_LEAF_HI  := Color(0.50, 0.90, 0.50)
 
 # ──── Rug ────
-const RUG_BODY       := Color(0.68, 0.20, 0.18)
-const RUG_FILL       := Color(0.74, 0.24, 0.20)
-const RUG_BORDER     := Color(0.96, 0.80, 0.38)
-const RUG_BORDER_DIM := Color(0.96, 0.80, 0.38, 0.65)
-const RUG_CENTER     := Color(0.98, 0.88, 0.52)
-const RUG_CENTER_HI  := Color(1.00, 0.96, 0.70)
-const RUG_CROSS      := Color(0.96, 0.80, 0.38, 0.45)
+const RUG_BODY       := Color(0.48, 0.28, 0.26)
+const RUG_FILL       := Color(0.54, 0.32, 0.28)
+const RUG_BORDER     := Color(0.82, 0.68, 0.34)
+const RUG_BORDER_DIM := Color(0.82, 0.68, 0.34, 0.65)
+const RUG_CENTER     := Color(0.86, 0.76, 0.46)
+const RUG_CENTER_HI  := Color(0.92, 0.86, 0.62)
+const RUG_CROSS      := Color(0.82, 0.68, 0.34, 0.45)
+
+# ──── Bed ────
+const BED_FRAME      := Color(0.48, 0.32, 0.18)
+const BED_FRAME_DK   := Color(0.32, 0.20, 0.10)
+const BED_MATTRESS   := Color(0.86, 0.84, 0.80)
+const BED_PILLOW     := Color(0.96, 0.94, 0.90)
+const BED_BLANKET    := Color(0.36, 0.52, 0.72)
+const BED_BLANKET_HI := Color(0.54, 0.70, 0.90)
+const BED_BLANKET_DK := Color(0.26, 0.38, 0.56)
+
+# ──── Lamp ────
+const LAMP_BASE      := Color(0.28, 0.22, 0.14)
+const LAMP_POLE      := Color(0.40, 0.30, 0.18)
+const LAMP_SHADE     := Color(0.90, 0.80, 0.50)
+const LAMP_SHADE_HI  := Color(1.00, 0.94, 0.68)
+const LAMP_GLOW      := Color(1.00, 0.92, 0.60, 0.55)
+
+# ──── Bookshelf ────
+const SHELF_WOOD     := Color(0.46, 0.30, 0.16)
+const SHELF_WOOD_DK  := Color(0.28, 0.18, 0.08)
+const SHELF_BOOK_A   := Color(0.70, 0.22, 0.20)
+const SHELF_BOOK_B   := Color(0.24, 0.48, 0.76)
+const SHELF_BOOK_C   := Color(0.28, 0.58, 0.32)
+const SHELF_BOOK_D   := Color(0.78, 0.64, 0.18)
+
+# ──── Desk ────
+const DESK_SURFACE   := Color(0.70, 0.52, 0.28)
+const DESK_TOP       := Color(0.82, 0.66, 0.40)
+const DESK_EDGE      := Color(0.54, 0.38, 0.18)
+const DESK_LEG       := Color(0.38, 0.26, 0.12)
+
+# ──── Poster ────
+const POSTER_BOARD   := Color(0.86, 0.82, 0.74)
+const POSTER_FRAME   := Color(0.26, 0.18, 0.10)
+const POSTER_STRIPE_A := Color(0.36, 0.60, 0.88)
+const POSTER_STRIPE_B := Color(0.88, 0.52, 0.24)
+
+# ──── Big plant ────
+const BIGPLANT_POT   := Color(0.42, 0.30, 0.18)
+const BIGPLANT_POT_DK := Color(0.30, 0.20, 0.10)
+const BIGPLANT_POT_RIM := Color(0.54, 0.38, 0.22)
+
+# ──── Red rug ────
+const RED_RUG_BODY   := Color(0.52, 0.16, 0.14)
+const RED_RUG_FILL   := Color(0.60, 0.20, 0.16)
+const RED_RUG_BORDER := Color(0.88, 0.50, 0.22)
+const RED_RUG_BORDER_DIM := Color(0.88, 0.50, 0.22, 0.65)
+const RED_RUG_CENTER := Color(0.94, 0.78, 0.40)
+const RED_RUG_CENTER_HI := Color(1.00, 0.90, 0.58)
+const RED_RUG_CROSS  := Color(0.88, 0.50, 0.22, 0.45)
+
+# ──── Floor tile ────
+const TILE_BASE      := Color(0.72, 0.68, 0.62)
+const TILE_GROUT     := Color(0.52, 0.48, 0.44)
+const TILE_HI        := Color(0.86, 0.84, 0.78)
+const TILE_SHADOW    := Color(0.40, 0.36, 0.32, 0.50)
 
 # ──── Shadows / outlines ────
 const SHADOW_SOFT    := Color(0.04, 0.04, 0.06, 0.28)

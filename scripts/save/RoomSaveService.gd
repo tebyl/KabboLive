@@ -184,17 +184,8 @@ func create_furniture_from_save_data(item_data: Dictionary):
 	var f: RefCounted = FurnitureDataScript.new(cell, StringName(type_text), size)
 	if item_data.has("blocks_movement"):
 		f.blocks_movement = bool(item_data["blocks_movement"])
-	else:
-		f.blocks_movement = type_text != "rug" and type_text != "blue_rug"
 	if item_data.has("layer"):
 		f.layer = str(item_data["layer"])
-	else:
-		if type_text == "rug" or type_text == "blue_rug":
-			f.layer = "floor"
-		elif type_text == "plant" or type_text == "golden_plant":
-			f.layer = "decor"
-		else:
-			f.layer = "furniture"
 	return f
 
 

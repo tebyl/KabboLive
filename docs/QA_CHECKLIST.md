@@ -293,3 +293,38 @@ Checklist para validar el `.exe` exportado (`build/windows/KabboLike.exe`):
 - [ ] No usa rutas absolutas del editor (sin crasheo por rutas `res://` externas)
 - [ ] Menú pausa abre con Escape y todas sus opciones funcionan
 - [ ] Configuración abre con valores actuales (no vacíos/default)
+
+---
+
+## QA Muebles base MVP 37
+
+### Nuevos muebles base (gratuitos, infinitos)
+
+- [ ] Catálogo muestra 5 categorías: Asientos · Mesas · Dormitorio · Decoración · Pisos
+- [ ] Todos los nuevos items muestran `∞` (no `x0`)
+- [ ] Ningún mueble nuevo requiere compra
+
+| Tipo | Nombre | Cat | Capa | Bloquea | Tamaño |
+|---|---|---|---|---|---|
+| bed | Cama | Dormitorio | furniture | Sí | 2×2 |
+| lamp | Lámpara | Decoración | decor | Sí | 1×1 |
+| bookshelf | Estantería | Decoración | decor | Sí | 1×2 |
+| desk | Escritorio | Mesas | furniture | Sí | 2×1 |
+| poster | Póster | Decoración | decor | No | 1×1 |
+| big_plant | Maceta grande | Decoración | decor | Sí | 1×1 |
+| red_rug | Alfombra Roja | Pisos | floor | No | 2×2 |
+| floor_tile | Piso decorativo | Pisos | floor | No | 1×1 |
+
+### Funcionalidad
+
+- [ ] Cada nuevo mueble tiene visual propio (no caja gris genérica)
+- [ ] Preview verde/rojo funciona para todos los tamaños (2×2, 1×2, 2×1, 1×1)
+- [ ] Inspector muestra nombre correcto en español para cada tipo
+- [ ] Inspector muestra capa y "Bloquea paso: Sí/No" correctamente
+- [ ] Selector de superpuestos funciona con floor_tile + silla, red_rug + cama, etc.
+- [ ] Guardar y cargar restaura todos los tipos nuevos sin crash
+- [ ] Poster (decor, no bloqueante) puede coexistir con floor tiles debajo
+- [ ] red_rug y floor_tile no bloquean al jugador ni al NPC
+- [ ] bed, lamp, bookshelf, desk, big_plant sí bloquean paso
+- [ ] Lobby inicial decorado incluye: bookshelf, lamp, big_plant, desk
+- [ ] Catálogo tiene scroll cuando la lista de items es larga

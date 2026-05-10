@@ -491,9 +491,8 @@ func _build_controls_panel() :
 	top_row.add_child(shop_button)
 
 	help_button = Button.new()
-	help_button.text = "?"
-	help_button.custom_minimum_size = Vector2(36.0, 0.0)
-	help_button.tooltip_text = "Ayuda / Tutorial (H)"
+	help_button.text = "Ayuda"
+	help_button.custom_minimum_size = Vector2(68.0, 0.0)
 	help_button.pressed.connect(_on_help_pressed)
 	top_row.add_child(help_button)
 
@@ -575,26 +574,23 @@ func _build_missions_panel() -> void:
 	missions_panel.anchor_bottom = 0.0
 	missions_panel.offset_left = 16.0
 	missions_panel.offset_top = 16.0
-	missions_panel.offset_right = 340.0
-	missions_panel.offset_bottom = 100.0
+	missions_panel.offset_right = 330.0
+	missions_panel.offset_bottom = 16.0
+	missions_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	missions_panel.visible = false
 	missions_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.88)))
 	ui_layer.add_child(missions_panel)
 
 	var margin: MarginContainer = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_top", 8)
 	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_bottom", 10)
+	margin.add_theme_constant_override("margin_bottom", 8)
 	missions_panel.add_child(margin)
 
-	var layout: VBoxContainer = VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 7)
-	margin.add_child(layout)
-
 	_missions_list_vbox = VBoxContainer.new()
-	_missions_list_vbox.add_theme_constant_override("separation", 4)
-	layout.add_child(_missions_list_vbox)
+	_missions_list_vbox.add_theme_constant_override("separation", 3)
+	margin.add_child(_missions_list_vbox)
 
 
 func show_missions_panel() -> void:
@@ -891,15 +887,22 @@ func _layer_display_name(layer: String) -> String:
 
 func _inspector_display_name(furniture_type: String) -> String:
 	match furniture_type:
-		"chair": return "Silla"
-		"table": return "Mesa"
-		"sofa":  return "Sofá"
-		"plant": return "Planta"
-		"rug":   return "Alfombra"
-	match furniture_type:
-		"blue_rug": return "Alfombra Azul"
-		"golden_plant": return "Planta Dorada"
-		"lounge_chair": return "SillÃ³n Lounge"
+		"chair":       return "Silla"
+		"table":       return "Mesa"
+		"sofa":        return "Sofá"
+		"plant":       return "Planta"
+		"rug":         return "Alfombra"
+		"blue_rug":    return "Alfombra Azul"
+		"golden_plant":return "Planta Dorada"
+		"lounge_chair":return "Sillón Lounge"
+		"bed":         return "Cama"
+		"lamp":        return "Lámpara"
+		"bookshelf":   return "Estantería"
+		"desk":        return "Escritorio"
+		"poster":      return "Póster"
+		"big_plant":   return "Maceta grande"
+		"red_rug":     return "Alfombra Roja"
+		"floor_tile":  return "Piso decorativo"
 	return furniture_type
 
 
@@ -936,10 +939,10 @@ func _build_furniture_catalog() -> void:
 	catalog_panel.anchor_top = 0.5
 	catalog_panel.anchor_right = 1.0
 	catalog_panel.anchor_bottom = 0.5
-	catalog_panel.offset_left = -182.0
-	catalog_panel.offset_top = -170.0
+	catalog_panel.offset_left = -186.0
+	catalog_panel.offset_top = -220.0
 	catalog_panel.offset_right = -16.0
-	catalog_panel.offset_bottom = 170.0
+	catalog_panel.offset_bottom = 220.0
 	catalog_panel.visible = false
 	catalog_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.90)))
 	ui_layer.add_child(catalog_panel)
@@ -971,9 +974,15 @@ func _build_furniture_catalog() -> void:
 	var sep2: HSeparator = HSeparator.new()
 	vbox.add_child(sep2)
 
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vbox.add_child(scroll)
+
 	_catalog_items_vbox = VBoxContainer.new()
 	_catalog_items_vbox.add_theme_constant_override("separation", 4)
-	vbox.add_child(_catalog_items_vbox)
+	_catalog_items_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_catalog_items_vbox)
 
 
 func build_furniture_catalog(catalog_data: Dictionary) -> void:

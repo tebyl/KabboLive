@@ -229,11 +229,23 @@ func _build_visual() -> void:
 	_npc_node.add_child(_make_rect_part(Vector2(3.0, 3.0), Color(VT.NPC_SHINE.r, VT.NPC_SHINE.g, VT.NPC_SHINE.b, 0.95), Vector2(-5.0, -57.0), 8))
 	_npc_node.add_child(_make_rect_part(Vector2(3.0, 3.0), Color(VT.NPC_SHINE.r, VT.NPC_SHINE.g, VT.NPC_SHINE.b, 0.95), Vector2(7.0, -57.0), 8))
 
+	var name_bg: ColorRect = ColorRect.new()
+	name_bg.color = Color(0.04, 0.08, 0.16, 0.72)
+	name_bg.size = Vector2(72.0, 20.0)
+	name_bg.position = Vector2(-36.0, -98.0)
+	name_bg.z_index = 9
+	_npc_node.add_child(name_bg)
+
 	var name_label: Label = Label.new()
 	name_label.text = NPC_NAME
-	name_label.position = Vector2(-32.0, -86.0)
+	name_label.position = Vector2(-36.0, -99.0)
+	name_label.custom_minimum_size = Vector2(72.0, 0.0)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.add_theme_color_override("font_color", VT.NPC_LABEL)
-	name_label.add_theme_font_size_override("font_size", 11)
+	name_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
+	name_label.add_theme_constant_override("shadow_offset_x", 1)
+	name_label.add_theme_constant_override("shadow_offset_y", 1)
+	name_label.add_theme_font_size_override("font_size", 13)
 	name_label.z_index = 10
 	_npc_node.add_child(name_label)
 

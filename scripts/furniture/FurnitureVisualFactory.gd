@@ -75,14 +75,22 @@ func draw_furniture(furniture) -> void:
 		draw_furniture_block_cell(cell, height, base_color, lz)
 
 	match furniture.type:
-		&"chair":  draw_chair_details(furniture, lz)
-		&"table":  draw_table_details(furniture, lz)
-		&"sofa":   draw_sofa_details(furniture, lz)
-		&"plant":  draw_plant_details(furniture, lz)
-		&"rug":    draw_rug_details(furniture, lz)
-		&"blue_rug": draw_blue_rug_details(furniture, lz)
-		&"golden_plant": draw_golden_plant_details(furniture, lz)
-		&"lounge_chair": draw_lounge_chair_details(furniture, lz)
+		&"chair":       draw_chair_details(furniture, lz)
+		&"table":       draw_table_details(furniture, lz)
+		&"sofa":        draw_sofa_details(furniture, lz)
+		&"plant":       draw_plant_details(furniture, lz)
+		&"rug":         draw_rug_details(furniture, lz)
+		&"blue_rug":    draw_blue_rug_details(furniture, lz)
+		&"golden_plant":draw_golden_plant_details(furniture, lz)
+		&"lounge_chair":draw_lounge_chair_details(furniture, lz)
+		&"bed":         draw_bed_details(furniture, lz)
+		&"lamp":        draw_lamp_details(furniture, lz)
+		&"bookshelf":   draw_bookshelf_details(furniture, lz)
+		&"desk":        draw_desk_details(furniture, lz)
+		&"poster":      draw_poster_details(furniture, lz)
+		&"big_plant":   draw_big_plant_details(furniture, lz)
+		&"red_rug":     draw_red_rug_details(furniture, lz)
+		&"floor_tile":  draw_floor_tile_details(furniture, lz)
 
 
 func _get_layer_z_offset(furniture) -> int:
@@ -377,30 +385,266 @@ func draw_lounge_chair_details(furniture, lz: int = 0) -> void:
 	add_rect_polygon(c + Vector2(21, -h - 8.0), Vector2(8, 22), Color(0.44, 0.24, 0.62), z + 4)
 
 
+func draw_bed_details(furniture, lz: int = 0) -> void:
+	var h: float = get_furniture_height(furniture.type)
+	# Use the 2×2 center for the overall visual anchor
+	var cx: int = furniture.cell.x
+	var cy: int = furniture.cell.y
+	var c00: Vector2 = iso_grid.grid_to_iso(Vector2i(cx, cy))
+	var c10: Vector2 = iso_grid.grid_to_iso(Vector2i(cx + 1, cy))
+	var c01: Vector2 = iso_grid.grid_to_iso(Vector2i(cx, cy + 1))
+	var c11: Vector2 = iso_grid.grid_to_iso(Vector2i(cx + 1, cy + 1))
+	var center: Vector2 = (c00 + c10 + c01 + c11) * 0.25
+	var z_base: int = iso_grid.get_draw_z_index(Vector2i(cx + 1, cy + 1)) + lz + 2
+	var yo: float = -h - 1.0
+	# Mattress surface
+	_add_wide_diamond(center, yo, 1.7, VT.BED_MATTRESS, z_base + 2)
+	# Blanket (covers lower 60%)
+	var blanket: Polygon2D = Polygon2D.new()
+	blanket.polygon = PackedVector2Array([
+		Vector2(0, -18), Vector2(54, 8), Vector2(54, 20), Vector2(0, 30), Vector2(-54, 20), Vector2(-54, 8)
+	])
+	blanket.position = center + Vector2(0, yo)
+	blanket.color = VT.BED_BLANKET
+	blanket.z_index = z_base + 3
+	blocks_node.add_child(blanket)
+	# Blanket crease highlight
+	add_rect_polygon(center + Vector2(0, yo + 12), Vector2(60, 2), Color(VT.BED_BLANKET_HI.r, VT.BED_BLANKET_HI.g, VT.BED_BLANKET_HI.b, 0.65), z_base + 4)
+	# Pillow
+	_add_wide_diamond(center + Vector2(0, -4), yo - 6.0, 0.55, VT.BED_PILLOW, z_base + 5)
+	# Headboard
+	add_rect_polygon(c00 + Vector2(0, yo - 18), Vector2(44, 22), VT.BED_FRAME, z_base + 4)
+	add_rect_polygon(c00 + Vector2(0, yo - 28), Vector2(46, 7), VT.BED_FRAME_DK, z_base + 4)
+	# Footboard (small rail)
+	add_rect_polygon(c11 + Vector2(0, yo + 4), Vector2(38, 8), VT.BED_FRAME_DK, z_base + 4)
+
+
+func draw_lamp_details(furniture, lz: int = 0) -> void:
+	var h: float = get_furniture_height(furniture.type)
+	var c: Vector2 = iso_grid.grid_to_iso(furniture.cell)
+	var z: int = iso_grid.get_draw_z_index(furniture.cell) + lz
+	# Base disc
+	_add_small_diamond(c, -h - 1.0, 0.36, VT.LAMP_BASE, z + 2)
+	# Pole
+	add_rect_polygon(c + Vector2(0, -h - 24), Vector2(4, 36), VT.LAMP_POLE, z + 3)
+	# Shade (wide top trapezoid)
+	var shade: Polygon2D = Polygon2D.new()
+	shade.polygon = PackedVector2Array([
+		Vector2(-18, 0), Vector2(18, 0), Vector2(12, 14), Vector2(-12, 14)
+	])
+	shade.position = c + Vector2(0, -h - 42)
+	shade.color = VT.LAMP_SHADE
+	shade.z_index = z + 4
+	blocks_node.add_child(shade)
+	# Shade highlight
+	add_rect_polygon(c + Vector2(0, -h - 40), Vector2(24, 3), VT.LAMP_SHADE_HI, z + 5)
+	# Glow circle on floor
+	_add_small_diamond(c, -h + 1.0, 0.50, VT.LAMP_GLOW, z + 1)
+
+
+func draw_bookshelf_details(furniture, lz: int = 0) -> void:
+	var h: float = get_furniture_height(furniture.type)
+	var cells: Array = furniture.get_occupied_cells()
+	for ci: int in range(cells.size()):
+		var cell: Vector2i = cells[ci]
+		if not iso_grid.is_valid_cell(cell):
+			continue
+		var c: Vector2 = iso_grid.grid_to_iso(cell)
+		var z: int = iso_grid.get_draw_z_index(cell) + lz
+		# Shelf body (wood back panel)
+		add_rect_polygon(c + Vector2(0, -h * 0.5 - 4), Vector2(34, h), VT.SHELF_WOOD, z + 2)
+		# Shelf dividers (horizontal planks)
+		var shelf_y_offsets: Array[float] = [-h * 0.25, -h * 0.60]
+		for sy: float in shelf_y_offsets:
+			add_rect_polygon(c + Vector2(0, sy), Vector2(36, 3), VT.SHELF_WOOD_DK, z + 3)
+		# Books on lower shelf
+		var book_colors: Array = [VT.SHELF_BOOK_A, VT.SHELF_BOOK_B, VT.SHELF_BOOK_C, VT.SHELF_BOOK_D]
+		var bx: float = -12.0
+		for bi: int in range(4):
+			add_rect_polygon(c + Vector2(bx, -h * 0.38), Vector2(5, 12), book_colors[bi], z + 4)
+			bx += 7.0
+		# Books on upper shelf (fewer)
+		var book_colors2: Array = [VT.SHELF_BOOK_C, VT.SHELF_BOOK_A, VT.SHELF_BOOK_D]
+		var bx2: float = -8.0
+		for bi2: int in range(3):
+			add_rect_polygon(c + Vector2(bx2, -h * 0.74), Vector2(5, 10), book_colors2[bi2], z + 4)
+			bx2 += 7.0
+
+
+func draw_desk_details(furniture, lz: int = 0) -> void:
+	var h: float = get_furniture_height(furniture.type)
+	var cells: Array = furniture.get_occupied_cells()
+	for cell in cells:
+		if not iso_grid.is_valid_cell(cell):
+			continue
+		var c: Vector2 = iso_grid.grid_to_iso(cell)
+		var z: int = iso_grid.get_draw_z_index(cell) + lz
+		# Desktop surface
+		_add_small_diamond(c, -h - 1.0, 0.86, VT.DESK_TOP, z + 3)
+		# Surface edge trim
+		add_rect_polygon(c + Vector2(0, -h * 0.5 + 3), Vector2(32, 4), VT.DESK_EDGE, z + 2)
+		# Legs
+		add_rect_polygon(c + Vector2(-14, -h * 0.5 + 6), Vector2(4, h - 2), VT.DESK_LEG, z + 1)
+		add_rect_polygon(c + Vector2(14, -h * 0.5 + 6), Vector2(4, h - 2), VT.DESK_LEG, z + 1)
+	# Small object on desk surface (book/monitor stub) — drawn at first cell
+	if cells.size() > 0:
+		var c0: Vector2 = iso_grid.grid_to_iso(cells[0])
+		var z0: int = iso_grid.get_draw_z_index(cells[0]) + lz
+		add_rect_polygon(c0 + Vector2(4, -h - 8), Vector2(10, 10), VT.SHELF_BOOK_B, z0 + 5)
+		add_rect_polygon(c0 + Vector2(4, -h - 13), Vector2(10, 3), Color(0.90, 0.90, 0.90), z0 + 6)
+
+
+func draw_poster_details(furniture, lz: int = 0) -> void:
+	var h: float = get_furniture_height(furniture.type)
+	var c: Vector2 = iso_grid.grid_to_iso(furniture.cell)
+	var z: int = iso_grid.get_draw_z_index(furniture.cell) + lz
+	# Board frame
+	add_rect_polygon(c + Vector2(0, -h - 16), Vector2(28, 30), VT.POSTER_FRAME, z + 2)
+	# White board face
+	add_rect_polygon(c + Vector2(0, -h - 16), Vector2(24, 26), VT.POSTER_BOARD, z + 3)
+	# Art stripes
+	add_rect_polygon(c + Vector2(0, -h - 20), Vector2(20, 8), VT.POSTER_STRIPE_A, z + 4)
+	add_rect_polygon(c + Vector2(0, -h - 10), Vector2(20, 6), VT.POSTER_STRIPE_B, z + 4)
+	# Stand legs (two thin rects)
+	add_rect_polygon(c + Vector2(-6, -h - 1), Vector2(3, 8), VT.POSTER_FRAME, z + 2)
+	add_rect_polygon(c + Vector2(6, -h - 1), Vector2(3, 8), VT.POSTER_FRAME, z + 2)
+
+
+func draw_big_plant_details(furniture, lz: int = 0) -> void:
+	var c: Vector2 = iso_grid.grid_to_iso(furniture.cell)
+	var z: int = iso_grid.get_draw_z_index(furniture.cell) + lz
+	# Large pot body
+	add_rect_polygon(c + Vector2(0, -22), Vector2(28, 18), VT.BIGPLANT_POT, z + 4)
+	add_rect_polygon(c + Vector2(0, -30), Vector2(32, 8), VT.BIGPLANT_POT_DK, z + 4)
+	# Pot rim
+	add_rect_polygon(c + Vector2(0, -14), Vector2(36, 8), VT.BIGPLANT_POT_RIM, z + 5)
+	# Soil
+	_add_small_diamond(c, -32.0, 0.36, VT.PLANT_SOIL, z + 6)
+	# Trunk/stem (thicker)
+	add_rect_polygon(c + Vector2(0, -44), Vector2(6, 16), VT.PLANT_STEM, z + 5)
+	# Large leaf clusters
+	_add_small_diamond(c + Vector2(-18, 0), -60.0, 0.56, VT.PLANT_LEAF_DK, z + 5)
+	_add_small_diamond(c + Vector2(18, 0), -62.0, 0.50, VT.PLANT_LEAF_DK, z + 5)
+	_add_small_diamond(c + Vector2(-10, 0), -54.0, 0.46, VT.PLANT_LEAF, z + 6)
+	_add_small_diamond(c + Vector2(10, 0), -56.0, 0.42, VT.PLANT_LEAF, z + 6)
+	_add_small_diamond(c, -70.0, 0.44, VT.PLANT_LEAF_LT, z + 7)
+	_add_small_diamond(c + Vector2(-4, 0), -76.0, 0.20, Color(VT.PLANT_LEAF_HI.r, VT.PLANT_LEAF_HI.g, VT.PLANT_LEAF_HI.b, 0.72), z + 8)
+
+
+func draw_red_rug_details(furniture, lz: int = 0) -> void:
+	var h: float = get_furniture_height(furniture.type)
+	var cx: int = furniture.cell.x
+	var cy: int = furniture.cell.y
+	var c00: Vector2 = iso_grid.grid_to_iso(Vector2i(cx, cy))
+	var c10: Vector2 = iso_grid.grid_to_iso(Vector2i(cx + 1, cy))
+	var c01: Vector2 = iso_grid.grid_to_iso(Vector2i(cx, cy + 1))
+	var c11: Vector2 = iso_grid.grid_to_iso(Vector2i(cx + 1, cy + 1))
+	var center: Vector2 = (c00 + c10 + c01 + c11) * 0.25
+	var z: int = iso_grid.get_draw_z_index(Vector2i(cx + 1, cy + 1)) + lz + 3
+	var yo: float = -h - 1.0
+	var fill: Polygon2D = Polygon2D.new()
+	fill.polygon = PackedVector2Array([
+		Vector2(0, -26), Vector2(54, 0), Vector2(0, 26), Vector2(-54, 0)
+	])
+	fill.position = center + Vector2(0, yo)
+	fill.color = Color(VT.RED_RUG_FILL.r, VT.RED_RUG_FILL.g, VT.RED_RUG_FILL.b, 0.52)
+	fill.z_index = z
+	blocks_node.add_child(fill)
+	var outer: Line2D = Line2D.new()
+	outer.points = PackedVector2Array([Vector2(0, -30), Vector2(62, 0), Vector2(0, 30), Vector2(-62, 0), Vector2(0, -30)])
+	outer.position = center + Vector2(0, yo)
+	outer.width = 2.5
+	outer.default_color = VT.RED_RUG_BORDER
+	outer.z_index = z + 1
+	blocks_node.add_child(outer)
+	var inner: Line2D = Line2D.new()
+	inner.points = PackedVector2Array([Vector2(0, -20), Vector2(42, 0), Vector2(0, 20), Vector2(-42, 0), Vector2(0, -20)])
+	inner.position = center + Vector2(0, yo)
+	inner.width = 1.5
+	inner.default_color = VT.RED_RUG_BORDER_DIM
+	inner.z_index = z + 1
+	blocks_node.add_child(inner)
+	_add_small_diamond(center, yo - 1.0, 0.18, VT.RED_RUG_CENTER, z + 2)
+	_add_small_diamond(center, yo - 0.5, 0.08, VT.RED_RUG_CENTER_HI, z + 3)
+
+
+func draw_floor_tile_details(furniture, lz: int = 0) -> void:
+	var h: float = get_furniture_height(furniture.type)
+	var c: Vector2 = iso_grid.grid_to_iso(furniture.cell)
+	var z: int = iso_grid.get_draw_z_index(furniture.cell) + lz - 4
+	var tw: float = float(iso_grid.tile_width)
+	var th: float = float(iso_grid.tile_height)
+	# Tile base (slightly smaller than full diamond)
+	_add_small_diamond(c, -h, 0.88, VT.TILE_BASE, z + 1)
+	# Grout border line
+	var border: Line2D = Line2D.new()
+	var hw: float = tw * 0.44
+	var hh: float = th * 0.44
+	border.points = PackedVector2Array([
+		Vector2(0, -hh), Vector2(hw, 0), Vector2(0, hh), Vector2(-hw, 0), Vector2(0, -hh)
+	])
+	border.position = c + Vector2(0, -h)
+	border.width = 1.8
+	border.default_color = VT.TILE_GROUT
+	border.z_index = z + 2
+	blocks_node.add_child(border)
+	# Center highlight
+	_add_small_diamond(c + Vector2(-3, 0), -h - 1.5, 0.28, VT.TILE_HI, z + 2)
+
+
+func _add_wide_diamond(center: Vector2, y_offset: float, x_scale: float, color: Color, z: int) -> void:
+	var hw: float = float(iso_grid.tile_width) * 0.5 * x_scale
+	var hh: float = float(iso_grid.tile_height) * 0.5 * x_scale * 0.5
+	var poly: Polygon2D = Polygon2D.new()
+	poly.polygon = PackedVector2Array([
+		Vector2(0, -hh), Vector2(hw, 0), Vector2(0, hh), Vector2(-hw, 0)
+	])
+	poly.position = center + Vector2(0, y_offset)
+	poly.color = color
+	poly.z_index = z
+	blocks_node.add_child(poly)
+
+
 func get_furniture_color(furniture_type) -> Color:
 	match furniture_type:
-		&"chair": return VT.CHAIR_BODY
-		&"table": return VT.TABLE_BODY
-		&"sofa":  return VT.SOFA_BODY
-		&"plant": return VT.PLANT_LEAF_DK
-		&"rug":   return VT.RUG_BODY
-		&"blue_rug": return Color(0.12, 0.34, 0.78)
-		&"golden_plant": return Color(0.90, 0.66, 0.18)
-		&"lounge_chair": return Color(0.42, 0.24, 0.62)
-		_:        return Color(0.60, 0.60, 0.60)
+		&"chair":       return VT.CHAIR_BODY
+		&"table":       return VT.TABLE_BODY
+		&"sofa":        return VT.SOFA_BODY
+		&"plant":       return VT.PLANT_LEAF_DK
+		&"rug":         return VT.RUG_BODY
+		&"blue_rug":    return Color(0.12, 0.34, 0.78)
+		&"golden_plant":return Color(0.90, 0.66, 0.18)
+		&"lounge_chair":return Color(0.42, 0.24, 0.62)
+		&"bed":         return VT.BED_FRAME
+		&"lamp":        return VT.LAMP_BASE
+		&"bookshelf":   return VT.SHELF_WOOD
+		&"desk":        return VT.DESK_SURFACE
+		&"poster":      return VT.POSTER_BOARD
+		&"big_plant":   return VT.BIGPLANT_POT
+		&"red_rug":     return VT.RED_RUG_BODY
+		&"floor_tile":  return VT.TILE_BASE
+		_:              return Color(0.60, 0.60, 0.60)
 
 
 func get_furniture_height(furniture_type) -> float:
 	match furniture_type:
-		&"chair": return 16.0
-		&"table": return 14.0
-		&"sofa":  return 18.0
-		&"plant": return 24.0
-		&"rug":   return 4.0
-		&"blue_rug": return 4.0
-		&"golden_plant": return 24.0
-		&"lounge_chair": return 17.0
-		_:        return 14.0
+		&"chair":       return 16.0
+		&"table":       return 14.0
+		&"sofa":        return 18.0
+		&"plant":       return 24.0
+		&"rug":         return 4.0
+		&"blue_rug":    return 4.0
+		&"golden_plant":return 24.0
+		&"lounge_chair":return 17.0
+		&"bed":         return 12.0
+		&"lamp":        return 6.0
+		&"bookshelf":   return 28.0
+		&"desk":        return 14.0
+		&"poster":      return 2.0
+		&"big_plant":   return 20.0
+		&"red_rug":     return 4.0
+		&"floor_tile":  return 2.0
+		_:              return 14.0
 
 
 func _add_small_diamond(center: Vector2, y_offset: float, scale: float, color: Color, z: int) -> void:

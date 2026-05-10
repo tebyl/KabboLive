@@ -3,14 +3,27 @@ extends RefCounted
 const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
 
 const FURNITURE_CATALOG: Dictionary = {
-	"chair": {"display_name": "Silla", "category": "Asientos", "size": Vector2i(1, 1), "shortcut": KEY_1, "blocks_movement": true, "layer": "furniture", "is_shop_item": false},
-	"table": {"display_name": "Mesa", "category": "Mesas", "size": Vector2i(2, 1), "shortcut": KEY_2, "blocks_movement": true, "layer": "furniture", "is_shop_item": false},
-	"sofa": {"display_name": "Sofá", "category": "Asientos", "size": Vector2i(2, 1), "shortcut": KEY_3, "blocks_movement": true, "layer": "furniture", "is_shop_item": false},
-	"plant": {"display_name": "Planta", "category": "Decoración", "size": Vector2i(1, 1), "shortcut": 0, "blocks_movement": true, "layer": "decor", "is_shop_item": false},
-	"rug": {"display_name": "Alfombra", "category": "Decoración", "size": Vector2i(2, 2), "shortcut": 0, "blocks_movement": false, "layer": "floor", "is_shop_item": false},
-	"blue_rug": {"display_name": "Alfombra Azul", "category": "Decoración", "size": Vector2i(2, 2), "shortcut": 0, "blocks_movement": false, "layer": "floor", "is_shop_item": true, "price": 15},
-	"golden_plant": {"display_name": "Planta Dorada", "category": "Decoración", "size": Vector2i(1, 1), "shortcut": 0, "blocks_movement": true, "layer": "decor", "is_shop_item": true, "price": 20},
-	"lounge_chair": {"display_name": "Sillón Lounge", "category": "Asientos", "size": Vector2i(1, 1), "shortcut": 0, "blocks_movement": true, "layer": "furniture", "is_shop_item": true, "price": 25},
+	# ── Asientos ──
+	"chair":       {"display_name": "Silla",          "category": "Asientos",    "size": Vector2i(1, 1), "shortcut": KEY_1, "blocks_movement": true,  "layer": "furniture", "is_shop_item": false},
+	"sofa":        {"display_name": "Sofá",            "category": "Asientos",    "size": Vector2i(2, 1), "shortcut": KEY_3, "blocks_movement": true,  "layer": "furniture", "is_shop_item": false},
+	"lounge_chair":{"display_name": "Sillón Lounge",  "category": "Asientos",    "size": Vector2i(1, 1), "shortcut": 0,     "blocks_movement": true,  "layer": "furniture", "is_shop_item": true, "price": 25},
+	# ── Mesas ──
+	"table":       {"display_name": "Mesa",            "category": "Mesas",       "size": Vector2i(2, 1), "shortcut": KEY_2, "blocks_movement": true,  "layer": "furniture", "is_shop_item": false},
+	"desk":        {"display_name": "Escritorio",      "category": "Mesas",       "size": Vector2i(2, 1), "shortcut": 0,     "blocks_movement": true,  "layer": "furniture", "is_shop_item": false},
+	# ── Dormitorio ──
+	"bed":         {"display_name": "Cama",            "category": "Dormitorio",  "size": Vector2i(2, 2), "shortcut": 0,     "blocks_movement": true,  "layer": "furniture", "is_shop_item": false},
+	# ── Decoración ──
+	"plant":       {"display_name": "Planta",          "category": "Decoración",  "size": Vector2i(1, 1), "shortcut": 0,     "blocks_movement": true,  "layer": "decor",     "is_shop_item": false},
+	"big_plant":   {"display_name": "Maceta grande",   "category": "Decoración",  "size": Vector2i(1, 1), "shortcut": 0,     "blocks_movement": true,  "layer": "decor",     "is_shop_item": false},
+	"lamp":        {"display_name": "Lámpara",         "category": "Decoración",  "size": Vector2i(1, 1), "shortcut": 0,     "blocks_movement": true,  "layer": "decor",     "is_shop_item": false},
+	"bookshelf":   {"display_name": "Estantería",      "category": "Decoración",  "size": Vector2i(1, 2), "shortcut": 0,     "blocks_movement": true,  "layer": "decor",     "is_shop_item": false},
+	"poster":      {"display_name": "Póster",          "category": "Decoración",  "size": Vector2i(1, 1), "shortcut": 0,     "blocks_movement": false, "layer": "decor",     "is_shop_item": false},
+	"golden_plant":{"display_name": "Planta Dorada",   "category": "Decoración",  "size": Vector2i(1, 1), "shortcut": 0,     "blocks_movement": true,  "layer": "decor",     "is_shop_item": true, "price": 20},
+	# ── Pisos ──
+	"rug":         {"display_name": "Alfombra",        "category": "Pisos",       "size": Vector2i(2, 2), "shortcut": 0,     "blocks_movement": false, "layer": "floor",     "is_shop_item": false},
+	"red_rug":     {"display_name": "Alfombra Roja",   "category": "Pisos",       "size": Vector2i(2, 2), "shortcut": 0,     "blocks_movement": false, "layer": "floor",     "is_shop_item": false},
+	"floor_tile":  {"display_name": "Piso decorativo", "category": "Pisos",       "size": Vector2i(1, 1), "shortcut": 0,     "blocks_movement": false, "layer": "floor",     "is_shop_item": false},
+	"blue_rug":    {"display_name": "Alfombra Azul",   "category": "Pisos",       "size": Vector2i(2, 2), "shortcut": 0,     "blocks_movement": false, "layer": "floor",     "is_shop_item": true, "price": 15},
 }
 
 var items: Array = []  # kept for API compat (toggle_inventory)

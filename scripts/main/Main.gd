@@ -739,29 +739,26 @@ func _handle_decoration_left_click(cell: Vector2i) -> void:
 
 func _get_furniture_display_name(furniture_type: String) -> String:
 	match furniture_type:
-		"chair": return "Silla"
-		"table": return "Mesa"
-		"sofa":  return "Sofá"
-		"plant": return "Planta"
-		"rug":   return "Alfombra"
-	match furniture_type:
-		"blue_rug": return "Alfombra Azul"
-		"golden_plant": return "Planta Dorada"
-		"lounge_chair": return "SillÃ³n Lounge"
+		"chair":       return "Silla"
+		"table":       return "Mesa"
+		"sofa":        return "Sofá"
+		"plant":       return "Planta"
+		"rug":         return "Alfombra"
+		"blue_rug":    return "Alfombra Azul"
+		"golden_plant":return "Planta Dorada"
+		"lounge_chair":return "Sillón Lounge"
+		"bed":         return "Cama"
+		"lamp":        return "Lámpara"
+		"bookshelf":   return "Estantería"
+		"desk":        return "Escritorio"
+		"poster":      return "Póster"
+		"big_plant":   return "Maceta grande"
+		"red_rug":     return "Alfombra Roja"
+		"floor_tile":  return "Piso decorativo"
 	return furniture_type
 
 
 func _get_furniture_placed_message(furniture_type: String) -> String:
-	match furniture_type:
-		"chair": return "Silla colocada"
-		"table": return "Mesa colocada"
-		"sofa": return "Sofá colocado"
-		"plant": return "Planta colocada"
-		"rug": return "Alfombra colocada"
-	match furniture_type:
-		"blue_rug": return "Alfombra Azul colocada"
-		"golden_plant": return "Planta Dorada colocada"
-		"lounge_chair": return "SillÃ³n Lounge colocado"
 	return _get_furniture_display_name(furniture_type) + " colocado"
 
 

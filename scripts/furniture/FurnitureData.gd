@@ -16,10 +16,13 @@ func _init(p_cell, p_type_name, p_size) -> void:
 	type = p_type_name
 	size = p_size
 	var t: String = String(p_type_name)
-	if t == "rug" or t == "blue_rug":
+	if t == "rug" or t == "blue_rug" or t == "red_rug" or t == "floor_tile":
 		blocks_movement = false
 		layer = "floor"
-	elif t == "plant" or t == "golden_plant":
+	elif t == "poster":
+		blocks_movement = false
+		layer = "decor"
+	elif t == "plant" or t == "golden_plant" or t == "lamp" or t == "bookshelf" or t == "big_plant":
 		blocks_movement = true
 		layer = "decor"
 	else:

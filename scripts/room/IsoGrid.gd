@@ -4,6 +4,7 @@ extends RefCounted
 const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
 const FurnitureData = FurnitureDataScript
 const VT = preload("res://scripts/visual/VisualTheme.gd")
+const RoomFloorSpriteSheetResolver = preload("res://scripts/room/RoomFloorSpriteSheetResolver.gd")
 
 const ROOM_WALL_HEIGHT: float = 150.0
 const ROOM_WALL_Z: int = -260
@@ -19,6 +20,7 @@ const ROOM_WINDOW_HI: Color = Color(0.76, 0.88, 0.96, 0.72)
 const ROOM_TRIM: Color = Color(0.28, 0.18, 0.10)
 const ROOM_PICTURE: Color = Color(0.74, 0.42, 0.28)
 const ROOM_PICTURE_INNER: Color = Color(0.92, 0.78, 0.46)
+const FLOOR_SPRITE_SCALE := Vector2(1.0667, 0.6154)
 
 
 var floor_node: Node2D
@@ -27,6 +29,8 @@ var grid_height
 var tile_width
 var tile_height
 var iso_offset
+var default_floor_type: String = "beige_basic"
+var _floor_spritesheet_warning_shown: bool = false
 
 
 func _init(
@@ -82,6 +86,10 @@ func set_room_size(width, height) :
 	grid_height = height
 
 
+func set_floor_type(floor_type: String) -> void:
+	default_floor_type = floor_type if RoomFloorSpriteSheetResolver.has_tile(floor_type) else "beige_basic"
+
+
 func get_iso_diamond_polygon() -> PackedVector2Array:
 	return PackedVector2Array([
 		Vector2(0, -float(tile_height) / 2.0),
@@ -119,6 +127,40 @@ func redraw_tiles(blocked_cells: Array[Vector2i]) :
 	clear_floor()
 	draw_room_shell()
 
+	if not draw_sprite_floor():
+		clear_floor()
+		draw_room_shell()
+		draw_fallback_floor(blocked_cells)
+
+
+func draw_sprite_floor() -> bool:
+	if not RoomFloorSpriteSheetResolver.has_floor_spritesheet():
+		_warn_floor_spritesheet_fallback("Floor spritesheet missing, using fallback floor renderer.")
+		return false
+
+	for x in range(grid_width):
+		for y in range(grid_height):
+			var cell := Vector2i(x, y)
+			var tile_type := get_tile_type_for_cell(cell)
+			var texture := RoomFloorSpriteSheetResolver.get_floor_tile(tile_type)
+			if texture == null:
+				_warn_floor_spritesheet_fallback("Floor tile '" + tile_type + "' unavailable, using fallback floor renderer.")
+				return false
+
+			var tile := Sprite2D.new()
+			tile.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			tile.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
+			tile.texture = texture
+			tile.centered = true
+			tile.scale = FLOOR_SPRITE_SCALE
+			tile.position = grid_to_iso(cell)
+			tile.z_index = get_draw_z_index(cell) - 8
+			floor_node.add_child(tile)
+
+	return true
+
+
+func draw_fallback_floor(blocked_cells: Array[Vector2i]) -> void:
 	for x in range(grid_width):
 		for y in range(grid_height):
 			var cell = Vector2i(x, y)
@@ -126,7 +168,6 @@ func redraw_tiles(blocked_cells: Array[Vector2i]) :
 			tile.polygon = get_iso_diamond_polygon()
 			tile.position = grid_to_iso(cell)
 			tile.z_index = get_draw_z_index(cell) - 8
-
 			if blocked_cells.has(cell):
 				tile.color = Color(0.72, 0.68, 0.55)
 			elif (x + y) % 2 == 0:
@@ -138,6 +179,17 @@ func redraw_tiles(blocked_cells: Array[Vector2i]) :
 			_draw_tile_inner(cell)
 			_draw_tile_edge_shadow(cell)
 			draw_tile_outline(cell)
+
+
+func get_tile_type_for_cell(_cell: Vector2i) -> String:
+	return default_floor_type
+
+
+func _warn_floor_spritesheet_fallback(message: String) -> void:
+	if _floor_spritesheet_warning_shown:
+		return
+	_floor_spritesheet_warning_shown = true
+	push_warning(message)
 
 
 func get_draw_z_index(cell) :

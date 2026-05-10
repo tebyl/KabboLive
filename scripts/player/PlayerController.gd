@@ -7,7 +7,7 @@ const IsoGridScript = preload("res://scripts/room/IsoGrid.gd")
 const IsoGrid = IsoGridScript
 const VT = preload("res://scripts/visual/VisualTheme.gd")
 
-var player_node: Sprite2D
+var player_node: Node2D
 var iso_grid
 var player_cell
 var current_path: Array[Vector2i] = []
@@ -35,7 +35,7 @@ var active_move_tween: Tween
 var active_visual_tween: Tween
 
 
-func _init(p_player_node: Sprite2D, p_iso_grid, start_cell) :
+func _init(p_player_node: Node2D, p_iso_grid, start_cell) :
 	player_node = p_player_node
 	iso_grid = p_iso_grid
 	player_cell = start_cell
@@ -44,9 +44,13 @@ func _init(p_player_node: Sprite2D, p_iso_grid, start_cell) :
 
 func setup_player() :
 	player_node.position = iso_grid.grid_to_iso(player_cell)
-	player_node.texture = null
-	player_node.centered = true
-	player_node.offset = Vector2.ZERO
+	if player_node.has_method("set_direction"):
+		Callable(player_node, "set_direction").call("south")
+	elif player_node is Sprite2D:
+		var sprite := player_node as Sprite2D
+		sprite.texture = null
+		sprite.centered = true
+		sprite.offset = Vector2.ZERO
 	setup_avatar_visual()
 	set_avatar_idle_pose()
 	update_z_index()
@@ -127,13 +131,16 @@ func move_next_step() :
 	update_z_index()
 
 	var step_direction = next_cell - previous_cell
+	if player_node.has_method("set_iso_direction_from_grid_delta"):
+		Callable(player_node, "set_iso_direction_from_grid_delta").call(step_direction)
 	stop_active_tweens()
 	active_move_tween = player_node.create_tween()
 	active_move_tween.tween_property(player_node, "position", iso_grid.grid_to_iso(next_cell), PLAYER_STEP_DURATION)
 	active_move_tween.finished.connect(finish_player_step)
 
-	active_visual_tween = player_node.create_tween()
-	animate_avatar_step(step_direction, PLAYER_STEP_DURATION, active_visual_tween)
+	if not player_node.has_method("set_direction"):
+		active_visual_tween = player_node.create_tween()
+		animate_avatar_step(step_direction, PLAYER_STEP_DURATION, active_visual_tween)
 
 
 func finish_player_step() :
@@ -143,6 +150,9 @@ func finish_player_step() :
 
 
 func setup_avatar_visual() -> void:
+	if player_node.has_method("set_direction"):
+		return
+
 	_current_shirt_color = VT.AVATAR_SHIRT
 	_current_pants_color = VT.AVATAR_PANTS
 	_current_hair_color = VT.AVATAR_HAIR

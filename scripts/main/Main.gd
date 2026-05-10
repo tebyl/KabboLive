@@ -55,7 +55,7 @@ const GAME_VERSION: String = "v0.1.0-demo"
 
 var floor_node: Node2D
 var blocks_node: Node2D
-var player_node: Sprite2D
+var player_node: Node2D
 var is_initialized = false
 var current_state = GameState.MAIN_MENU
 var room_mode: String = ROOM_MODE_EXPLORATION
@@ -104,6 +104,7 @@ func _ready():
 		TILE_HEIGHT,
 		ISO_OFFSET
 	)
+	iso_grid.set_floor_type(_get_room_floor_type(room_manager.get_current_room()))
 
 	pathfinding_manager = PathfindingManagerScript.new(initial_room_size.x, initial_room_size.y, TILE_WIDTH, TILE_HEIGHT)
 	player_profile_manager = PlayerProfileManagerScript.new()
@@ -219,9 +220,14 @@ func _ready():
 	placement_preview = PlacementPreviewScript.new()
 	placement_preview.setup(self, iso_grid)
 
-	npc_root = Node2D.new()
-	npc_root.name = "Npcs"
-	add_child(npc_root)
+	# Reutilizar NpcLayer de Room.tscn si existe; si no, crear nodo temporal (fallback).
+	var _room_node: Node = get_node_or_null("Room")
+	if _room_node != null:
+		npc_root = _room_node.get_node_or_null("NpcLayer")
+	if npc_root == null:
+		npc_root = Node2D.new()
+		npc_root.name = "Npcs"
+		add_child(npc_root)
 	npc_manager = NpcManagerScript.new(npc_root, iso_grid, pathfinding_manager, player_controller)
 
 	_is_first_session = not FileAccess.file_exists("user://rooms_save.json")
@@ -336,9 +342,17 @@ func _input(event):
 					_handle_exploration_left_click(cell)
 
 func resolve_required_nodes() -> bool:
-	floor_node = get_node_or_null("Floor")
-	blocks_node = get_node_or_null("Blocks")
-	player_node = get_node_or_null("Player")
+	# Intentamos encontrar los nodos a través de la escena Room.tscn instanciada.
+	# Fallback a nodos directos para compatibilidad durante la migración.
+	var room_node: Node = get_node_or_null("Room")
+	if room_node != null:
+		floor_node = room_node.get_node_or_null("Floor")
+		blocks_node = room_node.get_node_or_null("FurnitureLayer")
+		player_node = room_node.get_node_or_null("Player") as Node2D
+	else:
+		floor_node = get_node_or_null("Floor")
+		blocks_node = get_node_or_null("Blocks")
+		player_node = get_node_or_null("Player") as Node2D
 	return floor_node != null and blocks_node != null and player_node != null
 
 func enter_state(new_state):
@@ -864,6 +878,21 @@ func _get_room_display_name(room_id: String) -> String:
 			return "Pool"
 		_:
 			return "Sala"
+
+
+func _get_room_floor_type(room_data) -> String:
+	if room_data == null:
+		return "beige_basic"
+	if room_data is Dictionary:
+		var floor_variant: Variant = room_data.get("floor_type", room_data.get("tile_type", "beige_basic"))
+		return str(floor_variant)
+	var floor_type_variant: Variant = room_data.get("floor_type")
+	if floor_type_variant != null and str(floor_type_variant) != "":
+		return str(floor_type_variant)
+	var tile_type_variant: Variant = room_data.get("tile_type")
+	if tile_type_variant != null and str(tile_type_variant) != "":
+		return str(tile_type_variant)
+	return "beige_basic"
 
 
 func _refresh_premium_hud() -> void:
@@ -1562,6 +1591,7 @@ func switch_room(room_id):
 		var new_room = room_manager.get_current_room()
 		var room_size = Vector2i(new_room.width, new_room.height)
 		iso_grid.set_room_size(room_size.x, room_size.y)
+		iso_grid.set_floor_type(_get_room_floor_type(new_room))
 		pathfinding_manager.reconfigure_grid(room_size.x, room_size.y)
 		furniture_manager.replace_furniture_items(new_room.furniture_items, Callable(game_ui, "report_status"))
 		player_controller.teleport_to_cell(new_room.player_start_cell)

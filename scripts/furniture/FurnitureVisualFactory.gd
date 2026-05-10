@@ -3,10 +3,13 @@ extends RefCounted
 
 var blocks_node: Node2D
 var iso_grid
+var use_sprites: bool = true
 
 const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
 const FurnitureData = FurnitureDataScript
 const VT = preload("res://scripts/visual/VisualTheme.gd")
+const FurnitureSpriteSheetResolver = preload("res://scripts/furniture/FurnitureSpriteSheetResolver.gd")
+const FurnitureItemScene = preload("res://scenes/furniture/FurnitureItem.tscn")
 
 
 func _init(p_blocks_node: Node2D, p_iso_grid) :
@@ -17,8 +20,8 @@ func _init(p_blocks_node: Node2D, p_iso_grid) :
 func redraw(items, selected_index) :
 	clear_blocks()
 
-	for furniture in items:
-		draw_furniture(furniture)
+	for i: int in range(items.size()):
+		draw_furniture(items[i], i == selected_index)
 
 	draw_selected_furniture_marker(items, selected_index)
 
@@ -64,7 +67,10 @@ func play_place_pop(furniture: RefCounted) -> void:
 	tween.tween_callback(Callable(root, "queue_free"))
 
 
-func draw_furniture(furniture) -> void:
+func draw_furniture(furniture, selected: bool = false) -> void:
+	if use_sprites and _draw_sprite_furniture(furniture, selected):
+		return
+
 	var height: float = get_furniture_height(furniture.type)
 	var base_color: Color = get_furniture_color(furniture.type)
 	var lz: int = _get_layer_z_offset(furniture)
@@ -251,7 +257,6 @@ func draw_selected_furniture_marker(items, selected_index) -> void:
 		return
 
 	var furniture = items[selected_index]
-	var h: float = get_furniture_height(furniture.type)
 	var lz: int = _get_layer_z_offset(furniture)
 
 	for cell in furniture.get_occupied_cells():
@@ -268,7 +273,7 @@ func draw_selected_furniture_marker(items, selected_index) -> void:
 		var pts: PackedVector2Array = iso_grid.get_iso_diamond_polygon()
 		pts.append(pts[0])
 		outline.points = pts
-		outline.position = cp + Vector2(0, -h - 1.0)
+		outline.position = cp
 		outline.width = 2.2
 		outline.default_color = Color(1.0, 0.95, 0.25, 0.90)
 		outline.z_index = dz + 6
@@ -662,3 +667,22 @@ func add_rect_polygon(center, size, color: Color, z_index) :
 	rect.color = color
 	rect.z_index = z_index
 	blocks_node.add_child(rect)
+
+
+func _draw_sprite_furniture(furniture, selected: bool = false) -> bool:
+	if blocks_node == null or iso_grid == null or furniture == null:
+		return false
+
+	var furniture_type := str(furniture.get("type"))
+	if not FurnitureSpriteSheetResolver.has_sprite(furniture_type):
+		return false
+
+	var item := FurnitureItemScene.instantiate()
+	if item == null:
+		return false
+
+	blocks_node.add_child(item)
+	item.call("configure", iso_grid, selected)
+	item.call("setup", furniture)
+	item.call("set_selected", selected)
+	return true

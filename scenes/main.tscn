@@ -1,12 +1,9 @@
 [gd_scene format=3 uid="uid://mqwyn4tg38i1"]
 
 [ext_resource type="Script" uid="uid://d2qi86yajans7" path="res://scripts/main/Main.gd" id="1_o5qli"]
+[ext_resource type="PackedScene" path="res://scenes/room/Room.tscn" id="2_room"]
 
 [node name="Main" type="Node2D" unique_id=73062445]
 script = ExtResource("1_o5qli")
 
-[node name="Floor" type="Node2D" parent="." unique_id=1496886502]
-
-[node name="Blocks" type="Node2D" parent="." unique_id=521831576]
-
-[node name="Player" type="Sprite2D" parent="." unique_id=1228938241]
+[node name="Room" parent="." instance=ExtResource("2_room")]

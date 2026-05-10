@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/room/Player.gd" id="1_player"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player/south.png" id="2_south"]
+
+[node name="Player" type="Node2D"]
+script = ExtResource("1_player")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 1
+offset = Vector2(0, -27)
+scale = Vector2(1.5, 1.5)
+texture = ExtResource("2_south")

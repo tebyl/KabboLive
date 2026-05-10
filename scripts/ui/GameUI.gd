@@ -7,6 +7,12 @@ const CHAT_HISTORY_LEFT_MARGIN = 24.0
 const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
 const RoomDataScript = preload("res://scripts/room/RoomData.gd")
 const IsoGridScript = preload("res://scripts/room/IsoGrid.gd")
+const ShopPanelScene = preload("res://scenes/ui/ShopPanel.tscn")
+const ProfilePanelScene = preload("res://scenes/ui/ProfilePanel.tscn")
+const MainMenuScene = preload("res://scenes/ui/MainMenu.tscn")
+const RoomSelectScene = preload("res://scenes/ui/RoomSelect.tscn")
+const SettingsPanelScene = preload("res://scenes/ui/SettingsPanel.tscn")
+const PauseMenuScene = preload("res://scenes/ui/PauseMenu.tscn")
 
 const FurnitureData = FurnitureDataScript
 const RoomData = RoomDataScript
@@ -30,24 +36,8 @@ var room_label: Label
 var status_label: Label
 var controls_panel: PanelContainer
 var main_menu_panel: PanelContainer
-var room_select_panel: PanelContainer
-var room_select_vbox: VBoxContainer
-var _room_cards_vbox: VBoxContainer
-var profile_panel: PanelContainer
-var profile_name_edit: LineEdit
-var profile_color_rect: ColorRect
-var current_profile_color: Color = Color.BLUE
-var _profile_shirt_color: Color = Color(0.14, 0.32, 0.72)
-var _profile_pants_color: Color = Color(0.14, 0.16, 0.30)
-var _profile_hair_color: Color = Color(0.18, 0.10, 0.06)
-var _profile_skin_tone: Color = Color(0.84, 0.62, 0.44)
-var _profile_hair_style: String = "short"
-var _profile_shirt_btns: Array[Button] = []
-var _profile_pants_btns: Array[Button] = []
-var _profile_hair_color_btns: Array[Button] = []
-var _profile_skin_btns: Array[Button] = []
-var _profile_style_btns: Array[Button] = []
-var _profile_preview_root: Control
+var room_select_panel: PanelContainer  # instancia de RoomSelect.tscn
+var profile_panel: PanelContainer  # instancia de ProfilePanel.tscn
 var chat_history_panel: PanelContainer
 var chat_history_label: Label
 var chat_input_panel: PanelContainer
@@ -68,8 +58,6 @@ var help_button: Button
 var shop_button: Button
 var _mode_button: Button
 var shop_panel: PanelContainer
-var _shop_items_vbox: VBoxContainer
-var _shop_credits_label: Label
 var toast_panel: PanelContainer
 var toast_label: Label
 var toast_tween: Tween
@@ -90,12 +78,6 @@ var _on_shop_item_buy: Callable
 var _on_shop_closed: Callable
 var _on_mode_toggle: Callable
 var settings_panel: PanelContainer
-var _settings_autosave_toggle_btn: Button
-var _settings_interval_btns: Array[Button] = []
-var _settings_missions_btn: Button
-var _settings_sfx_toggle_btn: Button
-var _settings_sfx_volume_btns: Array[Button] = []
-var _confirm_reset_panel: PanelContainer
 var _settings_btn_in_room: Button
 var _on_settings_autosave_enabled: Callable
 var _on_settings_autosave_interval: Callable
@@ -107,9 +89,7 @@ var _on_settings_reset_data: Callable
 var _on_settings_closed_cb: Callable
 var _on_open_settings_cb: Callable
 var _on_ui_sound: Callable
-var _pause_overlay: Control
-var _pause_menu_panel: PanelContainer
-var _pause_exit_confirm_panel: PanelContainer
+var _pause_menu: Control
 var _pause_menu_btn: Button
 var _hint_label: Label
 var _on_pause_continue: Callable
@@ -270,174 +250,25 @@ func setup_ui(root: Node) :
 
 
 func _build_main_menu() :
-	main_menu_panel = PanelContainer.new()
-	main_menu_panel.name = "MainMenuPanel"
-	main_menu_panel.anchor_left = 0.5
-	main_menu_panel.anchor_top = 0.5
-	main_menu_panel.anchor_right = 0.5
-	main_menu_panel.anchor_bottom = 0.5
-	main_menu_panel.offset_left = -180.0
-	main_menu_panel.offset_top = -130.0
-	main_menu_panel.offset_right = 180.0
-	main_menu_panel.offset_bottom = 130.0
+	# Cargado desde MainMenu.tscn — lógica migrada a scripts/ui/panels/MainMenu.gd
+	main_menu_panel = MainMenuScene.instantiate() as PanelContainer
+	main_menu_panel.enter_hotel_requested.connect(_on_enter_hotel_pressed)
+	main_menu_panel.open_profile_requested.connect(show_profile)
+	main_menu_panel.open_settings_requested.connect(_on_main_menu_settings_pressed)
+	main_menu_panel.open_about_requested.connect(show_about_panel)
 	ui_layer.add_child(main_menu_panel)
-
-	var margin: MarginContainer = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_top", 24)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_bottom", 24)
-	main_menu_panel.add_child(margin)
-
-	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 20)
-	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	margin.add_child(vbox)
-
-	var title: Label = Label.new()
-	title.text = GAME_TITLE
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 24)
-	vbox.add_child(title)
-
-	var version_label: Label = Label.new()
-	version_label.text = GAME_VERSION
-	version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	version_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	vbox.add_child(version_label)
-
-	var enter_btn: Button = Button.new()
-	enter_btn.text = "Entrar al hotel"
-	enter_btn.pressed.connect(_on_enter_hotel_pressed)
-	vbox.add_child(enter_btn)
-
-	var profile_btn: Button = Button.new()
-	profile_btn.text = "Perfil"
-	profile_btn.pressed.connect(show_profile)
-	vbox.add_child(profile_btn)
-
-	var cfg_btn: Button = Button.new()
-	cfg_btn.text = "Configuración"
-	cfg_btn.pressed.connect(_on_main_menu_settings_pressed)
-	vbox.add_child(cfg_btn)
-
-	var about_btn: Button = Button.new()
-	about_btn.text = "Acerca de"
-	about_btn.pressed.connect(show_about_panel)
-	vbox.add_child(about_btn)
 
 
 func _build_room_select() :
-	room_select_panel = PanelContainer.new()
-	room_select_panel.name = "RoomSelectPanel"
-	room_select_panel.anchor_left = 0.0
-	room_select_panel.anchor_top = 0.0
-	room_select_panel.anchor_right = 1.0
-	room_select_panel.anchor_bottom = 1.0
-	room_select_panel.offset_left = 0.0
-	room_select_panel.offset_top = 0.0
-	room_select_panel.offset_right = 0.0
-	room_select_panel.offset_bottom = 0.0
-	room_select_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	room_select_panel.add_theme_stylebox_override("panel", _make_premium_panel_style(Color(0.01, 0.015, 0.05, 0.66), 0))
+	# Cargado desde RoomSelect.tscn — lógica migrada a scripts/ui/panels/RoomSelect.gd
+	room_select_panel = RoomSelectScene.instantiate() as PanelContainer
+	room_select_panel.room_selected.connect(func(room_id: String):
+		_play_ui_sound("ui_click")
+		if _on_room_selected.is_valid():
+			_on_room_selected.call(room_id)
+	)
+	room_select_panel.open_profile_requested.connect(show_profile)
 	ui_layer.add_child(room_select_panel)
-
-	var center_panel: PanelContainer = PanelContainer.new()
-	center_panel.name = "RoomSelectCard"
-	center_panel.anchor_left = 0.5
-	center_panel.anchor_top = 0.5
-	center_panel.anchor_right = 0.5
-	center_panel.anchor_bottom = 0.5
-	center_panel.offset_left = -270.0
-	center_panel.offset_top = -230.0
-	center_panel.offset_right = 270.0
-	center_panel.offset_bottom = 230.0
-	center_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_panel.add_theme_stylebox_override("panel", _make_premium_panel_style(Color(0.045, 0.058, 0.130, 0.96), 16))
-	room_select_panel.add_child(center_panel)
-
-	var margin: MarginContainer = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 28)
-	margin.add_theme_constant_override("margin_top", 26)
-	margin.add_theme_constant_override("margin_right", 28)
-	margin.add_theme_constant_override("margin_bottom", 26)
-	center_panel.add_child(margin)
-
-	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
-	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	margin.add_child(vbox)
-
-	var title: Label = Label.new()
-	title.text = "Seleccionar sala"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 28)
-	title.add_theme_color_override("font_color", HUD_TEXT_MAIN)
-	vbox.add_child(title)
-
-	var subtitle: Label = Label.new()
-	subtitle.text = "Elige donde quieres entrar"
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 14)
-	subtitle.add_theme_color_override("font_color", HUD_TEXT_SECONDARY)
-	vbox.add_child(subtitle)
-
-	_room_cards_vbox = VBoxContainer.new()
-	_room_cards_vbox.add_theme_constant_override("separation", 9)
-	_room_cards_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_child(_room_cards_vbox)
-
-	room_select_vbox = vbox
-
-	# default buttons (kept for backward compatibility)
-	_add_room_button(_room_cards_vbox, "lobby", "Lobby")
-	_add_room_button(_room_cards_vbox, "room_small", "Sala pequeña")
-	_add_room_button(_room_cards_vbox, "room_large", "Sala grande")
-
-	var profile_btn: Button = Button.new()
-	profile_btn.text = "Editar Perfil"
-	profile_btn.custom_minimum_size = Vector2(0.0, 38.0)
-	profile_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	profile_btn.add_theme_font_size_override("font_size", 13)
-	profile_btn.add_theme_color_override("font_color", HUD_TEXT_MAIN)
-	profile_btn.add_theme_stylebox_override("normal", _make_premium_button_style(Color(0.09, 0.12, 0.24, 0.88)))
-	profile_btn.add_theme_stylebox_override("hover", _make_premium_button_style(Color(0.14, 0.18, 0.34, 0.94)))
-	profile_btn.add_theme_stylebox_override("pressed", _make_premium_button_style(Color(0.18, 0.22, 0.38, 1.0)))
-	profile_btn.pressed.connect(show_profile)
-	vbox.add_child(profile_btn)
-
-
-func _add_room_button(parent: VBoxContainer, room_id: String, label_text: String) :
-	var btn: Button = Button.new()
-	btn.text = _room_card_text(room_id, label_text)
-	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.custom_minimum_size = Vector2(0.0, 70.0)
-	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn.add_theme_font_size_override("font_size", 14)
-	btn.add_theme_color_override("font_color", HUD_TEXT_MAIN)
-	btn.add_theme_color_override("font_hover_color", HUD_TEXT_MAIN)
-	btn.add_theme_color_override("font_pressed_color", Color(0.10, 0.07, 0.04))
-	btn.add_theme_stylebox_override("normal", _make_room_card_style(Color(0.075, 0.095, 0.190, 0.98), HUD_BORDER))
-	btn.add_theme_stylebox_override("hover", _make_room_card_style(Color(0.110, 0.145, 0.270, 1.0), Color(1.0, 0.72, 0.36, 0.55)))
-	btn.add_theme_stylebox_override("pressed", _make_room_card_style(HUD_ACCENT, Color(1.0, 0.88, 0.54, 0.90)))
-	btn.pressed.connect(_on_room_button_pressed.bind(room_id))
-	parent.add_child(btn)
-
-
-func _room_card_text(room_id: String, label_text: String) -> String:
-	var description: String = "Sala decorable"
-	var badge: String = ""
-	match room_id:
-		"lobby":
-			description = "Sala principal"
-			badge = "Bot Guia disponible"
-		"room_small":
-			description = "Espacio compacto"
-		"room_large":
-			description = "Mas espacio para decorar"
-	if badge != "":
-		return label_text + "\n" + description + "  |  " + badge
-	return label_text + "\n" + description
 
 
 func _on_enter_hotel_pressed() -> void:
@@ -446,390 +277,32 @@ func _on_enter_hotel_pressed() -> void:
 		_on_enter_hotel.call()
 
 
-func _on_room_button_pressed(room_id: String) -> void:
-	_play_ui_sound("ui_click")
-	if _on_room_selected.is_valid():
-		_on_room_selected.call(room_id)
-
-
 func show_room_selector(rooms: Array) :
-	if room_select_vbox == null or _room_cards_vbox == null:
-		return
-	# Clear legacy direct buttons if any, then rebuild the room cards.
-	for child in room_select_vbox.get_children():
-		if child is Button and child.text != "Editar Perfil":
-			room_select_vbox.remove_child(child)
-			child.queue_free()
-	for child: Node in _room_cards_vbox.get_children():
-		_room_cards_vbox.remove_child(child)
-		child.queue_free()
-
-	for r in rooms:
-		var room_id: String = ""
-		var r_label: String = ""
-		
-		# Handle Dictionary format
-		if r is Dictionary and r.has("id") and r.has("label"):
-			room_id = r["id"]
-			r_label = r["label"]
-		# Handle RefCounted format (RoomData objects) - access properties directly
-		elif r is RefCounted:
-			room_id = r.id
-			r_label = r.display_name
-		
-		if room_id != "" and r_label != "":
-			_add_room_button(_room_cards_vbox, room_id, r_label)
-
-	# Make panel visible
+	if room_select_panel != null and room_select_panel.has_method("populate_rooms"):
+		room_select_panel.call("populate_rooms", rooms)
 	show_room_select()
 
 
 func _build_profile_panel() -> void:
-	_profile_shirt_btns.clear()
-	_profile_pants_btns.clear()
-	_profile_hair_color_btns.clear()
-	_profile_skin_btns.clear()
-	_profile_style_btns.clear()
-
-	profile_panel = PanelContainer.new()
-	profile_panel.name = "ProfilePanel"
-	profile_panel.anchor_left = 0.5
-	profile_panel.anchor_top = 0.5
-	profile_panel.anchor_right = 0.5
-	profile_panel.anchor_bottom = 0.5
-	profile_panel.offset_left = -242.0
-	profile_panel.offset_top = -218.0
-	profile_panel.offset_right = 242.0
-	profile_panel.offset_bottom = 218.0
-	profile_panel.visible = false
-	profile_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.12, 0.15, 0.22, 0.96)))
+	# Cargado desde ProfilePanel.tscn — lógica migrada a scripts/ui/panels/ProfilePanel.gd
+	profile_panel = ProfilePanelScene.instantiate() as PanelContainer
+	profile_panel.save_requested.connect(func(data: Dictionary): _on_save_profile.call(data))
+	profile_panel.panel_closed.connect(func():
+		_play_ui_sound("panel_close")
+		show_missions_panel()
+	)
 	ui_layer.add_child(profile_panel)
 
-	var margin: MarginContainer = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_top", 14)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_bottom", 14)
-	profile_panel.add_child(margin)
 
-	var outer: HBoxContainer = HBoxContainer.new()
-	outer.add_theme_constant_override("separation", 14)
-	margin.add_child(outer)
-
-	# ── LEFT: form ──
-	var form: VBoxContainer = VBoxContainer.new()
-	form.add_theme_constant_override("separation", 7)
-	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	outer.add_child(form)
-
-	var title: Label = Label.new()
-	title.text = "Perfil de jugador"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	form.add_child(title)
-
-	var name_label: Label = Label.new()
-	name_label.text = "Nombre:"
-	name_label.add_theme_font_size_override("font_size", 12)
-	form.add_child(name_label)
-
-	profile_name_edit = LineEdit.new()
-	profile_name_edit.max_length = 16
-	form.add_child(profile_name_edit)
-
-	_build_profile_color_row(form, "Camiseta:", [
-		["Azul", Color(0.14, 0.32, 0.72)], ["Verde", Color(0.20, 0.55, 0.25)],
-		["Rojo", Color(0.68, 0.14, 0.14)], ["Amarillo", Color(0.80, 0.65, 0.12)]
-	], _profile_shirt_btns, func(i: int): _on_profile_shirt_selected(i))
-
-	_build_profile_color_row(form, "Pantalón:", [
-		["Osc", Color(0.14, 0.16, 0.30)], ["Negro", Color(0.10, 0.10, 0.12)],
-		["Café", Color(0.36, 0.22, 0.10)]
-	], _profile_pants_btns, func(i: int): _on_profile_pants_selected(i))
-
-	_build_profile_color_row(form, "Pelo:", [
-		["Café", Color(0.18, 0.10, 0.06)], ["Negro", Color(0.08, 0.06, 0.06)],
-		["Rubio", Color(0.72, 0.54, 0.16)]
-	], _profile_hair_color_btns, func(i: int): _on_profile_hair_color_selected(i))
-
-	_build_profile_color_row(form, "Tono de piel:", [
-		["Claro", Color(0.96, 0.82, 0.68)], ["Medio", Color(0.84, 0.62, 0.44)],
-		["Oscuro", Color(0.60, 0.38, 0.22)]
-	], _profile_skin_btns, func(i: int): _on_profile_skin_selected(i))
-
-	_build_profile_style_row(form, "Peinado:", ["Corto", "Largo", "Sin pelo"],
-		_profile_style_btns, func(i: int): _on_profile_style_selected(i))
-
-	var footer: HBoxContainer = HBoxContainer.new()
-	footer.alignment = BoxContainer.ALIGNMENT_CENTER
-	footer.add_theme_constant_override("separation", 12)
-	form.add_child(footer)
-
-	var save_btn: Button = Button.new()
-	save_btn.text = "Guardar"
-	save_btn.pressed.connect(_on_save_clicked)
-	footer.add_child(save_btn)
-
-	var back_btn: Button = Button.new()
-	back_btn.text = "Volver"
-	back_btn.pressed.connect(_on_profile_back_clicked)
-	footer.add_child(back_btn)
-
-	# ── RIGHT: preview ──
-	var pv_vbox: VBoxContainer = VBoxContainer.new()
-	pv_vbox.add_theme_constant_override("separation", 6)
-	pv_vbox.custom_minimum_size = Vector2(118, 0)
-	outer.add_child(pv_vbox)
-
-	var pv_title: Label = Label.new()
-	pv_title.text = "Vista previa"
-	pv_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pv_title.add_theme_font_size_override("font_size", 12)
-	pv_vbox.add_child(pv_title)
-
-	_profile_preview_root = Control.new()
-	_profile_preview_root.name = "ProfilePreviewRoot"
-	_profile_preview_root.custom_minimum_size = Vector2(110, 160)
-	_profile_preview_root.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_profile_preview_root.clip_contents = true
-	_profile_preview_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var pv_bg: ColorRect = ColorRect.new()
-	pv_bg.color = Color(0.16, 0.20, 0.28, 0.90)
-	pv_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	pv_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_profile_preview_root.add_child(pv_bg)
-	var pv_avatar: Control = Control.new()
-	pv_avatar.name = "AvatarPreview"
-	pv_avatar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	pv_avatar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_profile_preview_root.add_child(pv_avatar)
-	pv_vbox.add_child(_profile_preview_root)
-
-
-func _build_profile_color_row(parent: VBoxContainer, lbl: String, options: Array, btns: Array[Button], cb: Callable) -> void:
-	var row: VBoxContainer = VBoxContainer.new()
-	row.add_theme_constant_override("separation", 3)
-	parent.add_child(row)
-	var label: Label = Label.new()
-	label.text = lbl
-	label.add_theme_font_size_override("font_size", 11)
-	row.add_child(label)
-	var hbox: HBoxContainer = HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 4)
-	row.add_child(hbox)
-	for i: int in options.size():
-		var opt: Array = options[i] as Array
-		var color: Color = opt[1] as Color
-		var btn: Button = Button.new()
-		btn.custom_minimum_size = Vector2(46, 24)
-		btn.text = str(opt[0])
-		btn.add_theme_font_size_override("font_size", 10)
-		var st: StyleBoxFlat = StyleBoxFlat.new()
-		st.bg_color = color
-		st.corner_radius_top_left = 3; st.corner_radius_top_right = 3
-		st.corner_radius_bottom_left = 3; st.corner_radius_bottom_right = 3
-		btn.add_theme_stylebox_override("normal", st)
-		var sth: StyleBoxFlat = st.duplicate() as StyleBoxFlat
-		sth.bg_color = color.lightened(0.18)
-		btn.add_theme_stylebox_override("hover", sth)
-		var stp: StyleBoxFlat = st.duplicate() as StyleBoxFlat
-		stp.bg_color = color.darkened(0.12)
-		btn.add_theme_stylebox_override("pressed", stp)
-		var lum: float = color.r * 0.299 + color.g * 0.587 + color.b * 0.114
-		var tc: Color = Color.WHITE if lum < 0.5 else Color(0.08, 0.08, 0.08)
-		btn.add_theme_color_override("font_color", tc)
-		btn.add_theme_color_override("font_hover_color", tc)
-		btn.add_theme_color_override("font_pressed_color", tc)
-		_connect_profile_btn(btn, cb, i)
-		hbox.add_child(btn)
-		btns.append(btn)
-
-
-func _build_profile_style_row(parent: VBoxContainer, lbl: String, opts: Array[String], btns: Array[Button], cb: Callable) -> void:
-	var row: VBoxContainer = VBoxContainer.new()
-	row.add_theme_constant_override("separation", 3)
-	parent.add_child(row)
-	var label: Label = Label.new()
-	label.text = lbl
-	label.add_theme_font_size_override("font_size", 11)
-	row.add_child(label)
-	var hbox: HBoxContainer = HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 4)
-	row.add_child(hbox)
-	for i: int in opts.size():
-		var btn: Button = Button.new()
-		btn.custom_minimum_size = Vector2(56, 24)
-		btn.text = opts[i]
-		btn.add_theme_font_size_override("font_size", 10)
-		_connect_profile_btn(btn, cb, i)
-		hbox.add_child(btn)
-		btns.append(btn)
-
-
-func _connect_profile_btn(btn: Button, cb: Callable, idx: int) -> void:
-	btn.pressed.connect(func(): cb.call(idx))
-
-
-func _on_profile_shirt_selected(idx: int) -> void:
-	var colors: Array = [Color(0.14, 0.32, 0.72), Color(0.20, 0.55, 0.25), Color(0.68, 0.14, 0.14), Color(0.80, 0.65, 0.12)]
-	_profile_shirt_color = colors[idx]
-	_set_btns_selected(_profile_shirt_btns, idx)
-	_rebuild_avatar_preview()
-
-
-func _on_profile_pants_selected(idx: int) -> void:
-	var colors: Array = [Color(0.14, 0.16, 0.30), Color(0.10, 0.10, 0.12), Color(0.36, 0.22, 0.10)]
-	_profile_pants_color = colors[idx]
-	_set_btns_selected(_profile_pants_btns, idx)
-	_rebuild_avatar_preview()
-
-
-func _on_profile_hair_color_selected(idx: int) -> void:
-	var colors: Array = [Color(0.18, 0.10, 0.06), Color(0.08, 0.06, 0.06), Color(0.72, 0.54, 0.16)]
-	_profile_hair_color = colors[idx]
-	_set_btns_selected(_profile_hair_color_btns, idx)
-	_rebuild_avatar_preview()
-
-
-func _on_profile_skin_selected(idx: int) -> void:
-	var colors: Array = [Color(0.96, 0.82, 0.68), Color(0.84, 0.62, 0.44), Color(0.60, 0.38, 0.22)]
-	_profile_skin_tone = colors[idx]
-	_set_btns_selected(_profile_skin_btns, idx)
-	_rebuild_avatar_preview()
-
-
-func _on_profile_style_selected(idx: int) -> void:
-	var styles: Array[String] = ["short", "long", "bald"]
-	_profile_hair_style = styles[idx]
-	_set_btns_selected(_profile_style_btns, idx)
-	_rebuild_avatar_preview()
-
-
-func _set_btns_selected(btns: Array[Button], active: int) -> void:
-	for i: int in btns.size():
-		btns[i].modulate = Color.WHITE if i == active else Color(0.52, 0.52, 0.52, 0.80)
-
-
-func _sync_profile_button_states() -> void:
-	var sc_opts: Array = [Color(0.14, 0.32, 0.72), Color(0.20, 0.55, 0.25), Color(0.68, 0.14, 0.14), Color(0.80, 0.65, 0.12)]
-	var pc_opts: Array = [Color(0.14, 0.16, 0.30), Color(0.10, 0.10, 0.12), Color(0.36, 0.22, 0.10)]
-	var hc_opts: Array = [Color(0.18, 0.10, 0.06), Color(0.08, 0.06, 0.06), Color(0.72, 0.54, 0.16)]
-	var st_opts: Array = [Color(0.96, 0.82, 0.68), Color(0.84, 0.62, 0.44), Color(0.60, 0.38, 0.22)]
-	var hs_opts: Array[String] = ["short", "long", "bald"]
-	_set_btns_selected(_profile_shirt_btns, _find_nearest_color_idx(_profile_shirt_color, sc_opts))
-	_set_btns_selected(_profile_pants_btns, _find_nearest_color_idx(_profile_pants_color, pc_opts))
-	_set_btns_selected(_profile_hair_color_btns, _find_nearest_color_idx(_profile_hair_color, hc_opts))
-	_set_btns_selected(_profile_skin_btns, _find_nearest_color_idx(_profile_skin_tone, st_opts))
-	var si: int = hs_opts.find(_profile_hair_style)
-	_set_btns_selected(_profile_style_btns, maxi(si, 0))
-
-
-func _find_nearest_color_idx(target: Color, opts: Array) -> int:
-	var best: int = 0
-	var best_d: float = 1e9
-	for i: int in opts.size():
-		var o: Color = opts[i] as Color
-		var d: float = (target.r - o.r) * (target.r - o.r) + (target.g - o.g) * (target.g - o.g) + (target.b - o.b) * (target.b - o.b)
-		if d < best_d:
-			best_d = d
-			best = i
-	return best
-
-
-func _rebuild_avatar_preview() -> void:
-	if _profile_preview_root == null:
-		return
-	var prev: Node = _profile_preview_root.find_child("AvatarPreview", false, false)
-	if prev == null:
-		return
-	for child: Node in prev.get_children():
-		prev.remove_child(child)
-		child.queue_free()
-	_draw_preview_avatar(prev as Control, _profile_shirt_color, _profile_pants_color, _profile_hair_color, _profile_skin_tone, _profile_hair_style)
-
-
-func _draw_preview_avatar(root: Control, sc: Color, pc: Color, hc: Color, st: Color, hs: String) -> void:
-	var cx: int = 55
-	var gy: int = 140
-	# Shadow
-	_add_preview_rect(root, cx - 22, gy - 8, 44, 7, Color(0.04, 0.04, 0.06, 0.35))
-	# Boots
-	_add_preview_rect(root, cx - 18, gy - 15, 11, 7, Color(0.16, 0.09, 0.05))
-	_add_preview_rect(root, cx + 8, gy - 15, 11, 7, Color(0.16, 0.09, 0.05))
-	# Legs
-	_add_preview_rect(root, cx - 16, gy - 31, 11, 17, pc)
-	_add_preview_rect(root, cx + 6, gy - 31, 11, 17, pc)
-	# Arms
-	_add_preview_rect(root, cx - 24, gy - 52, 9, 17, sc.darkened(0.20))
-	_add_preview_rect(root, cx + 16, gy - 52, 9, 17, sc.darkened(0.20))
-	# Body
-	_add_preview_rect(root, cx - 14, gy - 55, 28, 23, sc)
-	# Shirt highlight
-	_add_preview_rect(root, cx - 8, gy - 49, 16, 4, sc.lightened(0.35))
-	# Collar
-	_add_preview_rect(root, cx - 5, gy - 53, 10, 4, Color(0.88, 0.86, 0.82))
-	# Head
-	_add_preview_rect(root, cx - 14, gy - 81, 28, 26, st)
-	# Skin highlight
-	_add_preview_rect(root, cx - 9, gy - 81, 18, 4, Color(min(st.r + 0.10, 1.0), min(st.g + 0.12, 1.0), min(st.b + 0.12, 1.0), 0.50))
-	# Cheeks
-	_add_preview_rect(root, cx - 12, gy - 67, 5, 3, Color(0.90, 0.50, 0.42, 0.55))
-	_add_preview_rect(root, cx + 8, gy - 67, 5, 3, Color(0.90, 0.50, 0.42, 0.55))
-	# Eyes
-	_add_preview_rect(root, cx - 9, gy - 73, 5, 5, Color(0.08, 0.06, 0.08))
-	_add_preview_rect(root, cx + 5, gy - 73, 5, 5, Color(0.08, 0.06, 0.08))
-	# Eye shine
-	_add_preview_rect(root, cx - 8, gy - 74, 2, 2, Color.WHITE)
-	_add_preview_rect(root, cx + 6, gy - 74, 2, 2, Color.WHITE)
-	# Mouth
-	_add_preview_rect(root, cx - 4, gy - 63, 8, 3, Color(0.58, 0.26, 0.18))
-	# Hair
-	match hs:
-		"short":
-			_add_preview_rect(root, cx - 15, gy - 90, 30, 10, hc)
-			_add_preview_rect(root, cx - 15, gy - 82, 7, 9, hc)
-			_add_preview_rect(root, cx + 7, gy - 83, 7, 6, hc)
-		"long":
-			_add_preview_rect(root, cx - 15, gy - 90, 30, 10, hc)
-			_add_preview_rect(root, cx - 15, gy - 83, 7, 20, hc)
-			_add_preview_rect(root, cx + 9, gy - 83, 7, 20, hc)
-			_add_preview_rect(root, cx + 7, gy - 83, 7, 6, hc)
-		"bald":
-			pass
-
-
-func _add_preview_rect(parent: Control, x: int, y: int, w: int, h: int, color: Color) -> void:
-	var r: ColorRect = ColorRect.new()
-	r.position = Vector2(x, y)
-	r.size = Vector2(w, h)
-	r.color = color
-	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(r)
-
-
-func _on_save_clicked() -> void:
-	var data: Dictionary = {
-		"player_name": profile_name_edit.text,
-		"shirt_color": _profile_shirt_color,
-		"pants_color": _profile_pants_color,
-		"hair_color": _profile_hair_color,
-		"skin_tone": _profile_skin_tone,
-		"hair_style": _profile_hair_style
-	}
-	_on_save_profile.call(data)
-
-
-func _on_profile_back_clicked() -> void:
-	_play_ui_sound("panel_close")
-	profile_panel.visible = false
-	show_missions_panel()
 
 
 func show_profile() -> void:
 	_play_ui_sound("panel_open")
 	hide_shop_panel()
 	hide_missions_panel()
-	profile_panel.visible = true
-	profile_panel.move_to_front()
+	if profile_panel != null:
+		profile_panel.visible = true
+		profile_panel.move_to_front()
 
 
 func is_profile_open() -> bool:
@@ -837,15 +310,9 @@ func is_profile_open() -> bool:
 
 
 func update_profile_ui(profile_data: Dictionary) -> void:
-	if profile_name_edit != null:
-		profile_name_edit.text = str(profile_data.get("player_name", "Invitado"))
-	_profile_shirt_color = profile_data.get("shirt_color", Color(0.14, 0.32, 0.72))
-	_profile_pants_color = profile_data.get("pants_color", Color(0.14, 0.16, 0.30))
-	_profile_hair_color = profile_data.get("hair_color", Color(0.18, 0.10, 0.06))
-	_profile_skin_tone = profile_data.get("skin_tone", Color(0.84, 0.62, 0.44))
-	_profile_hair_style = str(profile_data.get("hair_style", "short"))
-	_sync_profile_button_states()
-	_rebuild_avatar_preview()
+	# Delegado a ProfilePanel.gd (escena independiente)
+	if profile_panel != null and profile_panel.has_method("update_profile"):
+		profile_panel.call("update_profile", profile_data)
 
 
 func _build_controls_panel() :
@@ -1371,19 +838,20 @@ func _build_furniture_catalog() -> void:
 	catalog_panel.anchor_top = 0.0
 	catalog_panel.anchor_right = 1.0
 	catalog_panel.anchor_bottom = 1.0
-	catalog_panel.offset_left = -176.0
+	catalog_panel.offset_left = -244.0
 	catalog_panel.offset_top = 78.0
 	catalog_panel.offset_right = -14.0
 	catalog_panel.offset_bottom = -112.0
+	catalog_panel.custom_minimum_size = Vector2(230.0, 0.0)
 	catalog_panel.visible = false
 	catalog_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.90)))
 	ui_layer.add_child(catalog_panel)
 
 	var margin: MarginContainer = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 10)
-	margin.add_theme_constant_override("margin_top", 10)
-	margin.add_theme_constant_override("margin_right", 10)
-	margin.add_theme_constant_override("margin_bottom", 10)
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 12)
 	catalog_panel.add_child(margin)
 
 	var vbox: VBoxContainer = VBoxContainer.new()
@@ -1408,12 +876,15 @@ func _build_furniture_catalog() -> void:
 
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	vbox.add_child(scroll)
 
 	_catalog_items_vbox = VBoxContainer.new()
 	_catalog_items_vbox.add_theme_constant_override("separation", 4)
 	_catalog_items_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_catalog_items_vbox.custom_minimum_size = Vector2(196.0, 0.0)
 	scroll.add_child(_catalog_items_vbox)
 
 
@@ -1440,7 +911,9 @@ func _rebuild_catalog_tab_buttons() -> void:
 		var btn: Button = Button.new()
 		btn.text = cat
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.custom_minimum_size = Vector2(0.0, 28.0)
 		btn.add_theme_font_size_override("font_size", 11)
+		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		btn.pressed.connect(set_catalog_category.bind(cat))
 		_catalog_tab_hbox.add_child(btn)
 		_catalog_tab_buttons.append(btn)
@@ -1492,7 +965,9 @@ func _rebuild_catalog_items() -> void:
 		btn.text = shortcut_text + info.get("display_name", type) + "  " + str(sz.x) + "×" + str(sz.y) + stock_suffix
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.custom_minimum_size = Vector2(0.0, 34.0)
 		btn.add_theme_font_size_override("font_size", 13)
+		btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		if is_limited and stock == 0:
 			btn.add_theme_color_override("font_color", Color(0.55, 0.55, 0.60))
 		btn.pressed.connect(_on_catalog_item_pressed.bind(type))
@@ -1745,196 +1220,42 @@ func set_open_settings_callback(cb: Callable) -> void:
 
 
 func _build_settings_panel() -> void:
-	settings_panel = PanelContainer.new()
-	settings_panel.name = "SettingsPanel"
-	settings_panel.anchor_left = 0.5
-	settings_panel.anchor_top = 0.5
-	settings_panel.anchor_right = 0.5
-	settings_panel.anchor_bottom = 0.5
-	settings_panel.offset_left = -220.0
-	settings_panel.offset_top = -280.0
-	settings_panel.offset_right = 220.0
-	settings_panel.offset_bottom = 280.0
-	settings_panel.visible = false
-	settings_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.97)))
+	settings_panel = SettingsPanelScene.instantiate() as PanelContainer
+	settings_panel.autosave_enabled_changed.connect(func(v: bool) -> void:
+		_play_ui_sound("ui_click")
+		if _on_settings_autosave_enabled.is_valid(): _on_settings_autosave_enabled.call(v)
+	)
+	settings_panel.autosave_interval_changed.connect(func(v: float) -> void:
+		_play_ui_sound("ui_click")
+		if _on_settings_autosave_interval.is_valid(): _on_settings_autosave_interval.call(v)
+	)
+	settings_panel.show_missions_changed.connect(func(v: bool) -> void:
+		_play_ui_sound("ui_click")
+		_missions_display_enabled = v
+		if not v: hide_premium_objective_panel()
+		if _on_settings_show_missions.is_valid(): _on_settings_show_missions.call(v)
+	)
+	settings_panel.sfx_enabled_changed.connect(func(v: bool) -> void:
+		if _on_settings_sfx_enabled.is_valid(): _on_settings_sfx_enabled.call(v)
+		_play_ui_sound("ui_click")
+	)
+	settings_panel.sfx_volume_changed.connect(func(v: float) -> void:
+		if _on_settings_sfx_volume.is_valid(): _on_settings_sfx_volume.call(v)
+		_play_ui_sound("ui_click")
+	)
+	settings_panel.tutorial_restart_requested.connect(func() -> void:
+		_play_ui_sound("ui_click")
+		if _on_settings_tutorial_restart.is_valid(): _on_settings_tutorial_restart.call()
+	)
+	settings_panel.reset_data_requested.connect(func() -> void:
+		_play_ui_sound("ui_click")
+		if _on_settings_reset_data.is_valid(): _on_settings_reset_data.call()
+	)
+	settings_panel.panel_closed.connect(func() -> void:
+		_play_ui_sound("panel_close")
+		if _on_settings_closed_cb.is_valid(): _on_settings_closed_cb.call()
+	)
 	ui_layer.add_child(settings_panel)
-
-	var margin: MarginContainer = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_bottom", 16)
-	settings_panel.add_child(margin)
-
-	var layout: VBoxContainer = VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 8)
-	margin.add_child(layout)
-
-	var title: Label = Label.new()
-	title.text = "Configuración"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(1.0, 0.95, 0.72))
-	layout.add_child(title)
-
-	layout.add_child(HSeparator.new())
-
-	var autosave_row: HBoxContainer = HBoxContainer.new()
-	autosave_row.add_theme_constant_override("separation", 8)
-	layout.add_child(autosave_row)
-	var autosave_lbl: Label = Label.new()
-	autosave_lbl.text = "Guardado automático"
-	autosave_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	autosave_lbl.add_theme_color_override("font_color", Color(0.88, 0.92, 1.0))
-	autosave_row.add_child(autosave_lbl)
-	_settings_autosave_toggle_btn = Button.new()
-	_settings_autosave_toggle_btn.text = "Activado"
-	_settings_autosave_toggle_btn.custom_minimum_size = Vector2(96.0, 0.0)
-	_settings_autosave_toggle_btn.pressed.connect(_on_settings_autosave_toggle_pressed)
-	autosave_row.add_child(_settings_autosave_toggle_btn)
-
-	var interval_row: HBoxContainer = HBoxContainer.new()
-	interval_row.add_theme_constant_override("separation", 4)
-	layout.add_child(interval_row)
-	var interval_lbl: Label = Label.new()
-	interval_lbl.text = "Intervalo:"
-	interval_lbl.add_theme_color_override("font_color", Color(0.72, 0.80, 0.92))
-	interval_lbl.add_theme_font_size_override("font_size", 12)
-	interval_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	interval_row.add_child(interval_lbl)
-	_settings_interval_btns.clear()
-	for secs: float in [30.0, 60.0, 120.0]:
-		var ibtn: Button = Button.new()
-		ibtn.text = str(int(secs)) + "s"
-		ibtn.custom_minimum_size = Vector2(48.0, 0.0)
-		ibtn.pressed.connect(_on_settings_interval_pressed.bind(secs))
-		interval_row.add_child(ibtn)
-		_settings_interval_btns.append(ibtn)
-
-	layout.add_child(HSeparator.new())
-
-	var sfx_row: HBoxContainer = HBoxContainer.new()
-	sfx_row.add_theme_constant_override("separation", 8)
-	layout.add_child(sfx_row)
-	var sfx_lbl: Label = Label.new()
-	sfx_lbl.text = "Sonidos"
-	sfx_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sfx_lbl.add_theme_color_override("font_color", Color(0.88, 0.92, 1.0))
-	sfx_row.add_child(sfx_lbl)
-	_settings_sfx_toggle_btn = Button.new()
-	_settings_sfx_toggle_btn.text = "Activado"
-	_settings_sfx_toggle_btn.custom_minimum_size = Vector2(96.0, 0.0)
-	_settings_sfx_toggle_btn.pressed.connect(_on_settings_sfx_toggle_pressed)
-	sfx_row.add_child(_settings_sfx_toggle_btn)
-
-	var sfx_volume_row: HBoxContainer = HBoxContainer.new()
-	sfx_volume_row.add_theme_constant_override("separation", 4)
-	layout.add_child(sfx_volume_row)
-	var sfx_volume_lbl: Label = Label.new()
-	sfx_volume_lbl.text = "Volumen SFX:"
-	sfx_volume_lbl.add_theme_color_override("font_color", Color(0.72, 0.80, 0.92))
-	sfx_volume_lbl.add_theme_font_size_override("font_size", 12)
-	sfx_volume_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sfx_volume_row.add_child(sfx_volume_lbl)
-	_settings_sfx_volume_btns.clear()
-	for vol: float in [0.25, 0.5, 0.75, 1.0]:
-		var vbtn: Button = Button.new()
-		vbtn.text = str(int(vol * 100.0)) + "%"
-		vbtn.custom_minimum_size = Vector2(48.0, 0.0)
-		vbtn.pressed.connect(_on_settings_sfx_volume_pressed.bind(vol))
-		sfx_volume_row.add_child(vbtn)
-		_settings_sfx_volume_btns.append(vbtn)
-
-	layout.add_child(HSeparator.new())
-
-	var missions_row: HBoxContainer = HBoxContainer.new()
-	missions_row.add_theme_constant_override("separation", 8)
-	layout.add_child(missions_row)
-	var missions_lbl: Label = Label.new()
-	missions_lbl.text = "Mostrar misiones"
-	missions_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	missions_lbl.add_theme_color_override("font_color", Color(0.88, 0.92, 1.0))
-	missions_row.add_child(missions_lbl)
-	_settings_missions_btn = Button.new()
-	_settings_missions_btn.text = "Sí"
-	_settings_missions_btn.custom_minimum_size = Vector2(96.0, 0.0)
-	_settings_missions_btn.pressed.connect(_on_settings_missions_toggle_pressed)
-	missions_row.add_child(_settings_missions_btn)
-
-	layout.add_child(HSeparator.new())
-
-	var tutorial_btn: Button = Button.new()
-	tutorial_btn.text = "Reiniciar tutorial"
-	tutorial_btn.pressed.connect(_on_settings_tutorial_restart_pressed)
-	layout.add_child(tutorial_btn)
-
-	layout.add_child(HSeparator.new())
-
-	var reset_btn: Button = Button.new()
-	reset_btn.text = "Resetear datos locales"
-	reset_btn.add_theme_color_override("font_color", Color(1.0, 0.5, 0.5))
-	reset_btn.pressed.connect(_on_settings_reset_pressed)
-	layout.add_child(reset_btn)
-
-	layout.add_child(HSeparator.new())
-
-	var close_btn: Button = Button.new()
-	close_btn.text = "Cerrar"
-	close_btn.pressed.connect(_on_settings_close_pressed)
-	layout.add_child(close_btn)
-
-	_build_confirm_reset_panel()
-
-
-func _build_confirm_reset_panel() -> void:
-	_confirm_reset_panel = PanelContainer.new()
-	_confirm_reset_panel.name = "ConfirmResetPanel"
-	_confirm_reset_panel.anchor_left = 0.5
-	_confirm_reset_panel.anchor_top = 0.5
-	_confirm_reset_panel.anchor_right = 0.5
-	_confirm_reset_panel.anchor_bottom = 0.5
-	_confirm_reset_panel.offset_left = -210.0
-	_confirm_reset_panel.offset_top = -80.0
-	_confirm_reset_panel.offset_right = 210.0
-	_confirm_reset_panel.offset_bottom = 80.0
-	_confirm_reset_panel.visible = false
-	_confirm_reset_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.20, 0.07, 0.07, 0.98)))
-	ui_layer.add_child(_confirm_reset_panel)
-
-	var margin: MarginContainer = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_top", 14)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_bottom", 14)
-	_confirm_reset_panel.add_child(margin)
-
-	var layout: VBoxContainer = VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 10)
-	margin.add_child(layout)
-
-	var msg: Label = Label.new()
-	msg.text = "Esto borrará salas, perfil, créditos, tienda, stock, misiones y tutorial. ¿Continuar?"
-	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	msg.add_theme_font_size_override("font_size", 13)
-	msg.add_theme_color_override("font_color", Color(1.0, 0.82, 0.82))
-	layout.add_child(msg)
-
-	var btn_row: HBoxContainer = HBoxContainer.new()
-	btn_row.add_theme_constant_override("separation", 12)
-	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	layout.add_child(btn_row)
-
-	var cancel_btn: Button = Button.new()
-	cancel_btn.text = "Cancelar"
-	cancel_btn.pressed.connect(func() -> void: _confirm_reset_panel.visible = false)
-	btn_row.add_child(cancel_btn)
-
-	var confirm_btn: Button = Button.new()
-	confirm_btn.text = "Sí, resetear"
-	confirm_btn.add_theme_color_override("font_color", Color(1.0, 0.4, 0.4))
-	confirm_btn.pressed.connect(_on_settings_confirm_reset_pressed)
-	btn_row.add_child(confirm_btn)
 
 
 func show_settings_panel(settings_data: Dictionary) -> void:
@@ -1946,8 +1267,6 @@ func show_settings_panel(settings_data: Dictionary) -> void:
 
 
 func hide_settings_panel() -> void:
-	if _confirm_reset_panel != null:
-		_confirm_reset_panel.visible = false
 	if settings_panel != null:
 		if settings_panel.visible:
 			_play_ui_sound("panel_close")
@@ -1961,46 +1280,12 @@ func is_settings_visible() -> bool:
 
 
 func update_settings_panel(settings_data: Dictionary) -> void:
-	if settings_data.is_empty():
-		return
-	var autosave_on: bool = bool(settings_data.get("autosave_enabled", true))
-	if _settings_autosave_toggle_btn != null:
-		_settings_autosave_toggle_btn.text = "Activado" if autosave_on else "Desactivado"
-	var interval: float = float(settings_data.get("autosave_interval", 60.0))
-	var active_style: StyleBoxFlat = StyleBoxFlat.new()
-	active_style.bg_color = Color(0.20, 0.38, 0.58, 0.92)
-	active_style.corner_radius_top_left = 4
-	active_style.corner_radius_top_right = 4
-	active_style.corner_radius_bottom_right = 4
-	active_style.corner_radius_bottom_left = 4
-	var intervals: Array[float] = [30.0, 60.0, 120.0]
-	for i: int in range(_settings_interval_btns.size()):
-		if i < intervals.size() and is_equal_approx(intervals[i], interval):
-			_settings_interval_btns[i].add_theme_stylebox_override("normal", active_style)
-		else:
-			_settings_interval_btns[i].remove_theme_stylebox_override("normal")
+	if settings_panel != null and settings_panel.has_method("update_settings"):
+		settings_panel.call("update_settings", settings_data)
 	var show_m: bool = bool(settings_data.get("show_missions", true))
 	_missions_display_enabled = show_m
 	if not show_m:
 		hide_premium_objective_panel()
-	if _settings_missions_btn != null:
-		_settings_missions_btn.text = "Sí" if show_m else "No"
-
-
-	_sync_sfx_settings_controls(settings_data, active_style)
-
-
-func _sync_sfx_settings_controls(settings_data: Dictionary, active_style: StyleBoxFlat) -> void:
-	var sfx_on: bool = bool(settings_data.get("sfx_enabled", true))
-	if _settings_sfx_toggle_btn != null:
-		_settings_sfx_toggle_btn.text = "Activado" if sfx_on else "Desactivado"
-	var sfx_volume: float = float(settings_data.get("sfx_volume", 0.7))
-	var volumes: Array[float] = [0.25, 0.5, 0.75, 1.0]
-	for i: int in range(_settings_sfx_volume_btns.size()):
-		if i < volumes.size() and is_equal_approx(volumes[i], sfx_volume):
-			_settings_sfx_volume_btns[i].add_theme_stylebox_override("normal", active_style)
-		else:
-			_settings_sfx_volume_btns[i].remove_theme_stylebox_override("normal")
 
 
 func set_settings_autosave_enabled_callback(cb: Callable) -> void:
@@ -2042,64 +1327,6 @@ func set_ui_sound_callback(cb: Callable) -> void:
 func _play_ui_sound(sound_id: String) -> void:
 	if _on_ui_sound.is_valid():
 		_on_ui_sound.call(sound_id)
-
-
-func _on_settings_autosave_toggle_pressed() -> void:
-	_play_ui_sound("ui_click")
-	if _on_settings_autosave_enabled.is_valid():
-		var new_val: bool = _settings_autosave_toggle_btn != null and _settings_autosave_toggle_btn.text == "Desactivado"
-		_on_settings_autosave_enabled.call(new_val)
-
-
-func _on_settings_interval_pressed(seconds: float) -> void:
-	_play_ui_sound("ui_click")
-	if _on_settings_autosave_interval.is_valid():
-		_on_settings_autosave_interval.call(seconds)
-
-
-func _on_settings_missions_toggle_pressed() -> void:
-	_play_ui_sound("ui_click")
-	if _on_settings_show_missions.is_valid():
-		var new_val: bool = _settings_missions_btn != null and _settings_missions_btn.text == "No"
-		_on_settings_show_missions.call(new_val)
-
-
-func _on_settings_sfx_toggle_pressed() -> void:
-	if _on_settings_sfx_enabled.is_valid():
-		var new_val: bool = _settings_sfx_toggle_btn != null and _settings_sfx_toggle_btn.text == "Desactivado"
-		_on_settings_sfx_enabled.call(new_val)
-	_play_ui_sound("ui_click")
-
-
-func _on_settings_sfx_volume_pressed(value: float) -> void:
-	if _on_settings_sfx_volume.is_valid():
-		_on_settings_sfx_volume.call(value)
-	_play_ui_sound("ui_click")
-
-
-func _on_settings_tutorial_restart_pressed() -> void:
-	_play_ui_sound("ui_click")
-	if _on_settings_tutorial_restart.is_valid():
-		_on_settings_tutorial_restart.call()
-
-
-func _on_settings_reset_pressed() -> void:
-	_play_ui_sound("ui_click")
-	if _confirm_reset_panel != null:
-		_confirm_reset_panel.visible = true
-		_confirm_reset_panel.move_to_front()
-
-
-func _on_settings_confirm_reset_pressed() -> void:
-	_play_ui_sound("ui_click")
-	if _confirm_reset_panel != null:
-		_confirm_reset_panel.visible = false
-	if _on_settings_reset_data.is_valid():
-		_on_settings_reset_data.call()
-
-
-func _on_settings_close_pressed() -> void:
-	hide_settings_panel()
 
 
 func show_overlap_selector(items: Array) -> void:
@@ -2558,60 +1785,23 @@ func _on_help_pressed() -> void:
 
 
 func _build_shop_panel() -> void:
-	shop_panel = PanelContainer.new()
-	shop_panel.name = "ShopPanel"
-	shop_panel.anchor_left = 0.5
-	shop_panel.anchor_top = 0.5
-	shop_panel.anchor_right = 0.5
-	shop_panel.anchor_bottom = 0.5
-	shop_panel.offset_left = -260.0
-	shop_panel.offset_top = -190.0
-	shop_panel.offset_right = 260.0
-	shop_panel.offset_bottom = 190.0
-	shop_panel.visible = false
-	shop_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.97)))
+	# Cargado desde ShopPanel.tscn — lógica migrada a scripts/ui/panels/ShopPanel.gd
+	shop_panel = ShopPanelScene.instantiate() as PanelContainer
+	shop_panel.buy_requested.connect(_on_shop_buy_pressed)
+	shop_panel.panel_closed.connect(_on_shop_close_pressed)
 	ui_layer.add_child(shop_panel)
-
-	var margin: MarginContainer = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 18)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_right", 18)
-	margin.add_theme_constant_override("margin_bottom", 16)
-	shop_panel.add_child(margin)
-
-	var layout: VBoxContainer = VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 10)
-	margin.add_child(layout)
-
-	var title: Label = Label.new()
-	title.text = "Tienda"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 20)
-	title.add_theme_color_override("font_color", Color(1.0, 0.95, 0.72))
-	layout.add_child(title)
-
-	_shop_credits_label = Label.new()
-	_shop_credits_label.text = "Créditos: 0"
-	_shop_credits_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_shop_credits_label.add_theme_color_override("font_color", Color(1.0, 0.90, 0.48))
-	layout.add_child(_shop_credits_label)
-
-	_shop_items_vbox = VBoxContainer.new()
-	_shop_items_vbox.add_theme_constant_override("separation", 6)
-	layout.add_child(_shop_items_vbox)
-
-	var close_btn: Button = Button.new()
-	close_btn.text = "Cerrar"
-	close_btn.pressed.connect(_on_shop_close_pressed)
-	layout.add_child(close_btn)
 
 
 func show_shop_panel(items: Array[Dictionary], credits: int, stock_data: Dictionary = {}) -> void:
-	update_shop_items(items, credits, stock_data)
-	if shop_panel != null:
+	if shop_panel != null and shop_panel.has_method("show_with_data"):
 		_play_ui_sound("panel_open")
-		shop_panel.visible = true
-		shop_panel.move_to_front()
+		shop_panel.call("show_with_data", items, credits, stock_data)
+	else:
+		update_shop_items(items, credits, stock_data)
+		if shop_panel != null:
+			_play_ui_sound("panel_open")
+			shop_panel.visible = true
+			shop_panel.move_to_front()
 
 
 func hide_shop_panel() -> void:
@@ -2626,46 +1816,9 @@ func hide_shop_panel() -> void:
 
 
 func update_shop_items(items: Array[Dictionary], credits: int, stock_data: Dictionary = {}) -> void:
-	if _shop_credits_label != null:
-		_shop_credits_label.text = "Créditos: " + str(credits)
-	if _shop_items_vbox == null:
-		return
-	for child: Node in _shop_items_vbox.get_children():
-		_shop_items_vbox.remove_child(child)
-		child.queue_free()
-	for item: Dictionary in items:
-		var item_id: String = str(item.get("id", ""))
-		var display_name: String = str(item.get("display_name", item_id))
-		var price: int = int(item.get("price", 0))
-		var item_type: String = str(item.get("type", item_id))
-		var stock: int = int(stock_data.get(item_type, 0))
-
-		var col: VBoxContainer = VBoxContainer.new()
-		col.add_theme_constant_override("separation", 2)
-		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_shop_items_vbox.add_child(col)
-
-		var row: HBoxContainer = HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		col.add_child(row)
-
-		var label: Label = Label.new()
-		label.text = display_name + " — " + str(price) + " créditos"
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.add_theme_font_size_override("font_size", 13)
-		label.add_theme_color_override("font_color", Color(0.90, 0.94, 1.0))
-		row.add_child(label)
-
-		var buy_btn: Button = Button.new()
-		buy_btn.text = "Comprar"
-		buy_btn.pressed.connect(_on_shop_buy_pressed.bind(item_id))
-		row.add_child(buy_btn)
-
-		var stock_label: Label = Label.new()
-		stock_label.text = "En inventario: " + str(stock)
-		stock_label.add_theme_font_size_override("font_size", 11)
-		stock_label.add_theme_color_override("font_color", Color(0.65, 0.80, 0.65) if stock > 0 else Color(0.60, 0.60, 0.60))
-		col.add_child(stock_label)
+	# Delegado a ShopPanel.gd (escena independiente)
+	if shop_panel != null and shop_panel.has_method("update_items"):
+		shop_panel.call("update_items", items, credits, stock_data)
 
 
 func is_shop_visible() -> bool:
@@ -3991,167 +3144,49 @@ func get_chat_text() :
 
 
 func _build_pause_menu() -> void:
-	_pause_overlay = Control.new()
-	_pause_overlay.name = "PauseOverlay"
-	_pause_overlay.anchor_left = 0.0
-	_pause_overlay.anchor_top = 0.0
-	_pause_overlay.anchor_right = 1.0
-	_pause_overlay.anchor_bottom = 1.0
-	_pause_overlay.offset_left = 0.0
-	_pause_overlay.offset_top = 0.0
-	_pause_overlay.offset_right = 0.0
-	_pause_overlay.offset_bottom = 0.0
-	_pause_overlay.visible = false
-	_pause_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	ui_layer.add_child(_pause_overlay)
-
-	var dim: ColorRect = ColorRect.new()
-	dim.color = Color(0.02, 0.03, 0.06, 0.55)
-	dim.anchor_left = 0.0
-	dim.anchor_top = 0.0
-	dim.anchor_right = 1.0
-	dim.anchor_bottom = 1.0
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_pause_overlay.add_child(dim)
-
-	_pause_menu_panel = PanelContainer.new()
-	_pause_menu_panel.name = "PauseMenuPanel"
-	_pause_menu_panel.anchor_left = 0.5
-	_pause_menu_panel.anchor_top = 0.5
-	_pause_menu_panel.anchor_right = 0.5
-	_pause_menu_panel.anchor_bottom = 0.5
-	_pause_menu_panel.offset_left = -150.0
-	_pause_menu_panel.offset_top = -185.0
-	_pause_menu_panel.offset_right = 150.0
-	_pause_menu_panel.offset_bottom = 185.0
-	_pause_menu_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.97)))
-	_pause_overlay.add_child(_pause_menu_panel)
-
-	var margin: MarginContainer = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 22)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_right", 22)
-	margin.add_theme_constant_override("margin_bottom", 18)
-	_pause_menu_panel.add_child(margin)
-
-	var layout: VBoxContainer = VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 8)
-	margin.add_child(layout)
-
-	var title: Label = Label.new()
-	title.text = "Menu"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 20)
-	title.add_theme_color_override("font_color", Color(1.0, 0.95, 0.72))
-	layout.add_child(title)
-
-	layout.add_child(HSeparator.new())
-
-	var continue_btn: Button = Button.new()
-	continue_btn.text = "Continuar"
-	continue_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	continue_btn.pressed.connect(_on_pause_continue_pressed)
-	layout.add_child(continue_btn)
-
-	var save_btn: Button = Button.new()
-	save_btn.text = "Guardar ahora"
-	save_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	save_btn.pressed.connect(_on_pause_save_pressed)
-	layout.add_child(save_btn)
-
-	var settings_btn: Button = Button.new()
-	settings_btn.text = "Configuracion"
-	settings_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	settings_btn.pressed.connect(_on_pause_settings_pressed)
-	layout.add_child(settings_btn)
-
-	var back_rooms_btn: Button = Button.new()
-	back_rooms_btn.text = "Volver a salas"
-	back_rooms_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	back_rooms_btn.pressed.connect(_on_pause_back_to_rooms_pressed)
-	layout.add_child(back_rooms_btn)
-
-	var exit_btn: Button = Button.new()
-	exit_btn.text = "Salir al menu principal"
-	exit_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	exit_btn.add_theme_color_override("font_color", Color(1.0, 0.65, 0.65))
-	exit_btn.pressed.connect(_on_pause_exit_to_main_pressed)
-	layout.add_child(exit_btn)
-
-	_build_pause_exit_confirm()
-
-
-func _build_pause_exit_confirm() -> void:
-	_pause_exit_confirm_panel = PanelContainer.new()
-	_pause_exit_confirm_panel.name = "PauseExitConfirmPanel"
-	_pause_exit_confirm_panel.anchor_left = 0.5
-	_pause_exit_confirm_panel.anchor_top = 0.5
-	_pause_exit_confirm_panel.anchor_right = 0.5
-	_pause_exit_confirm_panel.anchor_bottom = 0.5
-	_pause_exit_confirm_panel.offset_left = -210.0
-	_pause_exit_confirm_panel.offset_top = -90.0
-	_pause_exit_confirm_panel.offset_right = 210.0
-	_pause_exit_confirm_panel.offset_bottom = 90.0
-	_pause_exit_confirm_panel.visible = false
-	_pause_exit_confirm_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.14, 0.10, 0.07, 0.98)))
-	_pause_overlay.add_child(_pause_exit_confirm_panel)
-
-	var margin: MarginContainer = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 18)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_right", 18)
-	margin.add_theme_constant_override("margin_bottom", 16)
-	_pause_exit_confirm_panel.add_child(margin)
-
-	var layout: VBoxContainer = VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 12)
-	margin.add_child(layout)
-
-	var msg: Label = Label.new()
-	msg.text = "Salir al menu principal?\nSe guardaran los cambios locales."
-	msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	msg.add_theme_font_size_override("font_size", 13)
-	msg.add_theme_color_override("font_color", Color(1.0, 0.90, 0.80))
-	layout.add_child(msg)
-
-	var btn_row: HBoxContainer = HBoxContainer.new()
-	btn_row.add_theme_constant_override("separation", 12)
-	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	layout.add_child(btn_row)
-
-	var cancel_btn: Button = Button.new()
-	cancel_btn.text = "Cancelar"
-	cancel_btn.pressed.connect(_on_pause_exit_cancel_pressed)
-	btn_row.add_child(cancel_btn)
-
-	var confirm_btn: Button = Button.new()
-	confirm_btn.text = "Salir"
-	confirm_btn.add_theme_color_override("font_color", Color(1.0, 0.5, 0.5))
-	confirm_btn.pressed.connect(_on_pause_exit_confirm_pressed)
-	btn_row.add_child(confirm_btn)
+	_pause_menu = PauseMenuScene.instantiate() as Control
+	_pause_menu.resume_requested.connect(func() -> void:
+		_play_ui_sound("ui_click")
+		if _on_pause_continue.is_valid(): _on_pause_continue.call()
+		else: hide_pause_menu()
+	)
+	_pause_menu.save_requested.connect(func() -> void:
+		_play_ui_sound("ui_click")
+		if _on_pause_save.is_valid(): _on_pause_save.call()
+	)
+	_pause_menu.settings_requested.connect(func() -> void:
+		_play_ui_sound("ui_click")
+		if _on_pause_settings.is_valid(): _on_pause_settings.call()
+	)
+	_pause_menu.back_to_rooms_requested.connect(func() -> void:
+		_play_ui_sound("ui_click")
+		if _on_pause_back_to_rooms.is_valid(): _on_pause_back_to_rooms.call()
+	)
+	_pause_menu.exit_requested.connect(func() -> void:
+		_play_ui_sound("ui_click")
+		if _on_pause_exit_confirm.is_valid(): _on_pause_exit_confirm.call()
+	)
+	ui_layer.add_child(_pause_menu)
 
 
 func show_pause_menu() -> void:
-	if _pause_overlay != null:
+	if _pause_menu != null:
 		_play_ui_sound("panel_open")
-		if _pause_exit_confirm_panel != null:
-			_pause_exit_confirm_panel.visible = false
-		_pause_overlay.visible = true
-		_pause_overlay.move_to_front()
+		if _pause_menu.has_method("hide_exit_confirm"): _pause_menu.call("hide_exit_confirm")
+		_pause_menu.visible = true
+		_pause_menu.move_to_front()
 
 
 func hide_pause_menu() -> void:
-	if _pause_overlay != null and _pause_overlay.visible:
+	if _pause_menu != null and _pause_menu.visible:
 		_play_ui_sound("panel_close")
-	if _pause_exit_confirm_panel != null:
-		_pause_exit_confirm_panel.visible = false
-	if _pause_overlay != null:
-		_pause_overlay.visible = false
+	if _pause_menu != null:
+		if _pause_menu.has_method("hide_exit_confirm"): _pause_menu.call("hide_exit_confirm")
+		_pause_menu.visible = false
 
 
 func is_pause_menu_visible() -> bool:
-	return _pause_overlay != null and _pause_overlay.visible
+	return _pause_menu != null and _pause_menu.visible
 
 
 func show_pause_button() -> void:
@@ -4165,14 +3200,13 @@ func hide_pause_button() -> void:
 
 
 func show_exit_to_main_confirmation() -> void:
-	if _pause_exit_confirm_panel != null:
-		_pause_exit_confirm_panel.visible = true
-		_pause_exit_confirm_panel.move_to_front()
+	if _pause_menu != null and _pause_menu.has_method("show_exit_confirm"):
+		_pause_menu.call("show_exit_confirm")
 
 
 func hide_exit_to_main_confirmation() -> void:
-	if _pause_exit_confirm_panel != null:
-		_pause_exit_confirm_panel.visible = false
+	if _pause_menu != null and _pause_menu.has_method("hide_exit_confirm"):
+		_pause_menu.call("hide_exit_confirm")
 
 
 func set_pause_continue_callback(cb: Callable) -> void:
@@ -4200,49 +3234,6 @@ func _on_pause_menu_btn_pressed() -> void:
 		return
 	_play_ui_sound("ui_click")
 	show_pause_menu()
-
-
-func _on_pause_continue_pressed() -> void:
-	_play_ui_sound("ui_click")
-	if _on_pause_continue.is_valid():
-		_on_pause_continue.call()
-	else:
-		hide_pause_menu()
-
-
-func _on_pause_save_pressed() -> void:
-	_play_ui_sound("ui_click")
-	if _on_pause_save.is_valid():
-		_on_pause_save.call()
-
-
-func _on_pause_settings_pressed() -> void:
-	_play_ui_sound("ui_click")
-	if _on_pause_settings.is_valid():
-		_on_pause_settings.call()
-
-
-func _on_pause_back_to_rooms_pressed() -> void:
-	_play_ui_sound("ui_click")
-	if _on_pause_back_to_rooms.is_valid():
-		_on_pause_back_to_rooms.call()
-
-
-func _on_pause_exit_to_main_pressed() -> void:
-	_play_ui_sound("ui_click")
-	show_exit_to_main_confirmation()
-
-
-func _on_pause_exit_confirm_pressed() -> void:
-	_play_ui_sound("ui_click")
-	hide_exit_to_main_confirmation()
-	if _on_pause_exit_confirm.is_valid():
-		_on_pause_exit_confirm.call()
-
-
-func _on_pause_exit_cancel_pressed() -> void:
-	_play_ui_sound("ui_click")
-	hide_exit_to_main_confirmation()
 
 
 func display_chat_message(chat_entry) :

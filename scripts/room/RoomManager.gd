@@ -74,7 +74,7 @@ func get_all_rooms():
 
 		if room != null:
 			if room is RefCounted and room.has_method("get_script"):
-				rooms.append(room.get_script().new(room.id, room.display_name, room.width, room.height, room.player_start_cell, room.furniture_items))
+				rooms.append(room.get_script().new(room.id, room.display_name, room.width, room.height, room.player_start_cell, room.furniture_items, room.floor_type))
 			else:
 				rooms.append(room)
 
@@ -104,6 +104,9 @@ func apply_saved_rooms(saved_rooms) :
 			continue
 
 		target_room.furniture_items.clear()
+		var floor_type_variant: Variant = saved_room.get("floor_type")
+		if floor_type_variant != null and str(floor_type_variant) != "":
+			target_room.floor_type = str(floor_type_variant)
 
 		for furniture in saved_room.furniture_items:
 			if furniture is RefCounted and furniture.has_method("get_script"):
@@ -122,12 +125,9 @@ func register_initial_rooms() :
 			Vector2i(1, 1),
 			[
 				# Alfombra de bienvenida — centro-izquierda
-				FurnitureDataScript.new(Vector2i(2, 4), &"rug", Vector2i(1, 1)),
-				FurnitureDataScript.new(Vector2i(3, 4), &"rug", Vector2i(1, 1)),
-				FurnitureDataScript.new(Vector2i(2, 5), &"rug", Vector2i(1, 1)),
-				FurnitureDataScript.new(Vector2i(3, 5), &"rug", Vector2i(1, 1)),
+				FurnitureDataScript.new(Vector2i(2, 4), &"rug", Vector2i(2, 2)),
 				# Zona de descanso: sofá + escritorio + silla
-				FurnitureDataScript.new(Vector2i(7, 2), &"sofa", Vector2i(1, 2)),
+				FurnitureDataScript.new(Vector2i(7, 2), &"sofa", Vector2i(2, 1)),
 				FurnitureDataScript.new(Vector2i(6, 4), &"chair", Vector2i(1, 1)),
 				FurnitureDataScript.new(Vector2i(7, 5), &"desk", Vector2i(2, 1)),
 				# Decoración: lámpara junto al escritorio, estantería en esquina

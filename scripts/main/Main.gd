@@ -574,8 +574,12 @@ func _on_settings_show_missions_changed(value: bool) -> void:
 	if game_ui != null:
 		if value and current_state == GameState.IN_ROOM:
 			game_ui.show_missions_panel()
+			if game_ui.has_method("show_premium_objective_panel"):
+				game_ui.show_premium_objective_panel()
 		else:
 			game_ui.hide_missions_panel()
+			if game_ui.has_method("hide_premium_objective_panel"):
+				game_ui.hide_premium_objective_panel()
 	if game_ui != null and game_ui.has_method("update_settings_panel"):
 		game_ui.update_settings_panel(settings_manager.get_settings_data())
 	_refresh_daily_objective_hud()
@@ -1123,6 +1127,13 @@ func _update_missions_ui() -> void:
 		game_ui.show_missions_panel()
 	elif game_ui.has_method("hide_missions_panel"):
 		game_ui.hide_missions_panel()
+	# Show/hide daily objective panel based on settings
+	if show_m:
+		if game_ui.has_method("show_premium_objective_panel"):
+			game_ui.show_premium_objective_panel()
+	else:
+		if game_ui.has_method("hide_premium_objective_panel"):
+			game_ui.hide_premium_objective_panel()
 	_refresh_premium_objective()
 	_refresh_premium_credits()
 

@@ -11,10 +11,19 @@ const IsoGridScript = preload("res://scripts/room/IsoGrid.gd")
 const FurnitureData = FurnitureDataScript
 const RoomData = RoomDataScript
 const IsoGrid = IsoGridScript
-const CHAT_HISTORY_BOTTOM_GAP = 96.0
-const CHAT_HISTORY_WIDTH = 380.0
+const CHAT_HISTORY_BOTTOM_GAP = 150.0
+const CHAT_HISTORY_WIDTH = 320.0
 const CHAT_BUBBLE_MAX_WIDTH = 300.0
 const CHAT_BUBBLE_MIN_WIDTH = 140.0
+const HUD_BG: Color = Color(0.025, 0.035, 0.085, 0.82)
+const HUD_PANEL: Color = Color(0.045, 0.060, 0.140, 0.78)
+const HUD_PANEL_LIGHT: Color = Color(0.100, 0.135, 0.240, 0.88)
+const HUD_BORDER: Color = Color(0.48, 0.60, 0.78, 0.28)
+const HUD_ACCENT: Color = Color(1.00, 0.66, 0.28, 0.98)
+const HUD_TEXT_MAIN: Color = Color(0.96, 0.96, 0.92)
+const HUD_TEXT_SECONDARY: Color = Color(0.62, 0.72, 0.86)
+const HUD_SUCCESS: Color = Color(0.54, 1.00, 0.74)
+const HUD_WARNING: Color = Color(1.00, 0.84, 0.40)
 
 var ui_layer: CanvasLayer
 var room_label: Label
@@ -23,6 +32,7 @@ var controls_panel: PanelContainer
 var main_menu_panel: PanelContainer
 var room_select_panel: PanelContainer
 var room_select_vbox: VBoxContainer
+var _room_cards_vbox: VBoxContainer
 var profile_panel: PanelContainer
 var profile_name_edit: LineEdit
 var profile_color_rect: ColorRect
@@ -152,6 +162,50 @@ var _on_back_to_rooms: Callable
 var _on_save_profile: Callable
 var _on_chat_submitted: Callable
 var _on_catalog_selected: Callable
+var _missions_display_enabled: bool = true
+
+var premium_top_bar: PanelContainer
+var _premium_room_name_label: Label
+var _premium_people_label: Label
+var _premium_rating_label: Label
+var _premium_credits_label: Label
+var premium_objective_panel: PanelContainer
+var _premium_objective_title_label: Label
+var _premium_objective_desc_label: Label
+var _premium_objective_status_label: Label
+var _premium_objective_reward_label: Label
+var _premium_objective_progress_fill: ColorRect
+var premium_side_panel: PanelContainer
+var _premium_people_vbox: VBoxContainer
+var _premium_map_badge_label: Label
+var premium_bottom_bar: PanelContainer
+var _premium_player_name_label: Label
+var _premium_player_color: ColorRect
+var _premium_bottom_hint_label: Label
+var _premium_tab_room_btn: Button
+var _premium_tab_decorate_btn: Button
+var _premium_tab_shop_btn: Button
+var _premium_tab_inventory_btn: Button
+var _premium_tab_profile_btn: Button
+
+var _on_top_change_room: Callable
+var _on_top_open_shop: Callable
+var _on_top_open_pause: Callable
+var _on_top_open_help: Callable
+var _on_side_map_lobby: Callable
+var _on_side_map_small: Callable
+var _on_side_map_large: Callable
+var _on_side_map_more: Callable
+var _on_bottom_explore: Callable
+var _on_bottom_decorate: Callable
+var _on_bottom_shop: Callable
+var _on_bottom_inventory: Callable
+var _on_bottom_profile: Callable
+var _on_bottom_emotes: Callable
+var _on_bottom_dance: Callable
+var _on_bottom_music: Callable
+var _on_bottom_photo: Callable
+var _on_bottom_commands: Callable
 
 
 func _init(root: Node, on_enter_hotel: Callable, on_room_selected: Callable, on_back_to_rooms: Callable, on_save_profile: Callable, on_chat_submitted: Callable = Callable(), on_catalog_selected: Callable = Callable()) -> void:
@@ -192,6 +246,10 @@ func setup_ui(root: Node) :
 	_build_toast_panel()
 	_build_tutorial_panel()
 	_build_about_panel()
+	build_premium_top_bar()
+	build_premium_objective_panel()
+	build_premium_side_panel()
+	build_premium_bottom_bar()
 	_build_splash_panel()
 
 
@@ -256,22 +314,38 @@ func _build_main_menu() :
 func _build_room_select() :
 	room_select_panel = PanelContainer.new()
 	room_select_panel.name = "RoomSelectPanel"
-	room_select_panel.anchor_left = 0.5
-	room_select_panel.anchor_top = 0.5
-	room_select_panel.anchor_right = 0.5
-	room_select_panel.anchor_bottom = 0.5
-	room_select_panel.offset_left = -180.0
-	room_select_panel.offset_top = -160.0
-	room_select_panel.offset_right = 180.0
-	room_select_panel.offset_bottom = 160.0
+	room_select_panel.anchor_left = 0.0
+	room_select_panel.anchor_top = 0.0
+	room_select_panel.anchor_right = 1.0
+	room_select_panel.anchor_bottom = 1.0
+	room_select_panel.offset_left = 0.0
+	room_select_panel.offset_top = 0.0
+	room_select_panel.offset_right = 0.0
+	room_select_panel.offset_bottom = 0.0
+	room_select_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	room_select_panel.add_theme_stylebox_override("panel", _make_premium_panel_style(Color(0.01, 0.015, 0.05, 0.66), 0))
 	ui_layer.add_child(room_select_panel)
 
+	var center_panel: PanelContainer = PanelContainer.new()
+	center_panel.name = "RoomSelectCard"
+	center_panel.anchor_left = 0.5
+	center_panel.anchor_top = 0.5
+	center_panel.anchor_right = 0.5
+	center_panel.anchor_bottom = 0.5
+	center_panel.offset_left = -270.0
+	center_panel.offset_top = -230.0
+	center_panel.offset_right = 270.0
+	center_panel.offset_bottom = 230.0
+	center_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	center_panel.add_theme_stylebox_override("panel", _make_premium_panel_style(Color(0.045, 0.058, 0.130, 0.96), 16))
+	room_select_panel.add_child(center_panel)
+
 	var margin: MarginContainer = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_top", 24)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_bottom", 24)
-	room_select_panel.add_child(margin)
+	margin.add_theme_constant_override("margin_left", 28)
+	margin.add_theme_constant_override("margin_top", 26)
+	margin.add_theme_constant_override("margin_right", 28)
+	margin.add_theme_constant_override("margin_bottom", 26)
+	center_panel.add_child(margin)
 
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 12)
@@ -281,26 +355,73 @@ func _build_room_select() :
 	var title: Label = Label.new()
 	title.text = "Seleccionar sala"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", HUD_TEXT_MAIN)
 	vbox.add_child(title)
+
+	var subtitle: Label = Label.new()
+	subtitle.text = "Elige donde quieres entrar"
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.add_theme_font_size_override("font_size", 14)
+	subtitle.add_theme_color_override("font_color", HUD_TEXT_SECONDARY)
+	vbox.add_child(subtitle)
+
+	_room_cards_vbox = VBoxContainer.new()
+	_room_cards_vbox.add_theme_constant_override("separation", 9)
+	_room_cards_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(_room_cards_vbox)
 
 	room_select_vbox = vbox
 
 	# default buttons (kept for backward compatibility)
-	_add_room_button(room_select_vbox, "lobby", "Lobby")
-	_add_room_button(room_select_vbox, "room_small", "Sala pequeña")
-	_add_room_button(room_select_vbox, "room_large", "Sala grande")
+	_add_room_button(_room_cards_vbox, "lobby", "Lobby")
+	_add_room_button(_room_cards_vbox, "room_small", "Sala pequeña")
+	_add_room_button(_room_cards_vbox, "room_large", "Sala grande")
 
 	var profile_btn: Button = Button.new()
 	profile_btn.text = "Editar Perfil"
+	profile_btn.custom_minimum_size = Vector2(0.0, 38.0)
+	profile_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	profile_btn.add_theme_font_size_override("font_size", 13)
+	profile_btn.add_theme_color_override("font_color", HUD_TEXT_MAIN)
+	profile_btn.add_theme_stylebox_override("normal", _make_premium_button_style(Color(0.09, 0.12, 0.24, 0.88)))
+	profile_btn.add_theme_stylebox_override("hover", _make_premium_button_style(Color(0.14, 0.18, 0.34, 0.94)))
+	profile_btn.add_theme_stylebox_override("pressed", _make_premium_button_style(Color(0.18, 0.22, 0.38, 1.0)))
 	profile_btn.pressed.connect(show_profile)
 	vbox.add_child(profile_btn)
 
 
-func _add_room_button(parent: VBoxContainer, room_id, label_text) :
+func _add_room_button(parent: VBoxContainer, room_id: String, label_text: String) :
 	var btn: Button = Button.new()
-	btn.text = label_text
+	btn.text = _room_card_text(room_id, label_text)
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.custom_minimum_size = Vector2(0.0, 70.0)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.add_theme_font_size_override("font_size", 14)
+	btn.add_theme_color_override("font_color", HUD_TEXT_MAIN)
+	btn.add_theme_color_override("font_hover_color", HUD_TEXT_MAIN)
+	btn.add_theme_color_override("font_pressed_color", Color(0.10, 0.07, 0.04))
+	btn.add_theme_stylebox_override("normal", _make_room_card_style(Color(0.075, 0.095, 0.190, 0.98), HUD_BORDER))
+	btn.add_theme_stylebox_override("hover", _make_room_card_style(Color(0.110, 0.145, 0.270, 1.0), Color(1.0, 0.72, 0.36, 0.55)))
+	btn.add_theme_stylebox_override("pressed", _make_room_card_style(HUD_ACCENT, Color(1.0, 0.88, 0.54, 0.90)))
 	btn.pressed.connect(_on_room_button_pressed.bind(room_id))
 	parent.add_child(btn)
+
+
+func _room_card_text(room_id: String, label_text: String) -> String:
+	var description: String = "Sala decorable"
+	var badge: String = ""
+	match room_id:
+		"lobby":
+			description = "Sala principal"
+			badge = "Bot Guia disponible"
+		"room_small":
+			description = "Espacio compacto"
+		"room_large":
+			description = "Mas espacio para decorar"
+	if badge != "":
+		return label_text + "\n" + description + "  |  " + badge
+	return label_text + "\n" + description
 
 
 func _on_enter_hotel_pressed() -> void:
@@ -316,13 +437,16 @@ func _on_room_button_pressed(room_id: String) -> void:
 
 
 func show_room_selector(rooms: Array) :
-	if room_select_vbox == null:
+	if room_select_vbox == null or _room_cards_vbox == null:
 		return
-	# clear existing room buttons (keep title and profile button)
+	# Clear legacy direct buttons if any, then rebuild the room cards.
 	for child in room_select_vbox.get_children():
 		if child is Button and child.text != "Editar Perfil":
 			room_select_vbox.remove_child(child)
 			child.queue_free()
+	for child: Node in _room_cards_vbox.get_children():
+		_room_cards_vbox.remove_child(child)
+		child.queue_free()
 
 	for r in rooms:
 		var room_id: String = ""
@@ -338,7 +462,7 @@ func show_room_selector(rooms: Array) :
 			r_label = r.display_name
 		
 		if room_id != "" and r_label != "":
-			_add_room_button(room_select_vbox, room_id, r_label)
+			_add_room_button(_room_cards_vbox, room_id, r_label)
 
 	# Make panel visible
 	show_room_select()
@@ -874,22 +998,32 @@ func _build_missions_panel() -> void:
 
 
 func show_missions_panel() -> void:
-	if missions_panel != null and not is_tutorial_visible():
+	if not _missions_display_enabled:
+		hide_premium_objective_panel()
+		if missions_panel != null:
+			missions_panel.visible = false
+		return
+	if premium_objective_panel != null:
+		show_premium_objective_panel()
+	elif missions_panel != null and not is_tutorial_visible():
 		missions_panel.visible = true
 
 
 func hide_missions_panel() -> void:
 	if missions_panel != null:
 		missions_panel.visible = false
+	hide_premium_objective_panel()
 
 
 func update_credits(amount: int) -> void:
 	if credits_label != null:
 		credits_label.text = "Créditos: " + str(amount)
+	update_premium_credits(amount)
 
 
 func update_missions(missions: Array[Dictionary]) -> void:
 	update_missions_compact(missions)
+	update_premium_objective(missions)
 
 
 func show_mission_completed(mission_title: String) -> void:
@@ -904,11 +1038,11 @@ func _build_chat_ui() :
 	chat_history_panel.anchor_right = 0.0
 	chat_history_panel.anchor_bottom = 1.0
 	chat_history_panel.offset_left = CHAT_HISTORY_LEFT_MARGIN
-	chat_history_panel.offset_top = -308.0
+	chat_history_panel.offset_top = -270.0
 	chat_history_panel.offset_right = CHAT_HISTORY_LEFT_MARGIN + CHAT_HISTORY_WIDTH
 	chat_history_panel.offset_bottom = -CHAT_HISTORY_BOTTOM_GAP
 	chat_history_panel.visible = false
-	chat_history_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.05, 0.08, 0.13, 0.76)))
+	chat_history_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.05, 0.08, 0.13, 0.70)))
 	ui_layer.add_child(chat_history_panel)
 
 	var history_margin: MarginContainer = MarginContainer.new()
@@ -933,9 +1067,9 @@ func _build_chat_ui() :
 	chat_input_panel.anchor_right = 0.5
 	chat_input_panel.anchor_bottom = 1.0
 	chat_input_panel.offset_left = -220.0
-	chat_input_panel.offset_top = -64.0
+	chat_input_panel.offset_top = -162.0
 	chat_input_panel.offset_right = 220.0
-	chat_input_panel.offset_bottom = -16.0
+	chat_input_panel.offset_bottom = -114.0
 	chat_input_panel.visible = false
 	ui_layer.add_child(chat_input_panel)
 
@@ -1015,9 +1149,9 @@ func _build_furniture_inspector() -> void:
 	furniture_inspector_panel.anchor_right = 0.0
 	furniture_inspector_panel.anchor_bottom = 0.0
 	furniture_inspector_panel.offset_left = 16.0
-	furniture_inspector_panel.offset_top = 16.0
+	furniture_inspector_panel.offset_top = 190.0
 	furniture_inspector_panel.offset_right = 220.0
-	furniture_inspector_panel.offset_bottom = 290.0
+	furniture_inspector_panel.offset_bottom = 506.0
 	furniture_inspector_panel.visible = false
 	furniture_inspector_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.92)))
 	ui_layer.add_child(furniture_inspector_panel)
@@ -1218,13 +1352,13 @@ func _build_furniture_catalog() -> void:
 	catalog_panel = PanelContainer.new()
 	catalog_panel.name = "CatalogPanel"
 	catalog_panel.anchor_left = 1.0
-	catalog_panel.anchor_top = 0.5
+	catalog_panel.anchor_top = 0.0
 	catalog_panel.anchor_right = 1.0
-	catalog_panel.anchor_bottom = 0.5
-	catalog_panel.offset_left = -186.0
-	catalog_panel.offset_top = -220.0
-	catalog_panel.offset_right = -16.0
-	catalog_panel.offset_bottom = 220.0
+	catalog_panel.anchor_bottom = 1.0
+	catalog_panel.offset_left = -198.0
+	catalog_panel.offset_top = 78.0
+	catalog_panel.offset_right = -14.0
+	catalog_panel.offset_bottom = -112.0
 	catalog_panel.visible = false
 	catalog_panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.08, 0.11, 0.17, 0.90)))
 	ui_layer.add_child(catalog_panel)
@@ -1480,19 +1614,36 @@ func update_mode_button(mode: String) -> void:
 		_mode_button.text = "Explorar"
 	else:
 		_mode_button.text = "Decorar"
+	set_premium_room_mode(mode)
 
 
 func show_exploration_ui() -> void:
 	hide_shop_button()
+	show_premium_side_panel()
 	update_context_hint("exploration")
+	set_premium_room_mode("exploration")
 
 
 func show_decoration_ui() -> void:
 	show_shop_button()
+	hide_premium_side_panel()
 	update_context_hint("decoration")
+	set_premium_room_mode("decoration")
 
 
 func update_context_hint(mode: String, submode: String = "") -> void:
+	match submode:
+		"placing":
+			update_premium_bottom_hint("Elige destino · verde válido · Esc cancelar")
+		"moving":
+			update_premium_bottom_hint("Moviendo mueble · elige destino")
+		"chat":
+			update_premium_bottom_hint("Chat activo · Enter enviar · Esc cancelar")
+		_:
+			if mode == "decoration":
+				update_premium_bottom_hint("Elige un mueble · Click para colocar/seleccionar · Tab para explorar")
+			else:
+				update_premium_bottom_hint("Click para caminar · Enter para chatear · Tab para decorar")
 	if _hint_label == null:
 		return
 	match submode:
@@ -1513,6 +1664,7 @@ func update_context_hint(mode: String, submode: String = "") -> void:
 
 
 func update_missions_compact(missions: Array[Dictionary]) -> void:
+	update_premium_objective(missions)
 	if _missions_list_vbox == null:
 		return
 	for child: Node in _missions_list_vbox.get_children():
@@ -1813,6 +1965,9 @@ func update_settings_panel(settings_data: Dictionary) -> void:
 		else:
 			_settings_interval_btns[i].remove_theme_stylebox_override("normal")
 	var show_m: bool = bool(settings_data.get("show_missions", true))
+	_missions_display_enabled = show_m
+	if not show_m:
+		hide_premium_objective_panel()
 	if _settings_missions_btn != null:
 		_settings_missions_btn.text = "Sí" if show_m else "No"
 
@@ -1979,6 +2134,7 @@ func _on_overlap_close_pressed() -> void:
 func show_furniture_catalog() -> void:
 	if catalog_panel != null:
 		catalog_panel.visible = true
+	hide_premium_side_panel()
 
 
 func hide_furniture_catalog() -> void:
@@ -1991,6 +2147,10 @@ func show_main_menu() :
 	room_select_panel.visible = false
 	profile_panel.visible = false
 	controls_panel.visible = false
+	hide_premium_top_bar()
+	hide_premium_objective_panel()
+	hide_premium_side_panel()
+	hide_premium_bottom_bar()
 	chat_history_panel.visible = false
 	chat_input_panel.visible = false
 	if inventory_panel != null:
@@ -2019,8 +2179,13 @@ func show_main_menu() :
 func show_room_select() :
 	main_menu_panel.visible = false
 	room_select_panel.visible = true
+	room_select_panel.move_to_front()
 	profile_panel.visible = false
 	controls_panel.visible = false
+	hide_premium_top_bar()
+	hide_premium_objective_panel()
+	hide_premium_side_panel()
+	hide_premium_bottom_bar()
 	chat_history_panel.visible = false
 	chat_input_panel.visible = false
 	if inventory_panel != null:
@@ -2031,6 +2196,8 @@ func show_room_select() :
 		_mode_button.visible = false
 	if _pause_menu_btn != null:
 		_pause_menu_btn.visible = false
+	hide_shop_panel()
+	hide_settings_panel()
 	hide_pause_menu()
 	hide_missions_panel()
 	hide_chat_bubble()
@@ -2047,19 +2214,24 @@ func show_in_room() :
 	main_menu_panel.visible = false
 	room_select_panel.visible = false
 	profile_panel.visible = false
-	controls_panel.visible = true
+	controls_panel.visible = false
 	if help_button != null:
-		help_button.visible = true
+		help_button.visible = false
 	if _mode_button != null:
-		_mode_button.visible = true
+		_mode_button.visible = false
 	if _pause_menu_btn != null:
-		_pause_menu_btn.visible = true
+		_pause_menu_btn.visible = false
+	show_premium_top_bar()
+	show_premium_side_panel()
+	show_premium_bottom_bar()
 	show_missions_panel()
 
 
 func set_room_name(room_name) :
 	if room_label != null:
 		room_label.text = "Sala: " + room_name
+	if _premium_room_name_label != null:
+		_premium_room_name_label.text = str(room_name)
 
 
 func set_status_message(message) :
@@ -2425,7 +2597,6 @@ func show_shop_panel(items: Array[Dictionary], credits: int, stock_data: Diction
 		_play_ui_sound("panel_open")
 		shop_panel.visible = true
 		shop_panel.move_to_front()
-	hide_missions_panel()
 
 
 func hide_shop_panel() -> void:
@@ -2512,6 +2683,733 @@ func _on_shop_buy_pressed(item_id: String) -> void:
 
 func _on_shop_close_pressed() -> void:
 	hide_shop_panel()
+
+
+func build_premium_top_bar() -> void:
+	premium_top_bar = PanelContainer.new()
+	premium_top_bar.name = "PremiumTopBar"
+	premium_top_bar.anchor_left = 0.0
+	premium_top_bar.anchor_top = 0.0
+	premium_top_bar.anchor_right = 1.0
+	premium_top_bar.anchor_bottom = 0.0
+	premium_top_bar.offset_left = 18.0
+	premium_top_bar.offset_top = 8.0
+	premium_top_bar.offset_right = -18.0
+	premium_top_bar.offset_bottom = 56.0
+	premium_top_bar.visible = false
+	premium_top_bar.add_theme_stylebox_override("panel", _make_premium_panel_style(HUD_BG, 12))
+	ui_layer.add_child(premium_top_bar)
+
+	var margin: MarginContainer = _make_margin(12, 6, 12, 6)
+	premium_top_bar.add_child(margin)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	margin.add_child(row)
+
+	var logo: Button = _make_premium_button("K", Vector2(34.0, 32.0))
+	logo.tooltip_text = GAME_TITLE
+	logo.pressed.connect(_on_premium_commands_pressed)
+	row.add_child(logo)
+
+	var room_box: VBoxContainer = VBoxContainer.new()
+	room_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(room_box)
+	_premium_room_name_label = _make_label("Lobby", 17, HUD_TEXT_MAIN, HORIZONTAL_ALIGNMENT_LEFT)
+	_premium_room_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	room_box.add_child(_premium_room_name_label)
+	var meta_row: HBoxContainer = HBoxContainer.new()
+	meta_row.add_theme_constant_override("separation", 6)
+	room_box.add_child(meta_row)
+	_premium_people_label = _make_label("2 en sala", 11, HUD_TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_LEFT)
+	meta_row.add_child(_premium_people_label)
+	_premium_rating_label = _make_label("★ 4.8", 11, HUD_WARNING, HORIZONTAL_ALIGNMENT_LEFT)
+	meta_row.add_child(_premium_rating_label)
+
+	var change_btn: Button = _make_premium_button("Cambiar", Vector2(76.0, 30.0))
+	change_btn.pressed.connect(_on_premium_change_room_pressed)
+	row.add_child(change_btn)
+
+	_premium_credits_label = _make_label("Créditos 0", 13, HUD_WARNING, HORIZONTAL_ALIGNMENT_RIGHT)
+	_premium_credits_label.custom_minimum_size = Vector2(104.0, 0.0)
+	row.add_child(_premium_credits_label)
+	var plus_btn: Button = _make_premium_button("+", Vector2(30.0, 30.0))
+	plus_btn.pressed.connect(_on_premium_open_shop_pressed)
+	row.add_child(plus_btn)
+	var help_btn: Button = _make_premium_button("Ayuda", Vector2(62.0, 30.0))
+	help_btn.pressed.connect(_on_premium_open_help_pressed)
+	row.add_child(help_btn)
+	var menu_btn: Button = _make_premium_button("Menú", Vector2(60.0, 30.0))
+	menu_btn.pressed.connect(_on_premium_open_pause_pressed)
+	row.add_child(menu_btn)
+
+
+func build_premium_objective_panel() -> void:
+	premium_objective_panel = PanelContainer.new()
+	premium_objective_panel.name = "PremiumObjectivePanel"
+	premium_objective_panel.anchor_left = 0.0
+	premium_objective_panel.anchor_top = 0.0
+	premium_objective_panel.anchor_right = 0.0
+	premium_objective_panel.anchor_bottom = 0.0
+	premium_objective_panel.offset_left = 16.0
+	premium_objective_panel.offset_top = 70.0
+	premium_objective_panel.offset_right = 282.0
+	premium_objective_panel.offset_bottom = 178.0
+	premium_objective_panel.visible = false
+	premium_objective_panel.add_theme_stylebox_override("panel", _make_premium_panel_style(HUD_PANEL, 10))
+	ui_layer.add_child(premium_objective_panel)
+
+	var margin: MarginContainer = _make_margin(12, 9, 12, 9)
+	premium_objective_panel.add_child(margin)
+	var layout: VBoxContainer = VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 5)
+	margin.add_child(layout)
+	layout.add_child(_make_label("OBJETIVO DIARIO", 10, HUD_ACCENT, HORIZONTAL_ALIGNMENT_LEFT))
+	_premium_objective_title_label = _make_label("Decora tu sala", 14, HUD_TEXT_MAIN, HORIZONTAL_ALIGNMENT_LEFT)
+	_premium_objective_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	layout.add_child(_premium_objective_title_label)
+	_premium_objective_desc_label = _make_label("Completa una acción.", 11, HUD_TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_LEFT)
+	_premium_objective_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	layout.add_child(_premium_objective_desc_label)
+
+	var progress_bg: ColorRect = ColorRect.new()
+	progress_bg.custom_minimum_size = Vector2(0.0, 6.0)
+	progress_bg.color = Color(0.12, 0.15, 0.25, 0.92)
+	layout.add_child(progress_bg)
+	_premium_objective_progress_fill = ColorRect.new()
+	_premium_objective_progress_fill.anchor_left = 0.0
+	_premium_objective_progress_fill.anchor_top = 0.0
+	_premium_objective_progress_fill.anchor_right = 0.0
+	_premium_objective_progress_fill.anchor_bottom = 1.0
+	_premium_objective_progress_fill.offset_left = 0.0
+	_premium_objective_progress_fill.offset_top = 0.0
+	_premium_objective_progress_fill.offset_right = 0.0
+	_premium_objective_progress_fill.offset_bottom = 0.0
+	_premium_objective_progress_fill.color = HUD_ACCENT
+	progress_bg.add_child(_premium_objective_progress_fill)
+
+	var foot: HBoxContainer = HBoxContainer.new()
+	foot.add_theme_constant_override("separation", 8)
+	layout.add_child(foot)
+	_premium_objective_status_label = _make_label("Pendiente", 11, HUD_TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_LEFT)
+	_premium_objective_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	foot.add_child(_premium_objective_status_label)
+	_premium_objective_reward_label = _make_label("+0 créditos", 11, HUD_ACCENT, HORIZONTAL_ALIGNMENT_RIGHT)
+	foot.add_child(_premium_objective_reward_label)
+
+
+func build_premium_side_panel() -> void:
+	premium_side_panel = PanelContainer.new()
+	premium_side_panel.name = "PremiumSidePanel"
+	premium_side_panel.anchor_left = 1.0
+	premium_side_panel.anchor_top = 0.0
+	premium_side_panel.anchor_right = 1.0
+	premium_side_panel.anchor_bottom = 1.0
+	premium_side_panel.offset_left = -166.0
+	premium_side_panel.offset_top = 70.0
+	premium_side_panel.offset_right = -14.0
+	premium_side_panel.offset_bottom = -106.0
+	premium_side_panel.visible = false
+	premium_side_panel.add_theme_stylebox_override("panel", _make_premium_panel_style(HUD_PANEL, 10))
+	ui_layer.add_child(premium_side_panel)
+
+	var margin: MarginContainer = _make_margin(10, 10, 10, 10)
+	premium_side_panel.add_child(margin)
+	var layout: VBoxContainer = VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 7)
+	margin.add_child(layout)
+
+	layout.add_child(_make_label("MAPA", 10, HUD_ACCENT, HORIZONTAL_ALIGNMENT_LEFT))
+	var map_box: Control = Control.new()
+	map_box.custom_minimum_size = Vector2(128.0, 70.0)
+	layout.add_child(map_box)
+	_draw_premium_minimap(map_box)
+	_premium_map_badge_label = _make_label("en línea", 10, HUD_SUCCESS, HORIZONTAL_ALIGNMENT_LEFT)
+	layout.add_child(_premium_map_badge_label)
+
+	var map_tabs: GridContainer = GridContainer.new()
+	map_tabs.columns = 2
+	map_tabs.add_theme_constant_override("h_separation", 5)
+	map_tabs.add_theme_constant_override("v_separation", 5)
+	layout.add_child(map_tabs)
+	var lobby_btn: Button = _make_premium_button("Lobby", Vector2(58.0, 24.0))
+	lobby_btn.pressed.connect(_on_side_lobby_pressed)
+	map_tabs.add_child(lobby_btn)
+	var cafe_btn: Button = _make_premium_button("Café", Vector2(58.0, 24.0))
+	cafe_btn.pressed.connect(_on_side_small_pressed)
+	map_tabs.add_child(cafe_btn)
+	var pool_btn: Button = _make_premium_button("Pool", Vector2(58.0, 24.0))
+	pool_btn.pressed.connect(_on_side_large_pressed)
+	map_tabs.add_child(pool_btn)
+	var more_btn: Button = _make_premium_button("+", Vector2(58.0, 24.0))
+	more_btn.pressed.connect(_on_side_more_pressed)
+	map_tabs.add_child(more_btn)
+
+	layout.add_child(HSeparator.new())
+	layout.add_child(_make_label("EN LA SALA", 10, HUD_ACCENT, HORIZONTAL_ALIGNMENT_LEFT))
+	_premium_people_vbox = VBoxContainer.new()
+	_premium_people_vbox.add_theme_constant_override("separation", 4)
+	layout.add_child(_premium_people_vbox)
+
+
+func build_premium_bottom_bar() -> void:
+	premium_bottom_bar = PanelContainer.new()
+	premium_bottom_bar.name = "PremiumBottomBar"
+	premium_bottom_bar.anchor_left = 0.0
+	premium_bottom_bar.anchor_top = 1.0
+	premium_bottom_bar.anchor_right = 1.0
+	premium_bottom_bar.anchor_bottom = 1.0
+	premium_bottom_bar.offset_left = 14.0
+	premium_bottom_bar.offset_top = -96.0
+	premium_bottom_bar.offset_right = -14.0
+	premium_bottom_bar.offset_bottom = -10.0
+	premium_bottom_bar.visible = false
+	premium_bottom_bar.add_theme_stylebox_override("panel", _make_premium_panel_style(HUD_BG, 14))
+	ui_layer.add_child(premium_bottom_bar)
+
+	var margin: MarginContainer = _make_margin(12, 7, 12, 7)
+	premium_bottom_bar.add_child(margin)
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	margin.add_child(row)
+
+	var player_zone: PanelContainer = _make_bottom_zone(Vector2(178.0, 0.0))
+	row.add_child(player_zone)
+	var player_card: HBoxContainer = HBoxContainer.new()
+	player_card.add_theme_constant_override("separation", 8)
+	player_zone.add_child(_wrap_in_margin(player_card, 8, 6, 8, 6))
+	_premium_player_color = ColorRect.new()
+	_premium_player_color.custom_minimum_size = Vector2(34.0, 34.0)
+	_premium_player_color.color = Color(0.14, 0.32, 0.72)
+	player_card.add_child(_premium_player_color)
+	var player_text: VBoxContainer = VBoxContainer.new()
+	player_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	player_card.add_child(player_text)
+	var player_top: HBoxContainer = HBoxContainer.new()
+	player_top.add_theme_constant_override("separation", 5)
+	player_text.add_child(player_top)
+	_premium_player_name_label = _make_label("Invitado", 13, HUD_TEXT_MAIN, HORIZONTAL_ALIGNMENT_LEFT)
+	_premium_player_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_premium_player_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	player_top.add_child(_premium_player_name_label)
+	var online_dot: ColorRect = ColorRect.new()
+	online_dot.custom_minimum_size = Vector2(7.0, 7.0)
+	online_dot.color = HUD_SUCCESS
+	player_top.add_child(online_dot)
+	player_text.add_child(_make_label("online · LVL 1", 10, HUD_TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_LEFT))
+	var xp_bg: ColorRect = ColorRect.new()
+	xp_bg.custom_minimum_size = Vector2(0.0, 5.0)
+	xp_bg.color = Color(0.14, 0.18, 0.30, 0.9)
+	player_text.add_child(xp_bg)
+	var xp_fill: ColorRect = ColorRect.new()
+	xp_fill.anchor_right = 0.2
+	xp_fill.anchor_bottom = 1.0
+	xp_fill.color = HUD_ACCENT
+	xp_bg.add_child(xp_fill)
+
+	var chat_zone: PanelContainer = _make_bottom_zone(Vector2(0.0, 0.0))
+	chat_zone.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(chat_zone)
+	var chat_layout: VBoxContainer = VBoxContainer.new()
+	chat_layout.add_theme_constant_override("separation", 4)
+	chat_zone.add_child(_wrap_in_margin(chat_layout, 10, 7, 10, 7))
+	chat_layout.add_child(_make_label("CHAT", 9, HUD_ACCENT, HORIZONTAL_ALIGNMENT_LEFT))
+	_premium_bottom_hint_label = _make_label("Click para caminar · Enter para chatear · Tab para decorar", 12, Color(0.82, 0.90, 1.0), HORIZONTAL_ALIGNMENT_LEFT)
+	_premium_bottom_hint_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	chat_layout.add_child(_premium_bottom_hint_label)
+	chat_layout.add_child(_make_label("canal local", 9, HUD_TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_LEFT))
+
+	var nav_zone: PanelContainer = _make_bottom_zone(Vector2(390.0, 0.0))
+	row.add_child(nav_zone)
+	var nav_layout: VBoxContainer = VBoxContainer.new()
+	nav_layout.add_theme_constant_override("separation", 5)
+	nav_zone.add_child(_wrap_in_margin(nav_layout, 8, 6, 8, 6))
+	nav_layout.add_child(_make_label("NAVEGACIÓN", 9, HUD_ACCENT, HORIZONTAL_ALIGNMENT_LEFT))
+	var tabs: HBoxContainer = HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 5)
+	nav_layout.add_child(tabs)
+	_premium_tab_room_btn = _make_premium_button("Sala", Vector2(62.0, 27.0))
+	_premium_tab_room_btn.pressed.connect(_on_bottom_explore_pressed)
+	tabs.add_child(_premium_tab_room_btn)
+	_premium_tab_decorate_btn = _make_premium_button("Decora", Vector2(70.0, 27.0))
+	_premium_tab_decorate_btn.pressed.connect(_on_bottom_decorate_pressed)
+	tabs.add_child(_premium_tab_decorate_btn)
+	_premium_tab_shop_btn = _make_premium_button("Tienda", Vector2(68.0, 27.0))
+	_premium_tab_shop_btn.pressed.connect(_on_bottom_shop_pressed)
+	tabs.add_child(_premium_tab_shop_btn)
+	_premium_tab_inventory_btn = _make_premium_button("Inv.", Vector2(56.0, 27.0))
+	_premium_tab_inventory_btn.pressed.connect(_on_bottom_inventory_pressed)
+	tabs.add_child(_premium_tab_inventory_btn)
+	_premium_tab_profile_btn = _make_premium_button("Perfil", Vector2(64.0, 27.0))
+	_premium_tab_profile_btn.pressed.connect(_on_bottom_profile_pressed)
+	tabs.add_child(_premium_tab_profile_btn)
+
+	var action_zone: PanelContainer = _make_bottom_zone(Vector2(148.0, 0.0))
+	row.add_child(action_zone)
+	var actions: GridContainer = GridContainer.new()
+	actions.columns = 2
+	actions.add_theme_constant_override("h_separation", 5)
+	actions.add_theme_constant_override("v_separation", 5)
+	action_zone.add_child(_wrap_in_margin(actions, 8, 6, 8, 6))
+	var emotes_btn: Button = _make_social_action_button("Emo")
+	emotes_btn.pressed.connect(_on_bottom_emotes_pressed)
+	actions.add_child(emotes_btn)
+	var dance_btn: Button = _make_social_action_button("Baile")
+	dance_btn.pressed.connect(_on_bottom_dance_pressed)
+	actions.add_child(dance_btn)
+	var music_btn: Button = _make_social_action_button("Música")
+	music_btn.pressed.connect(_on_bottom_music_pressed)
+	actions.add_child(music_btn)
+	var photo_btn: Button = _make_social_action_button("Foto")
+	photo_btn.pressed.connect(_on_bottom_photo_pressed)
+	actions.add_child(photo_btn)
+
+
+func show_premium_top_bar() -> void:
+	if premium_top_bar != null:
+		premium_top_bar.visible = true
+
+
+func hide_premium_top_bar() -> void:
+	if premium_top_bar != null:
+		premium_top_bar.visible = false
+
+
+func show_premium_objective_panel() -> void:
+	if premium_objective_panel != null and not is_tutorial_visible():
+		premium_objective_panel.visible = true
+
+
+func hide_premium_objective_panel() -> void:
+	if premium_objective_panel != null:
+		premium_objective_panel.visible = false
+
+
+func show_premium_side_panel() -> void:
+	if premium_side_panel != null:
+		premium_side_panel.visible = true
+
+
+func hide_premium_side_panel() -> void:
+	if premium_side_panel != null:
+		premium_side_panel.visible = false
+
+
+func show_premium_bottom_bar() -> void:
+	if premium_bottom_bar != null:
+		premium_bottom_bar.visible = true
+
+
+func hide_premium_bottom_bar() -> void:
+	if premium_bottom_bar != null:
+		premium_bottom_bar.visible = false
+
+
+func show_social_bottom_bar() -> void:
+	show_premium_bottom_bar()
+
+
+func hide_social_bottom_bar() -> void:
+	hide_premium_bottom_bar()
+
+
+func update_premium_room_info(room_name: String, people_count: int, rating: float) -> void:
+	if _premium_room_name_label != null:
+		_premium_room_name_label.text = _trim_ui_text(room_name, 22)
+	if _premium_people_label != null:
+		_premium_people_label.text = str(people_count) + " en sala"
+	if _premium_rating_label != null:
+		_premium_rating_label.text = "★ " + str(rating)
+
+
+func update_premium_credits(amount: int) -> void:
+	if _premium_credits_label != null:
+		_premium_credits_label.text = "Créditos " + str(amount)
+
+
+func update_premium_objective(missions: Array[Dictionary]) -> void:
+	if _premium_objective_title_label == null:
+		return
+	var selected: Dictionary = {}
+	for mission: Dictionary in missions:
+		if not bool(mission.get("completed", false)):
+			selected = mission
+			break
+	if selected.is_empty() and not missions.is_empty():
+		selected = missions[0]
+	if selected.is_empty():
+		_premium_objective_title_label.text = "Misiones iniciales completas"
+		_premium_objective_desc_label.text = "Buen trabajo por hoy."
+		_premium_objective_status_label.text = "Completada"
+		_premium_objective_reward_label.text = "+0 créditos"
+		_set_objective_progress(1.0)
+		return
+	var completed: bool = bool(selected.get("completed", false))
+	_premium_objective_title_label.text = _trim_ui_text(str(selected.get("title", "Objetivo")), 28)
+	_premium_objective_desc_label.text = _trim_ui_text(str(selected.get("description", "Completa una acción.")), 44)
+	_premium_objective_status_label.text = "Completada" if completed else "Pendiente"
+	_premium_objective_reward_label.text = "+" + str(int(selected.get("reward_credits", 0))) + " créditos"
+	_set_objective_progress(1.0 if completed else 0.08)
+
+
+func update_premium_people_list(room_id: String, player_name: String) -> void:
+	if _premium_people_vbox == null:
+		return
+	for child: Node in _premium_people_vbox.get_children():
+		_premium_people_vbox.remove_child(child)
+		child.queue_free()
+	_add_premium_person(player_name, "Tú", Color(0.58, 1.0, 0.76))
+	if room_id == "lobby":
+		_add_premium_person("Bot Guía", "Guía", Color(0.58, 0.86, 1.0))
+		_add_premium_person("Mira", "visitante", Color(1.0, 0.68, 0.78))
+		_add_premium_person("Pixel", "visitante", Color(1.0, 0.82, 0.50))
+	else:
+		_add_premium_person("Mira", "visitante", Color(1.0, 0.68, 0.78))
+
+
+func update_premium_map(room_id: String) -> void:
+	if _premium_map_badge_label != null:
+		_premium_map_badge_label.text = ("Lobby" if room_id == "lobby" else "sala local") + " · en línea"
+
+
+func update_premium_bottom_hint(text: String) -> void:
+	if _premium_bottom_hint_label != null:
+		_premium_bottom_hint_label.text = _trim_ui_text(text, 58)
+
+
+func update_social_bottom_hint(text: String) -> void:
+	update_premium_bottom_hint(text)
+
+
+func update_premium_player_card(player_name: String, profile_data: Dictionary) -> void:
+	if _premium_player_name_label != null:
+		_premium_player_name_label.text = _trim_ui_text(player_name, 16)
+	if _premium_player_color != null:
+		_premium_player_color.color = profile_data.get("shirt_color", Color(0.14, 0.32, 0.72))
+
+
+func update_bottom_player_card(player_name: String, profile_data: Dictionary) -> void:
+	update_premium_player_card(player_name, profile_data)
+
+
+func set_premium_room_mode(mode: String) -> void:
+	var active_style: StyleBoxFlat = _make_premium_button_style(HUD_ACCENT)
+	var inactive_style: StyleBoxFlat = _make_premium_button_style(Color(0.10, 0.13, 0.24, 0.82))
+	if _premium_tab_room_btn != null:
+		if mode == "exploration":
+			_premium_tab_room_btn.add_theme_stylebox_override("normal", active_style)
+			_premium_tab_room_btn.add_theme_color_override("font_color", Color(0.10, 0.07, 0.05))
+		else:
+			_premium_tab_room_btn.add_theme_stylebox_override("normal", inactive_style)
+			_premium_tab_room_btn.add_theme_color_override("font_color", HUD_TEXT_MAIN)
+	if _premium_tab_decorate_btn != null:
+		if mode == "decoration":
+			_premium_tab_decorate_btn.add_theme_stylebox_override("normal", active_style)
+			_premium_tab_decorate_btn.add_theme_color_override("font_color", Color(0.10, 0.07, 0.05))
+		else:
+			_premium_tab_decorate_btn.add_theme_stylebox_override("normal", inactive_style)
+			_premium_tab_decorate_btn.add_theme_color_override("font_color", HUD_TEXT_MAIN)
+
+
+func set_social_bottom_mode(mode: String) -> void:
+	set_premium_room_mode(mode)
+
+
+func set_top_change_room_callback(callback: Callable) -> void:
+	_on_top_change_room = callback
+
+
+func set_top_open_shop_callback(callback: Callable) -> void:
+	_on_top_open_shop = callback
+
+
+func set_top_open_pause_callback(callback: Callable) -> void:
+	_on_top_open_pause = callback
+
+
+func set_top_open_help_callback(callback: Callable) -> void:
+	_on_top_open_help = callback
+
+
+func set_side_map_callbacks(lobby_cb: Callable, small_cb: Callable, large_cb: Callable, more_cb: Callable) -> void:
+	_on_side_map_lobby = lobby_cb
+	_on_side_map_small = small_cb
+	_on_side_map_large = large_cb
+	_on_side_map_more = more_cb
+
+
+func set_bottom_callbacks(explore_cb: Callable, decorate_cb: Callable, shop_cb: Callable, inventory_cb: Callable, profile_cb: Callable, emotes_cb: Callable, dance_cb: Callable, music_cb: Callable, photo_cb: Callable, commands_cb: Callable) -> void:
+	_on_bottom_explore = explore_cb
+	_on_bottom_decorate = decorate_cb
+	_on_bottom_shop = shop_cb
+	_on_bottom_inventory = inventory_cb
+	_on_bottom_profile = profile_cb
+	_on_bottom_emotes = emotes_cb
+	_on_bottom_dance = dance_cb
+	_on_bottom_music = music_cb
+	_on_bottom_photo = photo_cb
+	_on_bottom_commands = commands_cb
+
+
+func _set_objective_progress(value: float) -> void:
+	if _premium_objective_progress_fill == null:
+		return
+	_premium_objective_progress_fill.anchor_right = clampf(value, 0.0, 1.0)
+
+
+func _add_premium_person(name: String, role: String, dot_color: Color) -> void:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 5)
+	_premium_people_vbox.add_child(row)
+	var dot: ColorRect = ColorRect.new()
+	dot.custom_minimum_size = Vector2(7.0, 7.0)
+	dot.color = dot_color
+	row.add_child(dot)
+	var text: VBoxContainer = VBoxContainer.new()
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(text)
+	text.add_child(_make_label(_trim_ui_text(name, 14), 11, HUD_TEXT_MAIN, HORIZONTAL_ALIGNMENT_LEFT))
+	text.add_child(_make_label(role, 9, HUD_TEXT_SECONDARY, HORIZONTAL_ALIGNMENT_LEFT))
+
+
+func _draw_premium_minimap(parent: Control) -> void:
+	var diamond: Polygon2D = Polygon2D.new()
+	diamond.position = Vector2(64.0, 34.0)
+	diamond.polygon = PackedVector2Array([Vector2(0.0, -24.0), Vector2(48.0, 0.0), Vector2(0.0, 24.0), Vector2(-48.0, 0.0)])
+	diamond.color = HUD_PANEL_LIGHT
+	parent.add_child(diamond)
+	var outline: Line2D = Line2D.new()
+	outline.position = diamond.position
+	outline.points = PackedVector2Array([Vector2(0.0, -24.0), Vector2(48.0, 0.0), Vector2(0.0, 24.0), Vector2(-48.0, 0.0), Vector2(0.0, -24.0)])
+	outline.width = 1.5
+	outline.default_color = HUD_BORDER
+	parent.add_child(outline)
+	_add_map_dot(parent, Vector2(58.0, 34.0), HUD_SUCCESS)
+	_add_map_dot(parent, Vector2(78.0, 29.0), Color(0.58, 0.86, 1.0))
+
+
+func _add_map_dot(parent: Control, position: Vector2, color: Color) -> void:
+	var dot: ColorRect = ColorRect.new()
+	dot.position = position
+	dot.custom_minimum_size = Vector2(6.0, 6.0)
+	dot.color = color
+	parent.add_child(dot)
+
+
+func _trim_ui_text(text: String, max_chars: int) -> String:
+	if text.length() <= max_chars:
+		return text
+	return text.left(maxi(1, max_chars - 1)) + "…"
+
+
+func _make_margin(left: int, top: int, right: int, bottom: int) -> MarginContainer:
+	var margin: MarginContainer = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", left)
+	margin.add_theme_constant_override("margin_top", top)
+	margin.add_theme_constant_override("margin_right", right)
+	margin.add_theme_constant_override("margin_bottom", bottom)
+	return margin
+
+
+func _wrap_in_margin(child: Control, left: int, top: int, right: int, bottom: int) -> MarginContainer:
+	var margin: MarginContainer = _make_margin(left, top, right, bottom)
+	margin.add_child(child)
+	return margin
+
+
+func _make_label(text: String, font_size: int, color: Color, alignment: HorizontalAlignment) -> Label:
+	var label: Label = Label.new()
+	label.text = text
+	label.horizontal_alignment = alignment
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", color)
+	return label
+
+
+func _make_bottom_zone(min_size: Vector2) -> PanelContainer:
+	var zone: PanelContainer = PanelContainer.new()
+	zone.custom_minimum_size = min_size
+	zone.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	zone.add_theme_stylebox_override("panel", _make_premium_panel_style(Color(0.06, 0.08, 0.16, 0.54), 10))
+	return zone
+
+
+func _make_premium_button(text: String, min_size: Vector2) -> Button:
+	var button: Button = Button.new()
+	button.text = text
+	button.custom_minimum_size = min_size
+	button.add_theme_font_size_override("font_size", 11)
+	button.add_theme_color_override("font_color", HUD_TEXT_MAIN)
+	button.add_theme_color_override("font_hover_color", HUD_TEXT_MAIN)
+	button.add_theme_color_override("font_pressed_color", Color(0.10, 0.07, 0.05))
+	button.add_theme_stylebox_override("normal", _make_premium_button_style(Color(0.10, 0.13, 0.24, 0.82)))
+	button.add_theme_stylebox_override("hover", _make_premium_button_style(Color(0.16, 0.21, 0.36, 0.94)))
+	button.add_theme_stylebox_override("pressed", _make_premium_button_style(HUD_ACCENT))
+	return button
+
+
+func _make_social_action_button(text: String) -> Button:
+	var button: Button = _make_premium_button(text, Vector2(62.0, 24.0))
+	button.add_theme_font_size_override("font_size", 10)
+	button.add_theme_stylebox_override("normal", _make_premium_button_style(Color(0.08, 0.10, 0.19, 0.76)))
+	button.add_theme_stylebox_override("hover", _make_premium_button_style(Color(0.14, 0.18, 0.32, 0.90)))
+	return button
+
+
+func _make_premium_panel_style(bg_color: Color, radius: int) -> StyleBoxFlat:
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.corner_radius_top_left = radius
+	style.corner_radius_top_right = radius
+	style.corner_radius_bottom_right = radius
+	style.corner_radius_bottom_left = radius
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = HUD_BORDER
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.26)
+	style.shadow_size = 6
+	style.shadow_offset = Vector2(0.0, 2.0)
+	return style
+
+
+func _make_premium_button_style(bg_color: Color) -> StyleBoxFlat:
+	var style: StyleBoxFlat = StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_right = 8
+	style.corner_radius_bottom_left = 8
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = HUD_BORDER
+	return style
+
+
+func _make_room_card_style(bg_color: Color, border_color: Color) -> StyleBoxFlat:
+	var style: StyleBoxFlat = _make_premium_button_style(bg_color)
+	style.corner_radius_top_left = 12
+	style.corner_radius_top_right = 12
+	style.corner_radius_bottom_right = 12
+	style.corner_radius_bottom_left = 12
+	style.border_color = border_color
+	style.content_margin_left = 18.0
+	style.content_margin_right = 18.0
+	style.content_margin_top = 9.0
+	style.content_margin_bottom = 9.0
+	return style
+
+
+func _on_premium_change_room_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_top_change_room.is_valid():
+		_on_top_change_room.call()
+
+
+func _on_premium_open_shop_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_top_open_shop.is_valid():
+		_on_top_open_shop.call()
+
+
+func _on_premium_open_pause_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_top_open_pause.is_valid():
+		_on_top_open_pause.call()
+
+
+func _on_premium_open_help_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_top_open_help.is_valid():
+		_on_top_open_help.call()
+
+
+func _on_side_lobby_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_side_map_lobby.is_valid():
+		_on_side_map_lobby.call()
+
+
+func _on_side_small_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_side_map_small.is_valid():
+		_on_side_map_small.call()
+
+
+func _on_side_large_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_side_map_large.is_valid():
+		_on_side_map_large.call()
+
+
+func _on_side_more_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_side_map_more.is_valid():
+		_on_side_map_more.call()
+
+
+func _on_bottom_explore_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_bottom_explore.is_valid():
+		_on_bottom_explore.call()
+
+
+func _on_bottom_decorate_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_bottom_decorate.is_valid():
+		_on_bottom_decorate.call()
+
+
+func _on_bottom_shop_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_bottom_shop.is_valid():
+		_on_bottom_shop.call()
+
+
+func _on_bottom_inventory_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_bottom_inventory.is_valid():
+		_on_bottom_inventory.call()
+
+
+func _on_bottom_profile_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_bottom_profile.is_valid():
+		_on_bottom_profile.call()
+
+
+func _on_bottom_emotes_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_bottom_emotes.is_valid():
+		_on_bottom_emotes.call()
+
+
+func _on_bottom_dance_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_bottom_dance.is_valid():
+		_on_bottom_dance.call()
+
+
+func _on_bottom_music_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_bottom_music.is_valid():
+		_on_bottom_music.call()
+
+
+func _on_bottom_photo_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_bottom_photo.is_valid():
+		_on_bottom_photo.call()
+
+
+func _on_premium_commands_pressed() -> void:
+	_play_ui_sound("ui_click")
+	if _on_bottom_commands.is_valid():
+		_on_bottom_commands.call()
 
 
 func _build_toast_panel() -> void:

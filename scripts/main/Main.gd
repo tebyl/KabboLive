@@ -175,6 +175,28 @@ func _ready():
 	game_ui.set_pause_exit_confirm_callback(Callable(self, "_on_pause_exit_to_main_confirmed"))
 	game_ui.set_about_closed_callback(Callable(self, "_on_about_closed"))
 	game_ui.set_ui_sound_callback(Callable(self, "_play_sound"))
+	game_ui.set_top_change_room_callback(Callable(self, "_on_premium_change_room_requested"))
+	game_ui.set_top_open_shop_callback(Callable(self, "_on_premium_open_shop_requested"))
+	game_ui.set_top_open_pause_callback(Callable(self, "_on_premium_open_pause_requested"))
+	game_ui.set_top_open_help_callback(Callable(self, "_on_premium_open_help_requested"))
+	game_ui.set_side_map_callbacks(
+		Callable(self, "_on_premium_map_lobby_requested"),
+		Callable(self, "_on_premium_map_small_requested"),
+		Callable(self, "_on_premium_map_large_requested"),
+		Callable(self, "_on_premium_map_more_requested")
+	)
+	game_ui.set_bottom_callbacks(
+		Callable(self, "_on_premium_explore_requested"),
+		Callable(self, "_on_premium_decorate_requested"),
+		Callable(self, "_on_premium_open_shop_requested"),
+		Callable(self, "_on_premium_inventory_requested"),
+		Callable(self, "_on_premium_profile_requested"),
+		Callable(self, "_on_premium_emotes_requested"),
+		Callable(self, "_on_premium_dance_requested"),
+		Callable(self, "_on_premium_music_requested"),
+		Callable(self, "_on_premium_photo_requested"),
+		Callable(self, "_on_premium_commands_requested")
+	)
 	camera_controller = CameraControllerScript.new(self, iso_grid)
 
 	furniture_manager = FurnitureManagerScript.new(
@@ -323,6 +345,7 @@ func enter_state(new_state):
 			room_mode = ""
 			set_room_mode(ROOM_MODE_EXPLORATION)
 			_update_missions_ui()
+			_refresh_premium_hud()
 			_maybe_show_tutorial()
 
 func on_enter_hotel():
@@ -343,6 +366,8 @@ func on_save_profile(profile_data: Dictionary) -> void:
 		player_controller.apply_profile(player_profile_manager.get_profile_data())
 		game_ui.update_profile_ui(player_profile_manager.get_profile_data())
 		_mark_dirty()
+		_refresh_premium_player_info()
+		_refresh_premium_people()
 		_show_toast("Perfil guardado", "success")
 		_play_sound("ui_click")
 	else:
@@ -674,6 +699,7 @@ func set_room_mode(mode: String) -> void:
 		_enter_exploration_mode()
 	else:
 		_enter_decoration_mode()
+	_refresh_premium_mode()
 
 
 func toggle_room_mode() -> void:
@@ -820,6 +846,148 @@ func _play_sound(sound_id: String) -> void:
 		audio_manager.play(sound_id)
 
 
+func _refresh_premium_hud() -> void:
+	_refresh_premium_room_info()
+	_refresh_premium_credits()
+	_refresh_premium_player_info()
+	_refresh_premium_objective()
+	_refresh_premium_people()
+	_refresh_premium_mode()
+
+
+func _refresh_premium_room_info() -> void:
+	if game_ui == null or room_manager == null:
+		return
+	var current_room = room_manager.get_current_room()
+	if current_room == null:
+		return
+	var room_id: String = str(current_room.id)
+	var people_count: int = 4 if room_id == "lobby" else 2
+	if game_ui.has_method("update_premium_room_info"):
+		game_ui.update_premium_room_info(str(current_room.display_name), people_count, 4.8)
+	if game_ui.has_method("update_premium_map"):
+		game_ui.update_premium_map(room_id)
+
+
+func _refresh_premium_credits() -> void:
+	if game_ui == null or currency_manager == null:
+		return
+	if game_ui.has_method("update_premium_credits"):
+		game_ui.update_premium_credits(currency_manager.get_credits())
+
+
+func _refresh_premium_player_info() -> void:
+	if game_ui == null or player_profile_manager == null:
+		return
+	if game_ui.has_method("update_premium_player_card"):
+		game_ui.update_premium_player_card(player_profile_manager.player_name, player_profile_manager.get_profile_data())
+
+
+func _refresh_premium_objective() -> void:
+	if game_ui == null or mission_manager == null:
+		return
+	if game_ui.has_method("update_premium_objective"):
+		game_ui.update_premium_objective(mission_manager.get_missions())
+
+
+func _refresh_premium_people() -> void:
+	if game_ui == null or room_manager == null or player_profile_manager == null:
+		return
+	var current_room = room_manager.get_current_room()
+	if current_room == null:
+		return
+	if game_ui.has_method("update_premium_people_list"):
+		game_ui.update_premium_people_list(str(current_room.id), player_profile_manager.player_name)
+
+
+func _refresh_premium_mode() -> void:
+	if game_ui == null:
+		return
+	if game_ui.has_method("set_premium_room_mode"):
+		game_ui.set_premium_room_mode(room_mode)
+
+
+func _on_premium_change_room_requested() -> void:
+	on_back_to_rooms()
+
+
+func _on_premium_open_shop_requested() -> void:
+	_open_shop()
+
+
+func _on_premium_open_pause_requested() -> void:
+	_open_pause_menu()
+
+
+func _on_premium_open_help_requested() -> void:
+	_open_tutorial_manual()
+
+
+func _on_premium_map_lobby_requested() -> void:
+	if current_state == GameState.IN_ROOM:
+		switch_room("lobby")
+
+
+func _on_premium_map_small_requested() -> void:
+	if current_state == GameState.IN_ROOM:
+		switch_room("room_small")
+
+
+func _on_premium_map_large_requested() -> void:
+	if current_state == GameState.IN_ROOM:
+		switch_room("room_large")
+
+
+func _on_premium_map_more_requested() -> void:
+	_show_toast("Más salas próximamente", "info")
+
+
+func _on_premium_explore_requested() -> void:
+	if current_state == GameState.IN_ROOM:
+		set_room_mode(ROOM_MODE_EXPLORATION)
+
+
+func _on_premium_decorate_requested() -> void:
+	if current_state == GameState.IN_ROOM:
+		set_room_mode(ROOM_MODE_DECORATION)
+
+
+func _on_premium_inventory_requested() -> void:
+	if current_state != GameState.IN_ROOM:
+		return
+	set_room_mode(ROOM_MODE_DECORATION)
+	if game_ui != null:
+		game_ui.show_furniture_catalog()
+		game_ui.update_context_hint("decoration", "placing")
+
+
+func _on_premium_profile_requested() -> void:
+	if current_state != GameState.IN_ROOM or game_ui == null:
+		return
+	hide_placement_preview()
+	game_ui.show_profile()
+
+
+func _on_premium_emotes_requested() -> void:
+	_show_toast("Emotes próximamente", "info")
+
+
+func _on_premium_dance_requested() -> void:
+	_show_toast("Bailar próximamente", "info")
+
+
+func _on_premium_music_requested() -> void:
+	_show_toast("Música próximamente", "info")
+
+
+func _on_premium_photo_requested() -> void:
+	_show_toast("Foto próximamente", "info")
+
+
+func _on_premium_commands_requested() -> void:
+	_show_toast("Enter chat · Tab decorar · Esc menú · S guardar", "info")
+
+
 func _update_missions_ui() -> void:
 	if mission_manager == null or game_ui == null:
 		return
@@ -830,6 +998,10 @@ func _update_missions_ui() -> void:
 	var show_m: bool = settings_manager == null or settings_manager.get_show_missions()
 	if game_ui.has_method("show_missions_panel") and show_m:
 		game_ui.show_missions_panel()
+	elif game_ui.has_method("hide_missions_panel"):
+		game_ui.hide_missions_panel()
+	_refresh_premium_objective()
+	_refresh_premium_credits()
 
 
 func _refresh_catalog_from_shop() -> void:
@@ -848,6 +1020,7 @@ func _refresh_inventory_ui() -> void:
 func _update_credits_ui() -> void:
 	if game_ui != null and currency_manager != null and game_ui.has_method("update_credits"):
 		game_ui.update_credits(currency_manager.get_credits())
+	_refresh_premium_credits()
 
 
 func _toggle_shop() -> void:
@@ -935,6 +1108,8 @@ func _complete_mission(mission_id: String) -> void:
 		game_ui.update_missions_compact(mission_manager.get_missions())
 	if game_ui != null and currency_manager != null and game_ui.has_method("update_credits"):
 		game_ui.update_credits(currency_manager.get_credits())
+	_refresh_premium_objective()
+	_refresh_premium_credits()
 	var title: String = str(completed_mission.get("title", ""))
 	var message: String = "Misión completada: " + title
 	if reward > 0:
@@ -1264,6 +1439,7 @@ func switch_room(room_id):
 		if current_state == GameState.IN_ROOM:
 			room_mode = ""
 			set_room_mode(ROOM_MODE_EXPLORATION)
+			_refresh_premium_hud()
 
 
 func _on_splash_done() -> void:

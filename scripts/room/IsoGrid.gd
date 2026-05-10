@@ -5,6 +5,21 @@ const FurnitureDataScript = preload("res://scripts/furniture/FurnitureData.gd")
 const FurnitureData = FurnitureDataScript
 const VT = preload("res://scripts/visual/VisualTheme.gd")
 
+const ROOM_WALL_HEIGHT: float = 150.0
+const ROOM_WALL_Z: int = -260
+const ROOM_WALL_LEFT: Color = Color(0.88, 0.80, 0.66)
+const ROOM_WALL_RIGHT: Color = Color(0.80, 0.70, 0.56)
+const ROOM_WALL_TOP: Color = Color(0.96, 0.90, 0.78)
+const ROOM_BASEBOARD: Color = Color(0.36, 0.22, 0.12)
+const ROOM_BASEBOARD_HI: Color = Color(0.58, 0.38, 0.20)
+const ROOM_DOOR: Color = Color(0.42, 0.24, 0.12)
+const ROOM_DOOR_HI: Color = Color(0.60, 0.36, 0.18)
+const ROOM_WINDOW: Color = Color(0.48, 0.68, 0.82)
+const ROOM_WINDOW_HI: Color = Color(0.76, 0.88, 0.96, 0.72)
+const ROOM_TRIM: Color = Color(0.28, 0.18, 0.10)
+const ROOM_PICTURE: Color = Color(0.74, 0.42, 0.28)
+const ROOM_PICTURE_INNER: Color = Color(0.92, 0.78, 0.46)
+
 
 var floor_node: Node2D
 var grid_width
@@ -94,7 +109,7 @@ func get_room_bounds(margin) -> Rect2:
 
 	var tile_padding = Vector2(float(tile_width), float(tile_height))
 	var margin_vector = Vector2(margin, margin)
-	var bounds_position = min_position - tile_padding - margin_vector
+	var bounds_position = min_position - tile_padding - margin_vector - Vector2(0.0, ROOM_WALL_HEIGHT * 0.45)
 	var bounds_end = max_position + tile_padding + margin_vector
 
 	return Rect2(bounds_position, bounds_end - bounds_position)
@@ -102,6 +117,7 @@ func get_room_bounds(margin) -> Rect2:
 
 func redraw_tiles(blocked_cells: Array[Vector2i]) :
 	clear_floor()
+	draw_room_shell()
 
 	for x in range(grid_width):
 		for y in range(grid_height):
@@ -112,7 +128,7 @@ func redraw_tiles(blocked_cells: Array[Vector2i]) :
 			tile.z_index = get_draw_z_index(cell) - 8
 
 			if blocked_cells.has(cell):
-				tile.color = VT.FLOOR_BLOCKED
+				tile.color = Color(0.72, 0.68, 0.55)
 			elif (x + y) % 2 == 0:
 				tile.color = VT.FLOOR_A
 			else:
@@ -132,6 +148,147 @@ func clear_floor() :
 	for child: Node in floor_node.get_children():
 		floor_node.remove_child(child)
 		child.queue_free()
+
+
+func draw_room_shell() -> void:
+	var corners: Dictionary = _get_room_floor_corners()
+	var top: Vector2 = corners["top"]
+	var left: Vector2 = corners["left"]
+	var right: Vector2 = corners["right"]
+	var bottom: Vector2 = corners["bottom"]
+	var up: Vector2 = Vector2(0.0, -ROOM_WALL_HEIGHT)
+
+	_draw_soft_room_shadow(left, right, bottom)
+	_draw_poly(PackedVector2Array([top, left, left + up, top + up]), ROOM_WALL_LEFT, ROOM_WALL_Z)
+	_draw_poly(PackedVector2Array([top, right, right + up, top + up]), ROOM_WALL_RIGHT, ROOM_WALL_Z + 1)
+	_draw_wall_cap(top, left, right, up)
+	_draw_wall_decorations(top, left, right, up)
+	_draw_baseboards(top, left, right)
+
+
+func _get_room_floor_corners() -> Dictionary:
+	var tw: float = float(tile_width)
+	var th: float = float(tile_height)
+	return {
+		"top": grid_to_iso(Vector2i(0, 0)) + Vector2(0.0, -th * 0.5),
+		"left": grid_to_iso(Vector2i(0, grid_height - 1)) + Vector2(-tw * 0.5, 0.0),
+		"right": grid_to_iso(Vector2i(grid_width - 1, 0)) + Vector2(tw * 0.5, 0.0),
+		"bottom": grid_to_iso(Vector2i(grid_width - 1, grid_height - 1)) + Vector2(0.0, th * 0.5),
+	}
+
+
+func _draw_soft_room_shadow(left: Vector2, right: Vector2, bottom: Vector2) -> void:
+	var shadow: Polygon2D = _draw_poly(
+		PackedVector2Array([
+			left + Vector2(-22.0, 18.0),
+			right + Vector2(22.0, 18.0),
+			bottom + Vector2(0.0, 34.0),
+			bottom + Vector2(-90.0, 48.0),
+			left + Vector2(-52.0, 24.0),
+		]),
+		Color(0.08, 0.07, 0.10, 0.18),
+		ROOM_WALL_Z - 3
+	)
+	shadow.antialiased = true
+
+
+func _draw_wall_cap(top: Vector2, left: Vector2, right: Vector2, up: Vector2) -> void:
+	var cap_height: float = 8.0
+	_draw_poly(PackedVector2Array([
+		left + up,
+		top + up,
+		top + up + Vector2(0.0, -cap_height),
+		left + up + Vector2(-8.0, -cap_height),
+	]), ROOM_WALL_TOP, ROOM_WALL_Z + 2)
+	_draw_poly(PackedVector2Array([
+		top + up,
+		right + up,
+		right + up + Vector2(8.0, -cap_height),
+		top + up + Vector2(0.0, -cap_height),
+	]), ROOM_WALL_TOP.darkened(0.08), ROOM_WALL_Z + 2)
+
+
+func _draw_wall_decorations(top: Vector2, left: Vector2, right: Vector2, up: Vector2) -> void:
+	_draw_door_on_right_wall(top, right, up)
+	_draw_window_on_left_wall(top, left, up)
+	_draw_picture_on_right_wall(top, right, up)
+
+
+func _draw_door_on_right_wall(top: Vector2, right: Vector2, up: Vector2) -> void:
+	var b1: Vector2 = top.lerp(right, 0.48)
+	var b2: Vector2 = top.lerp(right, 0.66)
+	var door_up: Vector2 = up * 0.56
+	var frame_pad: Vector2 = (b2 - b1).normalized() * 5.0
+	_draw_poly(PackedVector2Array([b1 - frame_pad, b2 + frame_pad, b2 + door_up + frame_pad, b1 + door_up - frame_pad]), ROOM_TRIM, ROOM_WALL_Z + 4)
+	_draw_poly(PackedVector2Array([b1, b2, b2 + door_up, b1 + door_up]), ROOM_DOOR, ROOM_WALL_Z + 5)
+	_draw_poly(PackedVector2Array([b1.lerp(b2, 0.10), b1.lerp(b2, 0.45), b1.lerp(b2, 0.45) + door_up * 0.88, b1.lerp(b2, 0.10) + door_up * 0.88]), ROOM_DOOR_HI, ROOM_WALL_Z + 6)
+	_draw_small_diamond(b1.lerp(b2, 0.78) + door_up * 0.46, 3.0, Color(0.95, 0.74, 0.32), ROOM_WALL_Z + 7)
+
+
+func _draw_window_on_left_wall(top: Vector2, left: Vector2, up: Vector2) -> void:
+	var b1: Vector2 = top.lerp(left, 0.32) + up * 0.38
+	var b2: Vector2 = top.lerp(left, 0.52) + up * 0.38
+	var h: Vector2 = up * 0.26
+	var side: Vector2 = (b2 - b1).normalized() * 5.0
+	_draw_poly(PackedVector2Array([b1 - side, b2 + side, b2 + h + side, b1 + h - side]), ROOM_TRIM, ROOM_WALL_Z + 4)
+	_draw_poly(PackedVector2Array([b1, b2, b2 + h, b1 + h]), ROOM_WINDOW, ROOM_WALL_Z + 5)
+	_draw_line(PackedVector2Array([b1.lerp(b2, 0.5), b1.lerp(b2, 0.5) + h]), ROOM_TRIM, 2.0, ROOM_WALL_Z + 6)
+	_draw_poly(PackedVector2Array([
+		b1.lerp(b2, 0.18) + h * 0.18,
+		b1.lerp(b2, 0.44) + h * 0.18,
+		b1.lerp(b2, 0.30) + h * 0.78,
+		b1.lerp(b2, 0.08) + h * 0.78,
+	]), ROOM_WINDOW_HI, ROOM_WALL_Z + 6)
+
+
+func _draw_picture_on_right_wall(top: Vector2, right: Vector2, up: Vector2) -> void:
+	var b1: Vector2 = top.lerp(right, 0.16) + up * 0.44
+	var b2: Vector2 = top.lerp(right, 0.29) + up * 0.44
+	var h: Vector2 = up * 0.18
+	var pad: Vector2 = (b2 - b1).normalized() * 4.0
+	_draw_poly(PackedVector2Array([b1 - pad, b2 + pad, b2 + h + pad, b1 + h - pad]), ROOM_TRIM, ROOM_WALL_Z + 4)
+	_draw_poly(PackedVector2Array([b1, b2, b2 + h, b1 + h]), ROOM_PICTURE, ROOM_WALL_Z + 5)
+	_draw_poly(PackedVector2Array([
+		b1.lerp(b2, 0.18) + h * 0.18,
+		b1.lerp(b2, 0.82) + h * 0.18,
+		b1.lerp(b2, 0.70) + h * 0.80,
+		b1.lerp(b2, 0.30) + h * 0.80,
+	]), ROOM_PICTURE_INNER, ROOM_WALL_Z + 6)
+
+
+func _draw_baseboards(top: Vector2, left: Vector2, right: Vector2) -> void:
+	_draw_line(PackedVector2Array([left, top, right]), ROOM_BASEBOARD, 8.0, -5)
+	_draw_line(PackedVector2Array([left + Vector2(0.0, -4.0), top + Vector2(0.0, -4.0), right + Vector2(0.0, -4.0)]), ROOM_BASEBOARD_HI, 2.0, -4)
+
+
+func _draw_poly(points: PackedVector2Array, color: Color, z: int) -> Polygon2D:
+	var poly: Polygon2D = Polygon2D.new()
+	poly.polygon = points
+	poly.color = color
+	poly.z_index = z
+	poly.antialiased = true
+	floor_node.add_child(poly)
+	return poly
+
+
+func _draw_line(points: PackedVector2Array, color: Color, width: float, z: int) -> Line2D:
+	var line: Line2D = Line2D.new()
+	line.points = points
+	line.default_color = color
+	line.width = width
+	line.z_index = z
+	line.joint_mode = Line2D.LINE_JOINT_ROUND
+	floor_node.add_child(line)
+	return line
+
+
+func _draw_small_diamond(center: Vector2, radius: float, color: Color, z: int) -> void:
+	_draw_poly(PackedVector2Array([
+		center + Vector2(0.0, -radius),
+		center + Vector2(radius, 0.0),
+		center + Vector2(0.0, radius),
+		center + Vector2(-radius, 0.0),
+	]), color, z)
 
 
 func _draw_tile_edge_shadow(cell) -> void:
